@@ -25,14 +25,60 @@ type WeaponType = "REVÓLVER" | "PISTOLA" | "CARABINA"
 
 type WeaponEntry = {
   type: WeaponType
+  // 1. Identificação
   brand: string
   model: string
-  serial: string
   caliber: string
-  tamborGira: boolean
+  serial: string
+  paisFabricacao: string
+  // 2. Características físicas
+  material: string
+  acabamento: string
+  compCano: string
+  numCamaras: string
+  tipoMira: string
+  // 3. Mecanismo de funcionamento
   acaoSimples: boolean
   acaoDupla: boolean
+  tamborGira: boolean
+  indexacaoCorreta: boolean
   caoFuncional: boolean
+  gatilhoFuncional: boolean
+  seguranca: boolean
+  // 4. Estado de conservação
+  ferrugem: boolean
+  ferrugemObs: string
+  desgaste: boolean
+  desgasteObs: string
+  danoEstruturais: boolean
+  danoEstruturaisObs: string
+  pecasFaltantes: boolean
+  pecasFaltantesObs: string
+  // 5. Exame de disparo (revólver)
+  aptoDisparo: boolean
+  funcMunicaoReal: boolean
+  testePercussao: boolean
+  marcacaoPercussor: boolean
+  // Carabina — Funcionamento
+  sistemaRepeticao: boolean
+  // Pistola — Funcionamento
+  carregadorPresente: boolean
+  carregadorFuncional: boolean
+  ferrolhoFuncional: boolean
+  percussorFuncional: boolean
+  extratorFuncional: boolean
+  ejetorFuncional: boolean
+  retencaoFerrolho: boolean
+  alimentacaoFuncional: boolean
+  // Pistola — Estado de conservação
+  desgasteMecanico: boolean
+  desgasteMecanicoObs: string
+  danosAparentes: boolean
+  danosAparentesObs: string
+  // Pistola — Teste de disparo
+  extracaoFuncional: boolean
+  ejacaoFuncional: boolean
+  ciclagemFuncional: boolean
 }
 
 type RecordItem = {
@@ -275,12 +321,49 @@ export default function MunicaoDBInterfacePreview() {
       type,
       brand: "",
       model: "",
-      serial: "",
       caliber: "",
-      tamborGira: true,
+      serial: "",
+      paisFabricacao: "",
+      material: "",
+      acabamento: "",
+      compCano: "",
+      numCamaras: "",
+      tipoMira: "",
       acaoSimples: true,
       acaoDupla: true,
+      tamborGira: true,
+      indexacaoCorreta: true,
       caoFuncional: true,
+      gatilhoFuncional: true,
+      seguranca: true,
+      ferrugem: false,
+      ferrugemObs: "",
+      desgaste: false,
+      desgasteObs: "",
+      danoEstruturais: false,
+      danoEstruturaisObs: "",
+      pecasFaltantes: false,
+      pecasFaltantesObs: "",
+      aptoDisparo: true,
+      funcMunicaoReal: true,
+      testePercussao: true,
+      marcacaoPercussor: true,
+      sistemaRepeticao: true,
+      carregadorPresente: true,
+      carregadorFuncional: true,
+      ferrolhoFuncional: true,
+      percussorFuncional: true,
+      extratorFuncional: true,
+      ejetorFuncional: true,
+      retencaoFerrolho: true,
+      alimentacaoFuncional: true,
+      desgasteMecanico: false,
+      desgasteMecanicoObs: "",
+      danosAparentes: false,
+      danosAparentesObs: "",
+      extracaoFuncional: true,
+      ejacaoFuncional: true,
+      ciclagemFuncional: true,
     }
     setActiveWeaponIdx(weapons.length)
     setWeapons((prev) => [...prev, newWeapon])
@@ -386,7 +469,7 @@ export default function MunicaoDBInterfacePreview() {
                               <button
                                 key={type}
                                 onClick={() => {
-                                  setWeapons([{ type, brand: "", model: "", serial: "", caliber: "", tamborGira: true, acaoSimples: true, acaoDupla: true, caoFuncional: true }])
+                                  setWeapons([{ type, brand: "", model: "", caliber: "", serial: "", paisFabricacao: "", material: "", acabamento: "", compCano: "", numCamaras: "", tipoMira: "", acaoSimples: true, acaoDupla: true, tamborGira: true, indexacaoCorreta: true, caoFuncional: true, gatilhoFuncional: true, seguranca: true, ferrugem: false, ferrugemObs: "", desgaste: false, desgasteObs: "", danoEstruturais: false, danoEstruturaisObs: "", pecasFaltantes: false, pecasFaltantesObs: "", aptoDisparo: true, funcMunicaoReal: true, testePercussao: true, marcacaoPercussor: true, carregadorPresente: true, carregadorFuncional: true, ferrolhoFuncional: true, percussorFuncional: true, extratorFuncional: true, ejetorFuncional: true, retencaoFerrolho: true, alimentacaoFuncional: true, desgasteMecanico: false, desgasteMecanicoObs: "", danosAparentes: false, danosAparentesObs: "", extracaoFuncional: true, ejacaoFuncional: true, ciclagemFuncional: true }])
                                   setActiveWeaponIdx(0)
                                   setWeaponType(type)
                                   setShowTypeSelector(false)
@@ -692,27 +775,267 @@ export default function MunicaoDBInterfacePreview() {
                             placeholder="Ex.: .38 SPL"
                           />
                         </div>
+
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            País de fabricação
+                          </label>
+                          <input
+                            value={activeWeapon?.paisFabricacao ?? ""}
+                            onChange={handleWeaponField("paisFabricacao")}
+                            disabled={!activeWeapon}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 disabled:opacity-40"
+                            placeholder="Ex.: Brasil"
+                          />
+                        </div>
                       </div>
 
-                      <div className="mt-5 grid gap-3 rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
-                        {[
-                          ["tamborGira", "Tambor gira"],
-                          ["acaoSimples", "Ação simples funcional"],
-                          ["acaoDupla", "Ação dupla funcional"],
-                          ["caoFuncional", "Cão funcional"],
-                        ].map(([key, label]) => (
-                          <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(activeWeapon?.[key as keyof WeaponEntry] ?? true)}
-                              onChange={handleWeaponField(key as keyof Omit<WeaponEntry, "type">)}
-                              disabled={!activeWeapon}
-                              className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334] disabled:opacity-40"
-                            />
-                            {label}
-                          </label>
-                        ))}
-                      </div>
+                      {/* ── REVÓLVER ── */}
+                      {activeWeapon?.type === "REVÓLVER" && (<>
+                        <div className="mt-5 mb-2 border-b border-[#d3c3a4] pb-2 text-base font-black uppercase tracking-[0.14em] text-[#50442f]">
+                          Características físicas
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {([
+                            ["material",   "Material",             "Ex.: aço, inox"],
+                            ["acabamento", "Acabamento",           "Ex.: oxidado, niquelado"],
+                            ["compCano",   "Comprimento do cano",  "Ex.: 4 pol."],
+                            ["numCamaras", "Número de câmaras",    "Ex.: 6"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                            <div key={field}>
+                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                placeholder={ph} />
+                            </div>
+                          ))}
+                          <div className="md:col-span-2">
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de mira</label>
+                            <input value={activeWeapon?.tipoMira ?? ""} onChange={handleWeaponField("tipoMira")}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                              placeholder="Ex.: aberta fixada" />
+                          </div>
+                        </div>
+
+                        <div className="mt-5 space-y-4">
+                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
+                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Mecanismo de funcionamento</div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {([
+                                ["acaoSimples",      "Ação simples funcional"],
+                                ["acaoDupla",        "Ação dupla funcional"],
+                                ["tamborGira",       "Tambor gira livremente"],
+                                ["indexacaoCorreta", "Indexação correta do tambor"],
+                                ["caoFuncional",     "Cão funcional"],
+                                ["gatilhoFuncional", "Gatilho funcional"],
+                                ["seguranca",        "Sistema de segurança"],
+                              ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                                <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                  <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)}
+                                    onChange={handleWeaponField(key)}
+                                    className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
+                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Estado de conservação</div>
+                            <div className="space-y-3">
+                              {([
+                                ["ferrugem",       "ferrugemObs",       "Presença de ferrugem"],
+                                ["desgaste",       "desgasteObs",       "Desgaste"],
+                                ["danoEstruturais","danoEstruturaisObs","Danos estruturais"],
+                                ["pecasFaltantes", "pecasFaltantesObs", "Peças faltantes"],
+                              ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
+                                <div key={key}>
+                                  <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                    <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)}
+                                      onChange={handleWeaponField(key)}
+                                      className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                    {label}
+                                  </label>
+                                  {activeWeapon?.[key] && (
+                                    <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
+                                      placeholder={`Descreva: ${label.toLowerCase()}`}
+                                      className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
+                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Exame de disparo</div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {([
+                                ["aptoDisparo",      "Apto a disparo"],
+                                ["funcMunicaoReal",  "Funcionamento com munição real"],
+                                ["testePercussao",   "Teste de percussão"],
+                                ["marcacaoPercussor","Marcação de percussor"],
+                              ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                                <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                  <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)}
+                                    onChange={handleWeaponField(key)}
+                                    className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </>)}
+
+                      {/* ── CARABINA ── */}
+                      {activeWeapon?.type === "CARABINA" && (
+                        <div className="mt-5 space-y-4">
+                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
+                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Funcionamento</div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {([
+                                ["sistemaRepeticao",  "Sistema de repetição funcional"],
+                                ["ferrolhoFuncional",  "Ferrolho funcional"],
+                                ["percussorFuncional", "Percussor funcional"],
+                                ["extratorFuncional",  "Extrator funcional"],
+                                ["ejetorFuncional",    "Ejetor funcional"],
+                                ["gatilhoFuncional",   "Gatilho funcional"],
+                                ["seguranca",          "Trava de segurança funcional"],
+                                ["alimentacaoFuncional","Alimentação funcional"],
+                              ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                                <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                  <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)}
+                                    onChange={handleWeaponField(key)}
+                                    className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
+                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Estado de conservação</div>
+                            <div className="space-y-3">
+                              {([
+                                ["ferrugem",        "ferrugemObs",         "Presença de ferrugem"],
+                                ["desgasteMecanico","desgasteMecanicoObs", "Desgaste mecânico"],
+                                ["pecasFaltantes",  "pecasFaltantesObs",   "Peças faltantes"],
+                                ["danosAparentes",  "danosAparentesObs",   "Danos aparentes"],
+                              ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
+                                <div key={key}>
+                                  <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                    <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)}
+                                      onChange={handleWeaponField(key)}
+                                      className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                    {label}
+                                  </label>
+                                  {activeWeapon?.[key] && (
+                                    <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
+                                      placeholder={`Descreva: ${label.toLowerCase()}`}
+                                      className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
+                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Teste de disparo</div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {([
+                                ["aptoDisparo",       "Apta para disparo"],
+                                ["testePercussao",    "Percussão funcional"],
+                                ["extracaoFuncional", "Extração funcional"],
+                                ["ejacaoFuncional",   "Ejeção funcional"],
+                                ["ciclagemFuncional", "Ciclagem funcional"],
+                              ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                                <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                  <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)}
+                                    onChange={handleWeaponField(key)}
+                                    className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── PISTOLA ── */}
+                      {activeWeapon?.type === "PISTOLA" && (
+                        <div className="mt-5 space-y-4">
+                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
+                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Funcionamento</div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {([
+                                ["carregadorPresente",  "Carregador presente"],
+                                ["carregadorFuncional", "Carregador funcional"],
+                                ["ferrolhoFuncional",   "Ferrolho funcional"],
+                                ["percussorFuncional",  "Percussor funcional"],
+                                ["extratorFuncional",   "Extrator funcional"],
+                                ["ejetorFuncional",     "Ejetor funcional"],
+                                ["gatilhoFuncional",    "Gatilho funcional"],
+                                ["seguranca",           "Trava de segurança funcional"],
+                                ["retencaoFerrolho",    "Retenção do ferrolho funcional"],
+                                ["alimentacaoFuncional","Alimentação funcional"],
+                              ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                                <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                  <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)}
+                                    onChange={handleWeaponField(key)}
+                                    className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
+                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Estado de conservação</div>
+                            <div className="space-y-3">
+                              {([
+                                ["ferrugem",       "ferrugemObs",          "Presença de ferrugem"],
+                                ["desgasteMecanico","desgasteMecanicoObs", "Desgaste mecânico"],
+                                ["pecasFaltantes", "pecasFaltantesObs",    "Peças faltantes"],
+                                ["danosAparentes", "danosAparentesObs",    "Danos aparentes"],
+                              ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
+                                <div key={key}>
+                                  <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                    <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)}
+                                      onChange={handleWeaponField(key)}
+                                      className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                    {label}
+                                  </label>
+                                  {activeWeapon?.[key] && (
+                                    <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
+                                      placeholder={`Descreva: ${label.toLowerCase()}`}
+                                      className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
+                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Teste de disparo</div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {([
+                                ["aptoDisparo",       "Apta para disparo"],
+                                ["testePercussao",    "Percussão funcional"],
+                                ["extracaoFuncional", "Extração funcional"],
+                                ["ejacaoFuncional",   "Ejeção funcional"],
+                                ["ciclagemFuncional", "Ciclagem funcional"],
+                              ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                                <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                  <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)}
+                                    onChange={handleWeaponField(key)}
+                                    className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div>
