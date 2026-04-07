@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
+import logo from "./assets/logo.png" 
 import {
   BarChart3,
   Building2,
   CalendarDays,
   Camera,
-  ChevronDown,
   CircleDot,
   Database,
   FolderKanban,
@@ -17,25 +17,11 @@ import {
   Search,
   Shield,
   Target,
-  Trash2,
   User2,
   X,
 } from "lucide-react"
 
 type WeaponType = "REVÓLVER" | "PISTOLA" | "CARABINA"
-
-type WeaponEntry = {
-  id: string
-  type: WeaponType
-  brand: string
-  model: string
-  serial: string
-  caliber: string
-  tamborGira: boolean
-  acaoSimples: boolean
-  acaoDupla: boolean
-  caoFuncional: boolean
-}
 
 type RecordItem = {
   id: string
@@ -112,49 +98,70 @@ function SidebarContent() {
   const item =
     "flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-[17px] font-medium transition"
   const icon = "h-5 w-5"
+
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-[#8e7340]/60 px-6 py-6">
-        <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border-4 border-[#d7b76f] bg-[radial-gradient(circle_at_30%_30%,#29466f,#13223f_62%,#0b1730)] shadow-[0_10px_24px_rgba(0,0,0,.24)]">
-          <Shield className="h-12 w-12 text-[#f0d08a]" />
-        </div>
+      <img
+        src={logo}
+        alt="Polícia Científica"
+        className="mx-auto w-36 h-36 object-contain"
+        style={{ background: "transparent" }}
+      />
+
+
         <div className="mt-4 text-center">
-          <div className="text-xl font-bold tracking-wide text-[#f4dda2]">POLÍCIA CIENTÍFICA</div>
-          <div className="text-sm uppercase tracking-[0.32em] text-[#d3b971]">Paraná</div>
+          <div className="text-xl font-bold tracking-wide text-[#f4dda2]">
+            POLÍCIA CIENTÍFICA
+          </div>
+          <div className="text-sm uppercase tracking-[0.32em] text-[#d3b971]">
+            Paraná
+          </div>
         </div>
       </div>
 
       <div className="px-5 py-5">
-        <div className="mb-3 text-xs font-bold uppercase tracking-[0.32em] text-[#b89a58]">Perícia</div>
+        <div className="mb-3 text-xs font-bold uppercase tracking-[0.32em] text-[#b89a58]">
+          Perícia
+        </div>
+
         <div className="space-y-2">
           <button className={cn(item, "text-[#f3e8c3] hover:bg-[#d7b76f]/10")}>
             <LayoutDashboard className={icon} />
             Início
           </button>
+
           <button className={cn(item, "bg-[#d7b76f]/12 text-[#f4dda2] shadow-inner shadow-[#d7b76f]/10")}>
             <Crosshair className={icon} />
             Exames de Armas
           </button>
+
           <button className={cn(item, "text-[#f3e8c3] hover:bg-[#d7b76f]/10")}>
             <FolderKanban className={icon} />
             Registros
           </button>
+
           <button className={cn(item, "text-[#f3e8c3] hover:bg-[#d7b76f]/10")}>
             <BarChart3 className={icon} />
             Estatísticas
           </button>
         </div>
 
-        <div className="mb-3 mt-7 text-xs font-bold uppercase tracking-[0.32em] text-[#b89a58]">Referência</div>
+        <div className="mb-3 mt-7 text-xs font-bold uppercase tracking-[0.32em] text-[#b89a58]">
+          Referência
+        </div>
+
         <div className="space-y-2">
           <button className={cn(item, "text-[#f3e8c3] hover:bg-[#d7b76f]/10")}>
             <Database className={icon} />
             Base de Dados
           </button>
+
           <button className={cn(item, "text-[#f3e8c3] hover:bg-[#d7b76f]/10")}>
             <Target className={icon} />
             Calibres
           </button>
+
           <button className={cn(item, "text-[#f3e8c3] hover:bg-[#d7b76f]/10")}>
             <Building2 className={icon} />
             Fabricantes
@@ -163,12 +170,11 @@ function SidebarContent() {
       </div>
 
       <div className="mt-auto border-t border-[#8e7340]/60 px-6 py-4 text-sm text-[#c8b27c]">
-        v3.0 • Veritas, Scientia et Iustitia
+        v3.0 • Beta
       </div>
     </div>
   )
 }
-
 function TopTab({
   label,
   active = false,
@@ -192,11 +198,8 @@ function TopTab({
 
 export default function MunicaoDBInterfacePreview() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [repStarted, setRepStarted] = useState(false)
+  const [weaponType, setWeaponType] = useState<WeaponType | null>(null)
   const [showTypeSelector, setShowTypeSelector] = useState(false)
-  const [showAddWeapon, setShowAddWeapon] = useState(false)
-  const [weapons, setWeapons] = useState<WeaponEntry[]>([])
-  const [activeWeaponId, setActiveWeaponId] = useState<string | null>(null)
   const [numberFilter, setNumberFilter] = useState("")
   const [yearFilter, setYearFilter] = useState("2026")
 
@@ -205,42 +208,16 @@ export default function MunicaoDBInterfacePreview() {
     unit: "Núcleo de Polícia Científica",
     expert: "Perito responsável",
     date: "26/03/2026",
+    brand: "",
+    model: "",
+    serial: "",
+    caliber: "",
+    tamborGira: true,
+    acaoSimples: true,
+    acaoDupla: true,
+    caoFuncional: true,
     observacoes: "",
   })
-
-  function makeWeapon(type: WeaponType): WeaponEntry {
-    return {
-      id: `${Date.now()}-${Math.random()}`,
-      type,
-      brand: "",
-      model: "",
-      serial: "",
-      caliber: "",
-      tamborGira: true,
-      acaoSimples: true,
-      acaoDupla: true,
-      caoFuncional: true,
-    }
-  }
-
-  function addWeapon(type: WeaponType) {
-    const entry = makeWeapon(type)
-    setWeapons((prev) => [...prev, entry])
-    setActiveWeaponId(entry.id)
-    setShowAddWeapon(false)
-  }
-
-  function updateWeapon(id: string, field: keyof WeaponEntry, value: string | boolean) {
-    setWeapons((prev) => prev.map((w) => (w.id === id ? { ...w, [field]: value } : w)))
-  }
-
-  function removeWeapon(id: string) {
-    setWeapons((prev) => {
-      const next = prev.filter((w) => w.id !== id)
-      if (activeWeaponId === id) setActiveWeaponId(next.length > 0 ? next[next.length - 1].id : null)
-      return next
-    })
-  }
 
   const filteredRecords = useMemo(() => {
     return recordsSeed.filter((item) => {
@@ -253,34 +230,21 @@ export default function MunicaoDBInterfacePreview() {
     })
   }, [numberFilter, yearFilter])
 
+  const titleByType: Record<WeaponType, string> = {
+    "REVÓLVER": "Exame de Revólver",
+    "PISTOLA": "Exame de Pistola",
+    "CARABINA": "Exame de Carabina",
+  }
+
   const handleField =
     (field: keyof typeof form) =>
     (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      setForm((current) => ({ ...current, [field]: event.target.value as never }))
+      const value =
+        event.target instanceof HTMLInputElement && event.target.type === "checkbox"
+          ? event.target.checked
+          : event.target.value
+      setForm((current) => ({ ...current, [field]: value as never }))
     }
-
-  const typeDropdown = (onSelect: (t: WeaponType) => void) => (
-    <motion.div
-      initial={{ opacity: 0, y: -8, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -8, scale: 0.97 }}
-      transition={{ duration: 0.15 }}
-      className="flex flex-col gap-2 rounded-2xl border border-[#8e7340] bg-[#0f1e39] p-3 shadow-[0_12px_32px_rgba(0,0,0,.32)]"
-    >
-      <div className="mb-1 px-1 text-xs font-bold uppercase tracking-[0.22em] text-[#b89a58]">
-        Tipo de arma
-      </div>
-      {(["REVÓLVER", "PISTOLA", "CARABINA"] as WeaponType[]).map((type) => (
-        <button
-          key={type}
-          onClick={() => onSelect(type)}
-          className="rounded-xl border border-[#8e7340] bg-[#162541] px-5 py-2.5 text-sm font-black tracking-wide text-[#f0d08a] transition hover:bg-[#1a2c4f]"
-        >
-          {type}
-        </button>
-      ))}
-    </motion.div>
-  )
 
   const sidebarDesktop = (
     <aside className="hidden w-[300px] shrink-0 border-r border-[#8e7340] bg-[linear-gradient(180deg,#0d1a31_0%,#11203c_58%,#0b1730_100%)] xl:block">
@@ -357,13 +321,7 @@ export default function MunicaoDBInterfacePreview() {
 
                     <div className="flex flex-col items-end gap-3">
                       <button
-                        onClick={() => {
-                          setRepStarted(false)
-                          setWeapons([])
-                          setActiveWeaponId(null)
-                          setShowAddWeapon(false)
-                          setShowTypeSelector((v) => !v)
-                        }}
+                        onClick={() => setShowTypeSelector((v) => !v)}
                         className="flex items-center gap-2 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] px-6 py-3 text-sm font-black tracking-wide text-[#1d2433] shadow transition hover:brightness-105 md:text-base"
                       >
                         <Plus className="h-4 w-4" />
@@ -371,13 +329,36 @@ export default function MunicaoDBInterfacePreview() {
                       </button>
 
                       <AnimatePresence>
-                        {showTypeSelector && typeDropdown((type) => {
-                          const entry = makeWeapon(type)
-                          setWeapons([entry])
-                          setActiveWeaponId(entry.id)
-                          setRepStarted(true)
-                          setShowTypeSelector(false)
-                        })}
+                        {showTypeSelector && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                            transition={{ duration: 0.18 }}
+                            className="flex flex-col gap-2 rounded-2xl border border-[#8e7340] bg-[#0f1e39] p-3 shadow-[0_12px_32px_rgba(0,0,0,.32)]"
+                          >
+                            <div className="mb-1 px-1 text-xs font-bold uppercase tracking-[0.22em] text-[#b89a58]">
+                              Selecionar tipo de arma
+                            </div>
+                            {(["REVÓLVER", "PISTOLA", "CARABINA"] as WeaponType[]).map((type) => (
+                              <button
+                                key={type}
+                                onClick={() => {
+                                  setWeaponType(type)
+                                  setShowTypeSelector(false)
+                                }}
+                                className={cn(
+                                  "rounded-xl border px-5 py-2.5 text-sm font-black tracking-wide transition",
+                                  weaponType === type
+                                    ? "border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] text-[#1d2433]"
+                                    : "border-[#8e7340] bg-[#162541] text-[#f0d08a] hover:bg-[#1a2c4f]",
+                                )}
+                              >
+                                {type}
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
                       </AnimatePresence>
                     </div>
                   </div>
@@ -470,246 +451,193 @@ export default function MunicaoDBInterfacePreview() {
                 <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f5efe3] text-[#26221b] shadow-[0_20px_44px_rgba(0,0,0,.28)]">
                   <div className="border-b border-[#cab88f] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
                     <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-xl font-black text-[#f0d08a]">Novo Exame Pericial</h3>
-                        {repStarted && (
-                          <p className="mt-0.5 text-xs text-[#b89a58]">
-                            {weapons.length} {weapons.length === 1 ? "arma" : "armas"} adicionada{weapons.length !== 1 ? "s" : ""}
-                          </p>
-                        )}
-                      </div>
+                      <h3 className="text-xl font-black text-[#f0d08a]">{titleByType[weaponType]}</h3>
                       <div className="rounded-xl border border-[#8e7340] bg-[#162541] p-2 text-[#f0d08a]">
                         <Camera className="h-5 w-5" />
                       </div>
                     </div>
                   </div>
 
-                  {!repStarted ? (
-                    <div className="flex flex-col items-center justify-center gap-6 p-10 text-center">
-                      <div className="rounded-full border-2 border-[#8e7340] bg-[#0f1e39] p-6">
-                        <Crosshair className="h-12 w-12 text-[#f0d08a]" />
-                      </div>
-                      <div>
-                        <p className="text-lg font-bold text-[#50442f]">Nenhum REP em andamento</p>
-                        <p className="mt-1 text-sm text-[#7a6a50]">
-                          Clique em <span className="font-black">NOVO REP</span> para iniciar um exame.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
                   <div className="space-y-6 p-5 md:p-6">
-
-                    {/* Identificação */}
                     <div>
                       <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
                         Identificação do exame
                       </div>
+
                       <div className="grid gap-4 md:grid-cols-2">
                         <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número do exame</label>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Número do exame
+                          </label>
                           <div className="relative">
                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                            <input value={form.examNumber} onChange={handleField("examNumber")} className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                            <input
+                              value={form.examNumber}
+                              onChange={handleField("examNumber")}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            />
                           </div>
                         </div>
+
                         <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Data do exame</label>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Data do exame
+                          </label>
                           <div className="relative">
                             <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                            <input value={form.date} onChange={handleField("date")} className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                            <input
+                              value={form.date}
+                              onChange={handleField("date")}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            />
                           </div>
                         </div>
+
                         <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Unidade</label>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Unidade
+                          </label>
                           <div className="relative">
                             <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                            <input value={form.unit} onChange={handleField("unit")} className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                            <input
+                              value={form.unit}
+                              onChange={handleField("unit")}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            />
                           </div>
                         </div>
+
                         <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Perito</label>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Perito
+                          </label>
                           <div className="relative">
                             <User2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                            <input value={form.expert} onChange={handleField("expert")} className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                            <input
+                              value={form.expert}
+                              onChange={handleField("expert")}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            />
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Lista de armas */}
                     <div>
-                      <div className="mb-3 flex items-center justify-between border-b border-[#d3c3a4] pb-2">
-                        <span className="text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">Armas</span>
-                        <span className="rounded-full border border-[#d8c59b] bg-[#f2e4bc] px-2.5 py-0.5 text-xs font-black text-[#5b4a2e]">
-                          {weapons.length}
-                        </span>
+                      <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
+                        Dados da arma
                       </div>
 
-                      <div className="space-y-2">
-                        {weapons.map((weapon, i) => (
-                          <div key={weapon.id} className="overflow-hidden rounded-2xl border border-[#d9ccb2] bg-[#fbf8f3]">
-                            {/* Cabeçalho da arma */}
-                            <div className="flex items-center gap-2 px-4 py-3">
-                              <button
-                                className="flex flex-1 items-center gap-3 text-left"
-                                onClick={() => setActiveWeaponId(activeWeaponId === weapon.id ? null : weapon.id)}
-                              >
-                                <span className="rounded-lg border border-[#d8c59b] bg-[#f2e4bc] px-2 py-0.5 text-xs font-black uppercase tracking-wide text-[#5b4a2e]">
-                                  {weapon.type}
-                                </span>
-                                <span className="flex-1 truncate text-sm font-bold text-[#40362a]">
-                                  {weapon.brand || weapon.model
-                                    ? `${weapon.brand} ${weapon.model}`.trim()
-                                    : <span className="font-normal text-[#9e8e78]">Arma {i + 1} — preencher dados</span>}
-                                </span>
-                                <ChevronDown className={cn("h-4 w-4 shrink-0 text-[#8d7854] transition-transform", activeWeaponId === weapon.id && "rotate-180")} />
-                              </button>
-                              <button
-                                onClick={() => removeWeapon(weapon.id)}
-                                className="ml-1 rounded-lg p-1.5 text-[#b07070] transition hover:bg-[#f5e0e0]"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Marca
+                          </label>
+                          <input
+                            value={form.brand}
+                            onChange={handleField("brand")}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            placeholder="Ex.: Taurus"
+                          />
+                        </div>
 
-                            {/* Dados expandidos da arma */}
-                            <AnimatePresence initial={false}>
-                              {activeWeaponId === weapon.id && (
-                                <motion.div
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: "auto", opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  transition={{ duration: 0.2 }}
-                                  className="overflow-hidden"
-                                >
-                                  <div className="space-y-4 border-t border-[#d9ccb2] px-4 py-4">
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                      <div>
-                                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Marca</label>
-                                        <input
-                                          value={weapon.brand}
-                                          onChange={(e) => updateWeapon(weapon.id, "brand", e.target.value)}
-                                          className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                          placeholder="Ex.: Taurus"
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Modelo</label>
-                                        <input
-                                          value={weapon.model}
-                                          onChange={(e) => updateWeapon(weapon.id, "model", e.target.value)}
-                                          className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                          placeholder="Ex.: RT 627"
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de série</label>
-                                        <input
-                                          value={weapon.serial}
-                                          onChange={(e) => updateWeapon(weapon.id, "serial", e.target.value)}
-                                          className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                          placeholder="Informar identificação"
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre</label>
-                                        <input
-                                          value={weapon.caliber}
-                                          onChange={(e) => updateWeapon(weapon.id, "caliber", e.target.value)}
-                                          className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                          placeholder="Ex.: .38 SPL"
-                                        />
-                                      </div>
-                                    </div>
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Modelo
+                          </label>
+                          <input
+                            value={form.model}
+                            onChange={handleField("model")}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            placeholder="Ex.: RT 627"
+                          />
+                        </div>
 
-                                    <div className="grid gap-3 rounded-2xl border border-[#d5c7aa] bg-[#f5f1e8] p-4">
-                                      {([
-                                        ["tamborGira", "Tambor gira"],
-                                        ["acaoSimples", "Ação simples funcional"],
-                                        ["acaoDupla", "Ação dupla funcional"],
-                                        ["caoFuncional", "Cão funcional"],
-                                      ] as [keyof WeaponEntry, string][]).map(([key, lbl]) => (
-                                        <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                          <input
-                                            type="checkbox"
-                                            checked={Boolean(weapon[key])}
-                                            onChange={(e) => updateWeapon(weapon.id, key, e.target.checked)}
-                                            className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]"
-                                          />
-                                          {lbl}
-                                        </label>
-                                      ))}
-                                    </div>
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Número de série
+                          </label>
+                          <input
+                            value={form.serial}
+                            onChange={handleField("serial")}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            placeholder="Informar identificação"
+                          />
+                        </div>
 
-                                    <div className="grid gap-3 sm:grid-cols-2">
-                                      <button className="rounded-2xl border border-[#d3c4a8] bg-[#ece6da] p-3 text-center transition hover:bg-[#e8dfcf]">
-                                        <div className="flex h-14 items-center justify-center">
-                                          <Camera className="h-8 w-8 text-[#7b6c52]" />
-                                        </div>
-                                        <div className="rounded-xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] px-3 py-2 text-xs font-black tracking-[0.16em] text-[#f8e3b3]">
-                                          TIRAR FOTO
-                                        </div>
-                                      </button>
-                                      <button className="rounded-2xl border border-[#d3c4a8] bg-[#ece6da] p-3 text-center transition hover:bg-[#e8dfcf]">
-                                        <div className="flex h-14 items-center justify-center">
-                                          <ImageIcon className="h-8 w-8 text-[#7b6c52]" />
-                                        </div>
-                                        <div className="rounded-xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] px-3 py-2 text-xs font-black tracking-[0.16em] text-[#f8e3b3]">
-                                          GALERIA
-                                        </div>
-                                      </button>
-                                    </div>
-                                  </div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Calibre
+                          </label>
+                          <input
+                            value={form.caliber}
+                            onChange={handleField("caliber")}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            placeholder="Ex.: .38 SPL"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-5 grid gap-3 rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
+                        {[
+                          ["tamborGira", "Tambor gira"],
+                          ["acaoSimples", "Ação simples funcional"],
+                          ["acaoDupla", "Ação dupla funcional"],
+                          ["caoFuncional", "Cão funcional"],
+                        ].map(([key, label]) => (
+                          <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(form[key as keyof typeof form])}
+                              onChange={handleField(key as keyof typeof form)}
+                              className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]"
+                            />
+                            {label}
+                          </label>
                         ))}
-                      </div>
-
-                      {/* Botão adicionar arma */}
-                      <div className="relative mt-3">
-                        <button
-                          onClick={() => setShowAddWeapon((v) => !v)}
-                          className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#b89a58] bg-transparent py-3 text-sm font-black tracking-wide text-[#b89a58] transition hover:border-[#d7b76f] hover:text-[#d7b76f]"
-                        >
-                          <Plus className="h-4 w-4" />
-                          ADICIONAR ARMA
-                        </button>
-                        <AnimatePresence>
-                          {showAddWeapon && (
-                            <div className="absolute left-0 right-0 top-full z-10 mt-2">
-                              {typeDropdown((type) => addWeapon(type))}
-                            </div>
-                          )}
-                        </AnimatePresence>
                       </div>
                     </div>
 
-                    {/* Observações */}
+                    <div>
+                      <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
+                        Imagens
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <button className="rounded-2xl border border-[#d3c4a8] bg-[#ece6da] p-4 text-center transition hover:bg-[#e8dfcf]">
+                          <div className="flex h-20 items-center justify-center">
+                            <Camera className="h-10 w-10 text-[#7b6c52]" />
+                          </div>
+                          <div className="rounded-xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] px-4 py-3 text-sm font-black tracking-[0.16em] text-[#f8e3b3]">
+                            TIRAR FOTO
+                          </div>
+                        </button>
+
+                        <button className="rounded-2xl border border-[#d3c4a8] bg-[#ece6da] p-4 text-center transition hover:bg-[#e8dfcf]">
+                          <div className="flex h-20 items-center justify-center">
+                            <ImageIcon className="h-10 w-10 text-[#7b6c52]" />
+                          </div>
+                          <div className="rounded-xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] px-4 py-3 text-sm font-black tracking-[0.16em] text-[#f8e3b3]">
+                            GALERIA
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
                     <div>
                       <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                        Observações gerais do REP
+                        Observações
                       </label>
                       <textarea
                         value={form.observacoes}
                         onChange={handleField("observacoes")}
-                        className="min-h-[120px] w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 py-3 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                        placeholder="Observações técnicas, estado geral e demais elementos relevantes ao exame."
+                        className="min-h-[140px] w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 py-3 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        placeholder="Inserir observações técnicas, estado geral, particularidades e demais elementos relevantes."
                       />
                     </div>
 
-                    {/* Ações */}
                     <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[#d3c3a4] pt-5">
-                      <button
-                        onClick={() => {
-                          setRepStarted(false)
-                          setWeapons([])
-                          setActiveWeaponId(null)
-                          setForm({ examNumber: "2026", unit: "Núcleo de Polícia Científica", expert: "Perito responsável", date: "26/03/2026", observacoes: "" })
-                        }}
-                        className="rounded-2xl border border-[#a8894c] bg-[#efe1b5] px-5 py-3 text-sm font-black tracking-[0.14em] text-[#4b3b21] transition hover:brightness-95"
-                      >
+                      <button className="rounded-2xl border border-[#a8894c] bg-[#efe1b5] px-5 py-3 text-sm font-black tracking-[0.14em] text-[#4b3b21] transition hover:brightness-95">
                         LIMPAR
                       </button>
                       <button className="rounded-2xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] px-7 py-3 text-sm font-black tracking-[0.16em] text-[#f8e3b3] shadow-[0_12px_24px_rgba(66,50,24,.22)] transition hover:brightness-105">
@@ -717,7 +645,6 @@ export default function MunicaoDBInterfacePreview() {
                       </button>
                     </div>
                   </div>
-                  )}
                 </div>
               </section>
             </div>
