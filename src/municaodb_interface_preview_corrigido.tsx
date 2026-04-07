@@ -23,6 +23,18 @@ import {
 
 type WeaponType = "REVÓLVER" | "PISTOLA" | "CARABINA"
 
+type WeaponEntry = {
+  type: WeaponType
+  brand: string
+  model: string
+  serial: string
+  caliber: string
+  tamborGira: boolean
+  acaoSimples: boolean
+  acaoDupla: boolean
+  caoFuncional: boolean
+}
+
 type RecordItem = {
   id: string
   number: string
@@ -202,22 +214,21 @@ export default function MunicaoDBInterfacePreview() {
   const [showTypeSelector, setShowTypeSelector] = useState(false)
   const [numberFilter, setNumberFilter] = useState("")
   const [yearFilter, setYearFilter] = useState("2026")
+  const [unitFilter, setUnitFilter] = useState("")
 
   const [form, setForm] = useState({
     examNumber: "2026",
     unit: "Núcleo de Polícia Científica",
     expert: "Perito responsável",
     date: "26/03/2026",
-    brand: "",
-    model: "",
-    serial: "",
-    caliber: "",
-    tamborGira: true,
-    acaoSimples: true,
-    acaoDupla: true,
-    caoFuncional: true,
     observacoes: "",
   })
+
+  const [weapons, setWeapons] = useState<WeaponEntry[]>([])
+  const [activeWeaponIdx, setActiveWeaponIdx] = useState(0)
+  const [showAddWeaponSelector, setShowAddWeaponSelector] = useState(false)
+
+  const activeWeapon = weapons[activeWeaponIdx] ?? null
 
   const filteredRecords = useMemo(() => {
     return recordsSeed.filter((item) => {
@@ -226,7 +237,8 @@ export default function MunicaoDBInterfacePreview() {
         item.number.toLowerCase().includes(numberFilter.toLowerCase()) ||
         item.model.toLowerCase().includes(numberFilter.toLowerCase())
       const yearOk = !yearFilter || item.year.includes(yearFilter)
-      return numberOk && yearOk
+      const unitOk = !unitFilter || item.unit.toLowerCase().includes(unitFilter.toLowerCase())
+      return numberOk && yearOk && unitOk
     })
   }, [numberFilter, yearFilter])
 
@@ -246,6 +258,34 @@ export default function MunicaoDBInterfacePreview() {
       setForm((current) => ({ ...current, [field]: value as never }))
     }
 
+  const handleWeaponField =
+    (field: keyof Omit<WeaponEntry, "type">) =>
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const value =
+        event.target instanceof HTMLInputElement && event.target.type === "checkbox"
+          ? event.target.checked
+          : event.target.value
+      setWeapons((prev) =>
+        prev.map((w, i) => (i === activeWeaponIdx ? { ...w, [field]: value as never } : w))
+      )
+    }
+
+  const addWeapon = (type: WeaponType) => {
+    const newWeapon: WeaponEntry = {
+      type,
+      brand: "",
+      model: "",
+      serial: "",
+      caliber: "",
+      tamborGira: true,
+      acaoSimples: true,
+      acaoDupla: true,
+      caoFuncional: true,
+    }
+    setActiveWeaponIdx(weapons.length)
+    setWeapons((prev) => [...prev, newWeapon])
+  }
+
   const sidebarDesktop = (
     <aside className="hidden w-[300px] shrink-0 border-r border-[#8e7340] bg-[linear-gradient(180deg,#0d1a31_0%,#11203c_58%,#0b1730_100%)] xl:block">
       <SidebarContent />
@@ -253,10 +293,12 @@ export default function MunicaoDBInterfacePreview() {
   )
 
   const sidebarMobile = (
-    <div className="h-full bg-[linear-gradient(180deg,#0d1a31_0%,#11203c_58%,#0b1730_100%)]">
-      <SidebarContent />
-    </div>
+  <div className="min-h-screen bg-[linear-gradient(180deg,#0d1a31_0%,#11203c_58%,#0b1730_100%)]">
+    <SidebarContent />
+  </div>
   )
+
+
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#09142a_0%,#0d1a34_50%,#091429_100%)] text-white">
@@ -344,6 +386,8 @@ export default function MunicaoDBInterfacePreview() {
                               <button
                                 key={type}
                                 onClick={() => {
+                                  setWeapons([{ type, brand: "", model: "", serial: "", caliber: "", tamborGira: true, acaoSimples: true, acaoDupla: true, caoFuncional: true }])
+                                  setActiveWeaponIdx(0)
                                   setWeaponType(type)
                                   setShowTypeSelector(false)
                                 }}
@@ -392,6 +436,18 @@ export default function MunicaoDBInterfacePreview() {
                           onChange={(e) => setYearFilter(e.target.value)}
                           className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                           placeholder="2026"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.16em] text-[#6b5838]">
+                          Unidade
+                        </label>
+                        <input
+                          value={unitFilter}
+                          onChange={(e) => setUnitFilter(e.target.value)}
+                          className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                          placeholder="Ex: NPC Curitiba"
                         />
                       </div>
 
@@ -451,7 +507,7 @@ export default function MunicaoDBInterfacePreview() {
                 <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f5efe3] text-[#26221b] shadow-[0_20px_44px_rgba(0,0,0,.28)]">
                   <div className="border-b border-[#cab88f] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
                     <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-xl font-black text-[#f0d08a]">{titleByType[weaponType]}</h3>
+                      <h3 className="text-xl font-black text-[#f0d08a]">{weaponType ? titleByType[weaponType] : "Exame de Arma"}</h3>
                       <div className="rounded-xl border border-[#8e7340] bg-[#162541] p-2 text-[#f0d08a]">
                         <Camera className="h-5 w-5" />
                       </div>
@@ -524,9 +580,65 @@ export default function MunicaoDBInterfacePreview() {
                     </div>
 
                     <div>
-                      <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
-                        Dados da arma
+                      <div className="mb-4 border-b border-[#d3c3a4] pb-2 flex items-center justify-between">
+                        <span className="text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">Dados da arma</span>
+                        {weapons.length > 0 && (
+                          <button
+                            onClick={() => setShowAddWeaponSelector((v) => !v)}
+                            className="flex items-center gap-1 rounded-xl border border-[#8e7340] bg-[#162541] px-3 py-1.5 text-xs font-black tracking-wide text-[#f0d08a] hover:bg-[#1a2c4f]"
+                          >
+                            <Plus className="h-3 w-3" />
+                            Adicionar arma
+                          </button>
+                        )}
                       </div>
+
+                      <AnimatePresence>
+                        {showAddWeaponSelector && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -6 }}
+                            transition={{ duration: 0.15 }}
+                            className="mb-4 flex flex-wrap gap-2 rounded-xl border border-[#8e7340] bg-[#0f1e39] p-3"
+                          >
+                            <div className="w-full mb-1 px-1 text-xs font-bold uppercase tracking-[0.22em] text-[#b89a58]">
+                              Tipo da nova arma
+                            </div>
+                            {(["REVÓLVER", "PISTOLA", "CARABINA"] as WeaponType[]).map((t) => (
+                              <button
+                                key={t}
+                                onClick={() => {
+                                  addWeapon(t)
+                                  setShowAddWeaponSelector(false)
+                                }}
+                                className="rounded-xl border border-[#8e7340] bg-[#162541] px-5 py-2.5 text-sm font-black tracking-wide text-[#f0d08a] hover:bg-[#1a2c4f]"
+                              >
+                                {t}
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {weapons.length > 1 && (
+                        <div className="mb-4 flex flex-wrap gap-2">
+                          {weapons.map((w, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setActiveWeaponIdx(i)}
+                              className={cn(
+                                "rounded-xl border px-4 py-2 text-sm font-bold tracking-wide transition",
+                                activeWeaponIdx === i
+                                  ? "border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] text-[#1d2433]"
+                                  : "border-[#d3c4a8] bg-[#fbf8f3] text-[#50442f] hover:bg-[#ece6da]",
+                              )}
+                            >
+                              Arma {i + 1} — {w.type}
+                            </button>
+                          ))}
+                        </div>
+                      )}
 
                       <div className="grid gap-4 md:grid-cols-2">
                         <div>
@@ -534,9 +646,10 @@ export default function MunicaoDBInterfacePreview() {
                             Marca
                           </label>
                           <input
-                            value={form.brand}
-                            onChange={handleField("brand")}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            value={activeWeapon?.brand ?? ""}
+                            onChange={handleWeaponField("brand")}
+                            disabled={!activeWeapon}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 disabled:opacity-40"
                             placeholder="Ex.: Taurus"
                           />
                         </div>
@@ -546,9 +659,10 @@ export default function MunicaoDBInterfacePreview() {
                             Modelo
                           </label>
                           <input
-                            value={form.model}
-                            onChange={handleField("model")}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            value={activeWeapon?.model ?? ""}
+                            onChange={handleWeaponField("model")}
+                            disabled={!activeWeapon}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 disabled:opacity-40"
                             placeholder="Ex.: RT 627"
                           />
                         </div>
@@ -558,9 +672,10 @@ export default function MunicaoDBInterfacePreview() {
                             Número de série
                           </label>
                           <input
-                            value={form.serial}
-                            onChange={handleField("serial")}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            value={activeWeapon?.serial ?? ""}
+                            onChange={handleWeaponField("serial")}
+                            disabled={!activeWeapon}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 disabled:opacity-40"
                             placeholder="Informar identificação"
                           />
                         </div>
@@ -570,9 +685,10 @@ export default function MunicaoDBInterfacePreview() {
                             Calibre
                           </label>
                           <input
-                            value={form.caliber}
-                            onChange={handleField("caliber")}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            value={activeWeapon?.caliber ?? ""}
+                            onChange={handleWeaponField("caliber")}
+                            disabled={!activeWeapon}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 disabled:opacity-40"
                             placeholder="Ex.: .38 SPL"
                           />
                         </div>
@@ -588,9 +704,10 @@ export default function MunicaoDBInterfacePreview() {
                           <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
                             <input
                               type="checkbox"
-                              checked={Boolean(form[key as keyof typeof form])}
-                              onChange={handleField(key as keyof typeof form)}
-                              className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]"
+                              checked={Boolean(activeWeapon?.[key as keyof WeaponEntry] ?? true)}
+                              onChange={handleWeaponField(key as keyof Omit<WeaponEntry, "type">)}
+                              disabled={!activeWeapon}
+                              className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334] disabled:opacity-40"
                             />
                             {label}
                           </label>
@@ -666,7 +783,7 @@ export default function MunicaoDBInterfacePreview() {
                 animate={{ x: 0 }}
                 exit={{ x: -340 }}
                 transition={{ type: "spring", damping: 24, stiffness: 220 }}
-                className="fixed left-0 top-0 z-50 h-full w-[300px] overflow-y-auto border-r border-[#8e7340] shadow-[0_20px_40px_rgba(0,0,0,.28)] xl:hidden"
+                className="fixed left-0 top-0 z-50 h-screen w-screen max-w-[340px] overflow-y-auto border-r border-[#8e7340] bg-[linear-gradient(180deg,#0d1a31_0%,#11203c_58%,#0b1730_100%)] shadow-[0_20px_40px_rgba(0,0,0,.28)] xl:hidden"
               >
                 <div className="flex items-center justify-between border-b border-[#8e7340]/70 bg-[#13233f] px-4 py-4">
                   <div className="text-lg font-black text-[#f0d08a]">MunicaoDB</div>
