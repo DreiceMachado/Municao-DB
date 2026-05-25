@@ -130,6 +130,60 @@ function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ")
 }
 
+function CollapsibleSection({
+  title,
+  extra,
+  children,
+  defaultOpen = true,
+}: {
+  title: string
+  extra?: React.ReactNode
+  children: React.ReactNode
+  defaultOpen?: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between border-b border-[#d3c3a4] pb-2">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="flex items-center gap-2 text-left md:cursor-default"
+        >
+          <span className="text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">{title}</span>
+          <ChevronDown className={cn("h-5 w-5 shrink-0 text-[#6b5838] transition-transform md:hidden", open ? "rotate-180" : "")} />
+        </button>
+        {extra && <div className="flex items-center gap-2">{extra}</div>}
+      </div>
+      <div className={cn("md:!block", open ? "block" : "hidden")}>{children}</div>
+    </div>
+  )
+}
+
+function CollapsibleCard({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3]">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between px-5 py-4 md:cursor-default"
+      >
+        <span className="text-sm font-black uppercase tracking-[0.14em] text-[#50442f] md:text-xs md:tracking-[0.18em] md:text-[#6b5838]">{title}</span>
+        <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#e8dfc8] text-[#6b5838] transition-transform md:hidden", open ? "rotate-180" : "")}>
+          <ChevronDown className="h-4 w-4" />
+        </div>
+      </button>
+      <div className={cn("px-4 pb-4 md:!block", open ? "block" : "hidden")}>{children}</div>
+    </div>
+  )
+}
 
 function SidebarContent() {
   const item =
@@ -572,13 +626,13 @@ export default function MunicaoDBInterfacePreview() {
                       initial={{ x: "100%" }}
                       animate={{ x: 0 }}
                       exit={{ x: "100%" }}
-                      transition={{ type: "spring", damping: 26, stiffness: 220 }}
-                      className="fixed right-0 top-0 z-50 h-screen w-full max-w-[700px] overflow-y-auto border-l border-[#8e7340] shadow-[0_20px_44px_rgba(0,0,0,.4)]"
+                      transition={{ type: "spring", damping: 28, stiffness: 200 }}
+                      className="fixed inset-0 z-50 overflow-y-auto"
                     >
                       <div className="min-h-full bg-[#f5efe3] text-[#26221b]">
                         <div className="sticky top-0 z-10 border-b border-[#cab88f] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
                           <div className="flex items-center justify-between gap-3">
-                            <h3 className="text-xl font-black text-[#f0d08a]">{weaponType ? titleByType[weaponType] : "Exame de Arma"}</h3>
+                            <h3 className="text-xl font-black text-[#f0d08a]">MuniçãoDB</h3>
                             <div className="flex items-center gap-2">
                               <div className="rounded-xl border border-[#8e7340] bg-[#162541] p-2 text-[#f0d08a]">
                                 <Camera className="h-5 w-5" />
@@ -598,7 +652,6 @@ export default function MunicaoDBInterfacePreview() {
                       <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
                         Identificação do exame
                       </div>
-
                       <div className="grid gap-4 md:grid-cols-2">
                         <div>
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
@@ -658,44 +711,42 @@ export default function MunicaoDBInterfacePreview() {
                       </div>
                     </div>
 
-                    <div>
-                      <div className="mb-4 border-b border-[#d3c3a4] pb-2 flex items-center justify-between">
-                        <span className="text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">Dados da arma</span>
-                        {weapons.length > 0 && (
-                          <div className="flex items-center gap-2">
-                            <div className="relative">
-                              <select
-                                defaultValue=""
-                                onChange={(e) => {
-                                  const t = e.target.value as WeaponType
-                                  if (!t) return
-                                  addWeapon(t)
-                                  e.currentTarget.value = ""
-                                }}
-                                className="h-8 appearance-none rounded-xl border border-[#8e7340] bg-[#162541] pl-3 pr-8 text-xs font-black tracking-wide text-[#f0d08a] outline-none cursor-pointer hover:bg-[#1a2c4f]"
-                              >
-                                <option value="" disabled>Adicionar arma</option>
-                                <option value="REVÓLVER">REVÓLVER</option>
-                                <option value="PISTOLA">PISTOLA</option>
-                                <option value="CARABINA">CARABINA</option>
-                              </select>
-                              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-[#f0d08a]" />
-                            </div>
-                            <button
-                              onClick={() => {
-                                const updated = weapons.filter((_, i) => i !== activeWeaponIdx)
-                                setWeapons(updated)
-                                setActiveWeaponIdx(Math.max(0, activeWeaponIdx - 1))
-                                if (updated.length === 0) setWeaponType(null)
-                              }}
-                              className="flex items-center gap-1 rounded-xl border border-[#7a3535] bg-[#2a1515] px-3 py-2 text-xs font-black tracking-wide text-[#f08a8a] hover:bg-[#3a1a1a]"
-                            >
-                              <X className="h-3 w-3" />
-                              Remover arma
-                            </button>
-                          </div>
-                        )}
+                    {weapons.length > 0 && (
+                      <div className="flex flex-wrap gap-3">
+                        <div className="relative flex-1">
+                          <select
+                            defaultValue=""
+                            onChange={(e) => {
+                              const t = e.target.value as WeaponType
+                              if (!t) return
+                              addWeapon(t)
+                              e.currentTarget.value = ""
+                            }}
+                            className="h-12 w-full appearance-none rounded-xl border border-[#8e7340] bg-[#162541] pl-4 pr-10 text-sm font-black tracking-wide text-[#f0d08a] outline-none cursor-pointer hover:bg-[#1a2c4f]"
+                          >
+                            <option value="" disabled>+ Adicionar arma</option>
+                            <option value="REVÓLVER">REVÓLVER</option>
+                            <option value="PISTOLA">PISTOLA</option>
+                            <option value="CARABINA">CARABINA</option>
+                          </select>
+                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#f0d08a]" />
+                        </div>
+                        <button
+                          onClick={() => {
+                            const updated = weapons.filter((_, i) => i !== activeWeaponIdx)
+                            setWeapons(updated)
+                            setActiveWeaponIdx(Math.max(0, activeWeaponIdx - 1))
+                            if (updated.length === 0) setWeaponType(null)
+                          }}
+                          className="flex h-12 items-center gap-2 rounded-xl border border-[#7a3535] bg-[#2a1515] px-4 text-sm font-black tracking-wide text-[#f08a8a] hover:bg-[#3a1a1a]"
+                        >
+                          <X className="h-4 w-4" />
+                          Remover arma
+                        </button>
                       </div>
+                    )}
+
+                    <CollapsibleSection title="Dados da arma">
 
                       {weapons.length > 1 && (
                         <div className="mb-4 flex flex-wrap gap-2">
@@ -785,34 +836,33 @@ export default function MunicaoDBInterfacePreview() {
 
                       {/* ── REVÓLVER ── */}
                       {activeWeapon?.type === "REVÓLVER" && (<>
-                        <div className="mt-5 mb-2 border-b border-[#d3c3a4] pb-2 text-base font-black uppercase tracking-[0.14em] text-[#50442f]">
-                          Características físicas
-                        </div>
-                        <div className="grid gap-4 md:grid-cols-2">
-                          {([
-                            ["material",   "Material",             "Ex.: aço, inox"],
-                            ["acabamento", "Acabamento",           "Ex.: oxidado, niquelado"],
-                            ["compCano",   "Comprimento do cano",  "Ex.: 4 pol."],
-                            ["numCamaras", "Número de câmaras",    "Ex.: 6"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
-                            <div key={field}>
-                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                        <div className="mt-4">
+                        <CollapsibleSection title="Características físicas" defaultOpen={false}>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            {([
+                              ["material",   "Material",             "Ex.: aço, inox"],
+                              ["acabamento", "Acabamento",           "Ex.: oxidado, niquelado"],
+                              ["compCano",   "Comprimento do cano",  "Ex.: 4 pol."],
+                              ["numCamaras", "Número de câmaras",    "Ex.: 6"],
+                            ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                              <div key={field}>
+                                <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                                <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                  className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                  placeholder={ph} />
+                              </div>
+                            ))}
+                            <div className="md:col-span-2">
+                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de mira</label>
+                              <input value={activeWeapon?.tipoMira ?? ""} onChange={handleWeaponField("tipoMira")}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                placeholder={ph} />
+                                placeholder="Ex.: aberta fixada" />
                             </div>
-                          ))}
-                          <div className="md:col-span-2">
-                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de mira</label>
-                            <input value={activeWeapon?.tipoMira ?? ""} onChange={handleWeaponField("tipoMira")}
-                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                              placeholder="Ex.: aberta fixada" />
                           </div>
-                        </div>
+                        </CollapsibleSection>
 
                         <div className="mt-5 space-y-4">
-                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
-                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Mecanismo de funcionamento</div>
+                          <CollapsibleCard title="Mecanismo de funcionamento">
                             <div className="grid gap-3 sm:grid-cols-2">
                               {([
                                 ["acaoSimples",      "Ação simples funcional"],
@@ -831,10 +881,9 @@ export default function MunicaoDBInterfacePreview() {
                                 </label>
                               ))}
                             </div>
-                          </div>
+                          </CollapsibleCard>
 
-                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
-                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Estado de conservação</div>
+                          <CollapsibleCard title="Estado de conservação">
                             <div className="space-y-3">
                               {([
                                 ["ferrugem",       "ferrugemObs",       "Presença de ferrugem"],
@@ -857,10 +906,9 @@ export default function MunicaoDBInterfacePreview() {
                                 </div>
                               ))}
                             </div>
-                          </div>
+                          </CollapsibleCard>
 
-                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
-                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Exame de disparo</div>
+                          <CollapsibleCard title="Exame de disparo">
                             <div className="grid gap-3 sm:grid-cols-2">
                               {([
                                 ["aptoDisparo",      "Apto a disparo"],
@@ -876,15 +924,15 @@ export default function MunicaoDBInterfacePreview() {
                                 </label>
                               ))}
                             </div>
-                          </div>
+                          </CollapsibleCard>
+                        </div>
                         </div>
                       </>)}
 
                       {/* ── CARABINA ── */}
                       {activeWeapon?.type === "CARABINA" && (
                         <div className="mt-5 space-y-4">
-                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
-                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Funcionamento</div>
+                          <CollapsibleCard title="Funcionamento">
                             <div className="grid gap-3 sm:grid-cols-2">
                               {([
                                 ["sistemaRepeticao",  "Sistema de repetição funcional"],
@@ -904,10 +952,9 @@ export default function MunicaoDBInterfacePreview() {
                                 </label>
                               ))}
                             </div>
-                          </div>
+                          </CollapsibleCard>
 
-                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
-                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Estado de conservação</div>
+                          <CollapsibleCard title="Estado de conservação">
                             <div className="space-y-3">
                               {([
                                 ["ferrugem",        "ferrugemObs",         "Presença de ferrugem"],
@@ -930,10 +977,9 @@ export default function MunicaoDBInterfacePreview() {
                                 </div>
                               ))}
                             </div>
-                          </div>
+                          </CollapsibleCard>
 
-                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
-                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Teste de disparo</div>
+                          <CollapsibleCard title="Teste de disparo">
                             <div className="grid gap-3 sm:grid-cols-2">
                               {([
                                 ["aptoDisparo",       "Apta para disparo"],
@@ -950,15 +996,14 @@ export default function MunicaoDBInterfacePreview() {
                                 </label>
                               ))}
                             </div>
-                          </div>
+                          </CollapsibleCard>
                         </div>
                       )}
 
                       {/* ── PISTOLA ── */}
                       {activeWeapon?.type === "PISTOLA" && (
                         <div className="mt-5 space-y-4">
-                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
-                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Funcionamento</div>
+                          <CollapsibleCard title="Funcionamento">
                             <div className="grid gap-3 sm:grid-cols-2">
                               {([
                                 ["carregadorPresente",  "Carregador presente"],
@@ -980,10 +1025,9 @@ export default function MunicaoDBInterfacePreview() {
                                 </label>
                               ))}
                             </div>
-                          </div>
+                          </CollapsibleCard>
 
-                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
-                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Estado de conservação</div>
+                          <CollapsibleCard title="Estado de conservação">
                             <div className="space-y-3">
                               {([
                                 ["ferrugem",       "ferrugemObs",          "Presença de ferrugem"],
@@ -1006,10 +1050,9 @@ export default function MunicaoDBInterfacePreview() {
                                 </div>
                               ))}
                             </div>
-                          </div>
+                          </CollapsibleCard>
 
-                          <div className="rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3] p-4">
-                            <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#6b5838]">Teste de disparo</div>
+                          <CollapsibleCard title="Teste de disparo">
                             <div className="grid gap-3 sm:grid-cols-2">
                               {([
                                 ["aptoDisparo",       "Apta para disparo"],
@@ -1026,10 +1069,10 @@ export default function MunicaoDBInterfacePreview() {
                                 </label>
                               ))}
                             </div>
-                          </div>
+                          </CollapsibleCard>
                         </div>
                       )}
-                    </div>
+                    </CollapsibleSection>
 
                     <div>
                       <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
