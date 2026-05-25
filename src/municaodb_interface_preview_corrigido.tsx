@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react"
+import React, { useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import logo from "./assets/logo.png" 
 import {
@@ -6,6 +6,7 @@ import {
   Building2,
   CalendarDays,
   Camera,
+  ChevronDown,
   CircleDot,
   Database,
   FolderKanban,
@@ -141,7 +142,7 @@ function StatCard({
   return (
     <div className="rounded-[26px] border border-[#8e7340] bg-[linear-gradient(180deg,#14233f_0%,#0b1730_100%)] p-5 shadow-[0_16px_40px_rgba(0,0,0,.24)]">
       <div className="mb-3 flex items-center justify-between">
-        <div className="rounded-2xl border border-[#8e7340] bg-[#0f1e39] p-3 text-[#f0d08a]">
+        <div className="rounded-2xl border border-[#8e7340] bg-[#0f1e39] p-3 text-[#f0d08a] ml-[-8px]">
           {icon}
         </div>
         <span className="text-xs uppercase tracking-[0.24em] text-[#ccb780]">Painel</span>
@@ -273,6 +274,7 @@ export default function MunicaoDBInterfacePreview() {
   const [weapons, setWeapons] = useState<WeaponEntry[]>([])
   const [activeWeaponIdx, setActiveWeaponIdx] = useState(0)
   const [showAddWeaponSelector, setShowAddWeaponSelector] = useState(false)
+  const examRef = useRef<HTMLDivElement>(null)
 
   const activeWeapon = weapons[activeWeaponIdx] ?? null
 
@@ -439,54 +441,31 @@ export default function MunicaoDBInterfacePreview() {
                         Cadastro e gestão de exames em armas
                       </h2>
                       <p className="mt-2 max-w-3xl text-[15px] text-[#eadab0]">
-                        Interface preparada para uso desktop e móvel, com foco em fluxo pericial, rastreabilidade e
-                        futura integração com base local, câmera e armazenamento estruturado.
                       </p>
                     </div>
 
-                    <div className="flex flex-col items-end gap-3">
-                      <button
-                        onClick={() => setShowTypeSelector((v) => !v)}
-                        className="flex items-center gap-2 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] px-6 py-3 text-sm font-black tracking-wide text-[#1d2433] shadow transition hover:brightness-105 md:text-base"
-                      >
-                        <Plus className="h-4 w-4" />
-                        NOVO REP
-                      </button>
-
-                      <AnimatePresence>
-                        {showTypeSelector && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -8, scale: 0.97 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                            transition={{ duration: 0.18 }}
-                            className="flex flex-col gap-2 rounded-2xl border border-[#8e7340] bg-[#0f1e39] p-3 shadow-[0_12px_32px_rgba(0,0,0,.32)]"
-                          >
-                            <div className="mb-1 px-1 text-xs font-bold uppercase tracking-[0.22em] text-[#b89a58]">
-                              Selecionar tipo de arma
-                            </div>
-                            {(["REVÓLVER", "PISTOLA", "CARABINA"] as WeaponType[]).map((type) => (
-                              <button
-                                key={type}
-                                onClick={() => {
-                                  setWeapons([{ type, brand: "", model: "", caliber: "", serial: "", paisFabricacao: "", material: "", acabamento: "", compCano: "", numCamaras: "", tipoMira: "", acaoSimples: true, acaoDupla: true, tamborGira: true, indexacaoCorreta: true, caoFuncional: true, gatilhoFuncional: true, seguranca: true, ferrugem: false, ferrugemObs: "", desgaste: false, desgasteObs: "", danoEstruturais: false, danoEstruturaisObs: "", pecasFaltantes: false, pecasFaltantesObs: "", aptoDisparo: true, funcMunicaoReal: true, testePercussao: true, marcacaoPercussor: true, carregadorPresente: true, carregadorFuncional: true, ferrolhoFuncional: true, percussorFuncional: true, extratorFuncional: true, ejetorFuncional: true, retencaoFerrolho: true, alimentacaoFuncional: true, desgasteMecanico: false, desgasteMecanicoObs: "", danosAparentes: false, danosAparentesObs: "", extracaoFuncional: true, ejacaoFuncional: true, ciclagemFuncional: true }])
-                                  setActiveWeaponIdx(0)
-                                  setWeaponType(type)
-                                  setShowTypeSelector(false)
-                                }}
-                                className={cn(
-                                  "rounded-xl border px-5 py-2.5 text-sm font-black tracking-wide transition",
-                                  weaponType === type
-                                    ? "border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] text-[#1d2433]"
-                                    : "border-[#8e7340] bg-[#162541] text-[#f0d08a] hover:bg-[#1a2c4f]",
-                                )}
-                              >
-                                {type}
-                              </button>
-                            ))}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="relative">
+                        <select
+                          defaultValue=""
+                          onChange={(e) => {
+                            const type = e.target.value as WeaponType
+                            if (!type) return
+                            setWeapons([{ type, brand: "", model: "", caliber: "", serial: "", paisFabricacao: "", material: "", acabamento: "", compCano: "", numCamaras: "", tipoMira: "", acaoSimples: true, acaoDupla: true, tamborGira: true, indexacaoCorreta: true, caoFuncional: true, gatilhoFuncional: true, seguranca: true, ferrugem: false, ferrugemObs: "", desgaste: false, desgasteObs: "", danoEstruturais: false, danoEstruturaisObs: "", pecasFaltantes: false, pecasFaltantesObs: "", aptoDisparo: true, funcMunicaoReal: true, testePercussao: true, marcacaoPercussor: true, sistemaRepeticao: true, carregadorPresente: true, carregadorFuncional: true, ferrolhoFuncional: true, percussorFuncional: true, extratorFuncional: true, ejetorFuncional: true, retencaoFerrolho: true, alimentacaoFuncional: true, desgasteMecanico: false, desgasteMecanicoObs: "", danosAparentes: false, danosAparentesObs: "", extracaoFuncional: true, ejacaoFuncional: true, ciclagemFuncional: true }])
+                            setActiveWeaponIdx(0)
+                            setWeaponType(type)
+                            e.currentTarget.value = ""
+                            setTimeout(() => examRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50)
+                          }}
+                          className="h-12 appearance-none rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] pl-4 pr-10 text-sm font-black tracking-wide text-[#1d2433] shadow outline-none cursor-pointer"
+                        >
+                          <option value="" disabled>NOVO REP</option>
+                          <option value="REVÓLVER">REVÓLVER</option>
+                          <option value="PISTOLA">PISTOLA</option>
+                          <option value="CARABINA">CARABINA</option>
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1d2433]" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -541,7 +520,7 @@ export default function MunicaoDBInterfacePreview() {
                     </div>
                   </div>
 
-                  <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f7f1e5] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                  {/* <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f7f1e5] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
                     <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
                       <h3 className="text-xl font-black text-[#f0d08a]">Exames de Armas Registrados</h3>
                     </div>
@@ -575,19 +554,19 @@ export default function MunicaoDBInterfacePreview() {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </div> */}
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <StatCard icon={<Database className="h-6 w-6" />} value="198" label="Registros periciais" />
                   <StatCard icon={<CircleDot className="h-6 w-6" />} value="29" label="Calibres cadastrados" />
                   <StatCard icon={<Building2 className="h-6 w-6" />} value="21" label="Fabricantes" />
-                  <StatCard icon={<Crosshair className="h-6 w-6" />} value="74" label="Armas vinculadas" />
+                  <StatCard icon={<Crosshair className="h-6 w-6" />} value="70" label="Armas vinculadas" />
                 </div>
               </section>
 
               <section>
-                <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f5efe3] text-[#26221b] shadow-[0_20px_44px_rgba(0,0,0,.28)]">
+                <div ref={examRef} className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f5efe3] text-[#26221b] shadow-[0_20px_44px_rgba(0,0,0,.28)]">
                   <div className="border-b border-[#cab88f] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
                     <div className="flex items-center justify-between gap-3">
                       <h3 className="text-xl font-black text-[#f0d08a]">{weaponType ? titleByType[weaponType] : "Exame de Arma"}</h3>
@@ -666,43 +645,40 @@ export default function MunicaoDBInterfacePreview() {
                       <div className="mb-4 border-b border-[#d3c3a4] pb-2 flex items-center justify-between">
                         <span className="text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">Dados da arma</span>
                         {weapons.length > 0 && (
-                          <button
-                            onClick={() => setShowAddWeaponSelector((v) => !v)}
-                            className="flex items-center gap-1 rounded-xl border border-[#8e7340] bg-[#162541] px-3 py-1.5 text-xs font-black tracking-wide text-[#f0d08a] hover:bg-[#1a2c4f]"
-                          >
-                            <Plus className="h-3 w-3" />
-                            Adicionar arma
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <div className="relative">
+                              <select
+                                defaultValue=""
+                                onChange={(e) => {
+                                  const t = e.target.value as WeaponType
+                                  if (!t) return
+                                  addWeapon(t)
+                                  e.currentTarget.value = ""
+                                }}
+                                className="h-8 appearance-none rounded-xl border border-[#8e7340] bg-[#162541] pl-3 pr-8 text-xs font-black tracking-wide text-[#f0d08a] outline-none cursor-pointer hover:bg-[#1a2c4f]"
+                              >
+                                <option value="" disabled>Adicionar arma</option>
+                                <option value="REVÓLVER">REVÓLVER</option>
+                                <option value="PISTOLA">PISTOLA</option>
+                                <option value="CARABINA">CARABINA</option>
+                              </select>
+                              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-[#f0d08a]" />
+                            </div>
+                            <button
+                              onClick={() => {
+                                const updated = weapons.filter((_, i) => i !== activeWeaponIdx)
+                                setWeapons(updated)
+                                setActiveWeaponIdx(Math.max(0, activeWeaponIdx - 1))
+                                if (updated.length === 0) setWeaponType(null)
+                              }}
+                              className="flex items-center gap-1 rounded-xl border border-[#7a3535] bg-[#2a1515] px-3 py-2 text-xs font-black tracking-wide text-[#f08a8a] hover:bg-[#3a1a1a]"
+                            >
+                              <X className="h-3 w-3" />
+                              Remover arma
+                            </button>
+                          </div>
                         )}
                       </div>
-
-                      <AnimatePresence>
-                        {showAddWeaponSelector && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -6 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -6 }}
-                            transition={{ duration: 0.15 }}
-                            className="mb-4 flex flex-wrap gap-2 rounded-xl border border-[#8e7340] bg-[#0f1e39] p-3"
-                          >
-                            <div className="w-full mb-1 px-1 text-xs font-bold uppercase tracking-[0.22em] text-[#b89a58]">
-                              Tipo da nova arma
-                            </div>
-                            {(["REVÓLVER", "PISTOLA", "CARABINA"] as WeaponType[]).map((t) => (
-                              <button
-                                key={t}
-                                onClick={() => {
-                                  addWeapon(t)
-                                  setShowAddWeaponSelector(false)
-                                }}
-                                className="rounded-xl border border-[#8e7340] bg-[#162541] px-5 py-2.5 text-sm font-black tracking-wide text-[#f0d08a] hover:bg-[#1a2c4f]"
-                              >
-                                {t}
-                              </button>
-                            ))}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
 
                       {weapons.length > 1 && (
                         <div className="mb-4 flex flex-wrap gap-2">
