@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react"
+import React, { useMemo, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import logo from "./assets/logo.png" 
 import {
@@ -130,28 +130,6 @@ function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ")
 }
 
-function StatCard({
-  icon,
-  value,
-  label,
-}: {
-  icon: React.ReactNode
-  value: string
-  label: string
-}) {
-  return (
-    <div className="rounded-[26px] border border-[#8e7340] bg-[linear-gradient(180deg,#14233f_0%,#0b1730_100%)] p-5 shadow-[0_16px_40px_rgba(0,0,0,.24)]">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="rounded-2xl border border-[#8e7340] bg-[#0f1e39] p-3 text-[#f0d08a] ml-[-8px]">
-          {icon}
-        </div>
-        <span className="text-xs uppercase tracking-[0.24em] text-[#ccb780]">Painel</span>
-      </div>
-      <div className="text-4xl font-extrabold tracking-tight text-[#f0d08a]">{value}</div>
-      <div className="mt-1 text-base text-[#eadab0]">{label}</div>
-    </div>
-  )
-}
 
 function SidebarContent() {
   const item =
@@ -274,7 +252,7 @@ export default function MunicaoDBInterfacePreview() {
   const [weapons, setWeapons] = useState<WeaponEntry[]>([])
   const [activeWeaponIdx, setActiveWeaponIdx] = useState(0)
   const [showAddWeaponSelector, setShowAddWeaponSelector] = useState(false)
-  const examRef = useRef<HTMLDivElement>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   const activeWeapon = weapons[activeWeaponIdx] ?? null
 
@@ -432,7 +410,7 @@ export default function MunicaoDBInterfacePreview() {
           {sidebarDesktop}
 
           <main className="flex-1 px-4 py-5 lg:px-6 lg:py-6">
-            <div className="grid gap-6 2xl:grid-cols-[1.08fr_0.92fr]">
+            <div className="grid gap-6">
               <section className="space-y-6">
                 <div className="rounded-[28px] border border-[#8e7340] bg-[linear-gradient(180deg,rgba(20,35,63,.92)_0%,rgba(11,23,48,.96)_100%)] p-6 shadow-[0_18px_44px_rgba(0,0,0,.24)]">
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -455,12 +433,12 @@ export default function MunicaoDBInterfacePreview() {
                             setActiveWeaponIdx(0)
                             setWeaponType(type)
                             e.currentTarget.value = ""
-                            setTimeout(() => examRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50)
+                            setDrawerOpen(true)
                           }}
                           className="h-12 appearance-none rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] pl-4 pr-10 text-sm font-black tracking-wide text-[#1d2433] shadow outline-none cursor-pointer"
                         >
                           <option value="" disabled>NOVO REP</option>
-                          <option value="REVÓLVER">REVÓLVER</option>
+                          <option value="REVÓLVER">EFICIÊNCIA</option>
                           <option value="PISTOLA">PISTOLA</option>
                           <option value="CARABINA">CARABINA</option>
                         </select>
@@ -470,7 +448,7 @@ export default function MunicaoDBInterfacePreview() {
                   </div>
                 </div>
 
-                <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+                <div className="grid gap-6">
                   <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
                     <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
                       <h3 className="text-xl font-black text-[#f0d08a]">Buscar</h3>
@@ -557,24 +535,63 @@ export default function MunicaoDBInterfacePreview() {
                   </div> */}
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  <StatCard icon={<Database className="h-6 w-6" />} value="198" label="Registros periciais" />
-                  <StatCard icon={<CircleDot className="h-6 w-6" />} value="29" label="Calibres cadastrados" />
-                  <StatCard icon={<Building2 className="h-6 w-6" />} value="21" label="Fabricantes" />
-                  <StatCard icon={<Crosshair className="h-6 w-6" />} value="70" label="Armas vinculadas" />
+                <div className="rounded-[26px] border border-[#8e7340] bg-[linear-gradient(180deg,#14233f_0%,#0b1730_100%)] shadow-[0_16px_40px_rgba(0,0,0,.24)] overflow-hidden">
+                  <div className="border-b border-[#8e7340]/60 px-5 py-3">
+                    <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#ccb780]">Painel</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[#8e7340]/40">
+                    {([
+                      [<Database className="h-6 w-6" />, "198", "Registros periciais"],
+                      [<CircleDot className="h-6 w-6" />, "29",  "Calibres cadastrados"],
+                      [<Building2 className="h-6 w-6" />, "21", "Fabricantes"],
+                      [<Crosshair className="h-6 w-6" />, "70", "Armas vinculadas"],
+                    ] as [React.ReactNode, string, string][]).map(([icon, value, label], i) => (
+                      <div key={i} className="p-5">
+                        <div className="mb-3 w-fit rounded-2xl border border-[#8e7340] bg-[#0f1e39] p-3 text-[#f0d08a]">
+                          {icon}
+                        </div>
+                        <div className="text-4xl font-extrabold tracking-tight text-[#f0d08a]">{value}</div>
+                        <div className="mt-1 text-sm text-[#eadab0]">{label}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </section>
 
-              <section>
-                <div ref={examRef} className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f5efe3] text-[#26221b] shadow-[0_20px_44px_rgba(0,0,0,.28)]">
-                  <div className="border-b border-[#cab88f] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-xl font-black text-[#f0d08a]">{weaponType ? titleByType[weaponType] : "Exame de Arma"}</h3>
-                      <div className="rounded-xl border border-[#8e7340] bg-[#162541] p-2 text-[#f0d08a]">
-                        <Camera className="h-5 w-5" />
-                      </div>
-                    </div>
-                  </div>
+              <AnimatePresence>
+                {drawerOpen && (
+                  <>
+                    <motion.div
+                      className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      onClick={() => setDrawerOpen(false)}
+                    />
+                    <motion.div
+                      initial={{ x: "100%" }}
+                      animate={{ x: 0 }}
+                      exit={{ x: "100%" }}
+                      transition={{ type: "spring", damping: 26, stiffness: 220 }}
+                      className="fixed right-0 top-0 z-50 h-screen w-full max-w-[700px] overflow-y-auto border-l border-[#8e7340] shadow-[0_20px_44px_rgba(0,0,0,.4)]"
+                    >
+                      <div className="min-h-full bg-[#f5efe3] text-[#26221b]">
+                        <div className="sticky top-0 z-10 border-b border-[#cab88f] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <h3 className="text-xl font-black text-[#f0d08a]">{weaponType ? titleByType[weaponType] : "Exame de Arma"}</h3>
+                            <div className="flex items-center gap-2">
+                              <div className="rounded-xl border border-[#8e7340] bg-[#162541] p-2 text-[#f0d08a]">
+                                <Camera className="h-5 w-5" />
+                              </div>
+                              <button
+                                onClick={() => setDrawerOpen(false)}
+                                className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] hover:bg-[#1a2c4f]"
+                              >
+                                <X className="h-5 w-5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
 
                   <div className="space-y-6 p-5 md:p-6">
                     <div>
@@ -1061,11 +1078,35 @@ export default function MunicaoDBInterfacePreview() {
                       </button>
                     </div>
                   </div>
-                </div>
-              </section>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
           </main>
         </div>
+
+        <AnimatePresence>
+          {weaponType && !drawerOpen && (
+            <motion.button
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 80, opacity: 0 }}
+              transition={{ type: "spring", damping: 22, stiffness: 200 }}
+              onClick={() => setDrawerOpen(true)}
+              className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-3 shadow-[0_8px_28px_rgba(0,0,0,.4)] hover:brightness-110"
+            >
+              <div className="rounded-xl border border-[#8e7340] bg-[#0f1e39] p-2 text-[#f0d08a]">
+                <Crosshair className="h-4 w-4" />
+              </div>
+              <div className="text-left">
+                <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#ccb780]">Exame em andamento</div>
+                <div className="text-sm font-black text-[#f0d08a]">{titleByType[weaponType]}</div>
+              </div>
+            </motion.button>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {menuOpen && (
