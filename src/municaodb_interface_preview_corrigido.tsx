@@ -432,9 +432,9 @@ export default function MunicaoDBInterfacePreview() {
   const [weapons, setWeapons] = useState<WeaponEntry[]>([])
   const [activeWeaponIdx, setActiveWeaponIdx] = useState(0)
   const [showAddWeaponSelector, setShowAddWeaponSelector] = useState(false)
-  const [drawerOpen, setDrawerOpen] = useState(false)
   const [savedPieces, setSavedPieces] = useState<WeaponEntry[]>([])
   const [pieceFormOpen, setPieceFormOpen] = useState(false)
+  const [typePickerOpen, setTypePickerOpen] = useState(false)
   const [examType, setExamType] = useState<"EFICIÊNCIA" | "CONSTATAÇÃO" | null>(null)
 
   const activeWeapon = weapons[activeWeaponIdx] ?? null
@@ -633,7 +633,7 @@ export default function MunicaoDBInterfacePreview() {
                           setWeapons([])
                           setSavedPieces([])
                           setExamType(null)
-                          setDrawerOpen(true)
+                          setTypePickerOpen(true)
                         }}
                         className="flex h-12 items-center gap-2 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] px-6 text-sm font-black tracking-wide text-[#1d2433] shadow transition hover:brightness-105"
                       >
@@ -752,71 +752,53 @@ export default function MunicaoDBInterfacePreview() {
                   </div>
                 </div>
               </section>
-
-              <AnimatePresence>
-                {drawerOpen && (
-                  <>
-                    <motion.div
-                      className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      onClick={() => setDrawerOpen(false)}
-                    />
-                    <motion.div
-                      initial={{ x: "100%" }}
-                      animate={{ x: 0 }}
-                      exit={{ x: "100%" }}
-                      transition={{ type: "spring", damping: 28, stiffness: 200 }}
-                      className="fixed inset-0 z-50 overflow-y-auto"
-                    >
-                      <div className="min-h-full bg-[#f5efe3] text-[#26221b]">
-                        <div className="sticky top-0 z-10 border-b border-[#cab88f] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <h3 className="text-xl font-black text-[#f0d08a]">MuniçãoDB</h3>
-                            <div className="flex items-center gap-2">
-                              <div className="rounded-xl border border-[#8e7340] bg-[#162541] p-2 text-[#f0d08a]">
-                                <Camera className="h-5 w-5" />
-                              </div>
-                              <button
-                                onClick={() => setDrawerOpen(false)}
-                                className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] hover:bg-[#1a2c4f]"
-                              >
-                                <X className="h-5 w-5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                  <div className="p-5 md:p-6">
-                    <div className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-[#6b5838]">Tipo de exame</div>
-                    <div className="mt-2 space-y-2">
-                      {(["EFICIÊNCIA", "CONSTATAÇÃO"] as const).map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setExamType(t)}
-                          className="flex w-full items-center justify-between rounded-xl border border-[#d3c4a8] bg-[#fbf8f3] px-4 py-3 text-left transition hover:border-[#b89a58] hover:bg-[#ece6da] active:scale-[.98]"
-                        >
-                          <div>
-                            <div className="text-sm font-black uppercase tracking-[0.14em] text-[#3d2e12]">{t}</div>
-                            <div className="mt-0.5 text-xs text-[#8d7854]">
-                              {t === "EFICIÊNCIA" ? "Exame de disparo e funcionamento" : "Constatação de características"}
-                            </div>
-                          </div>
-                          <ChevronRight className="h-4 w-4 shrink-0 text-[#8d7854]" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                      </div>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
             </div>
           </main>
         </div>
+
+        {/* ── Modal de tipo de exame ── */}
+        <AnimatePresence>
+          {typePickerOpen && (
+            <>
+              <motion.div
+                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setTypePickerOpen(false)}
+              />
+              <motion.div
+                className="fixed inset-0 z-50 flex items-center justify-center p-6"
+                initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.94 }}
+                transition={{ type: "spring", damping: 26, stiffness: 320 }}
+              >
+                <div className="w-full max-w-xs rounded-3xl border border-[#cab88f] bg-[#f5efe3] p-6 shadow-[0_24px_64px_rgba(0,0,0,.45)]">
+                  <div className="mb-5">
+                    <div className="text-base font-black uppercase tracking-[0.16em] text-[#50442f]">Tipo de exame</div>
+                    <div className="mt-0.5 text-xs text-[#8d7854]">Selecione para iniciar o preenchimento</div>
+                  </div>
+                  <div className="space-y-3">
+                    {(["EFICIÊNCIA", "CONSTATAÇÃO"] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => { setTypePickerOpen(false); setExamType(t) }}
+                        className="w-full rounded-2xl border-2 border-[#d3c4a8] bg-[#fbf8f3] px-5 py-4 text-left transition hover:border-[#c9a93e] hover:bg-[#ece6da] active:scale-[.98]"
+                      >
+                        <div className="text-sm font-black uppercase tracking-[0.16em] text-[#3d2e12]">{t}</div>
+                        <div className="mt-0.5 text-xs text-[#8d7854]">
+                          {t === "EFICIÊNCIA" ? "Exame de disparo e funcionamento" : "Constatação de características e estado"}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => setTypePickerOpen(false)}
+                    className="mt-4 w-full rounded-xl py-2 text-xs font-bold uppercase tracking-[0.14em] text-[#8d7854] hover:text-[#50442f]">
+                    Cancelar
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         {/* ── Formulário do REP ── */}
         <AnimatePresence>
@@ -840,7 +822,7 @@ export default function MunicaoDBInterfacePreview() {
                         <div className="text-xs uppercase tracking-[0.22em] text-[#ccb780]">{examType}</div>
                       </div>
                     </div>
-                    <button type="button" onClick={() => { setExamType(null); setDrawerOpen(false) }}
+                    <button type="button" onClick={() => setExamType(null)}
                       className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] hover:bg-[#1a2c4f]">
                       <X className="h-5 w-5" />
                     </button>
@@ -933,9 +915,6 @@ export default function MunicaoDBInterfacePreview() {
                           }}
                           className="rounded-xl border-2 border-[#d3c4a8] bg-[#fbf8f3] px-2 py-3 text-center text-[10px] font-black uppercase tracking-[0.1em] leading-tight text-[#50442f] transition hover:border-[#b89a58] hover:bg-[#ece6da]"
                         >
-                          <div className="flex justify-center mb-1 text-[#3d3020]">
-                            <PieceIcon type={type} className="h-8 w-auto max-w-[52px]" />
-                          </div>
                           {type}
                         </button>
                       ))}
@@ -990,7 +969,7 @@ export default function MunicaoDBInterfacePreview() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => { setPieceFormOpen(false); setWeaponType(null); setWeapons([]); setDrawerOpen(false) }}
+                      onClick={() => { setPieceFormOpen(false); setWeaponType(null); setWeapons([]) }}
                       className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] hover:bg-[#1a2c4f]"
                     >
                       <X className="h-5 w-5" />
@@ -1321,13 +1300,13 @@ export default function MunicaoDBInterfacePreview() {
         </AnimatePresence>
 
         <AnimatePresence>
-          {weaponType && !drawerOpen && (
+          {weaponType && !pieceFormOpen && !examType && (
             <motion.button
               initial={{ y: 80, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 80, opacity: 0 }}
               transition={{ type: "spring", damping: 22, stiffness: 200 }}
-              onClick={() => setDrawerOpen(true)}
+              onClick={() => setExamType(examType)}
               className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-3 shadow-[0_8px_28px_rgba(0,0,0,.4)] hover:brightness-110"
             >
               <div className="rounded-xl border border-[#8e7340] bg-[#0f1e39] p-2 text-[#f0d08a]">
