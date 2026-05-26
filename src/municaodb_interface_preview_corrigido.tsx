@@ -475,6 +475,43 @@ export default function MunicaoDBInterfacePreview() {
   const [repMinimized, setRepMinimized] = useState(false)
   const [confirmDeleteRep, setConfirmDeleteRep] = useState(false)
 
+  const [photosOpen, setPhotosOpen] = useState(false)
+  const [activePhotoTab, setActivePhotoTab] = useState<"PEÇA" | "LACRE">("PEÇA")
+  const [photoUrls, setPhotoUrls] = useState<Map<string, string>>(new Map())
+  const [lacreEntrada, setLacreEntrada] = useState("")
+  const [lacreSaida, setLacreSaida] = useState("")
+  const [viewerPhoto, setViewerPhoto] = useState<string | null>(null)
+
+  const photoSlotsByType: Record<string, string[]> = {
+    "REVÓLVER": ["Lado Esquerdo", "Lado Direito", "Vista Superior", "Vista Inferior", "Tambor Aberto", "Número de Série", "Boca do Cano"],
+    "PISTOLA": ["Lado Esquerdo", "Lado Direito", "Vista Superior", "Vista Inferior", "Ferrolho Aberto", "Número de Série", "Boca do Cano"],
+    "ESPINGARDA": ["Lado Esquerdo", "Lado Direito", "Superior", "Inferior", "Marcações"],
+    "CARABINA": ["Lado Esquerdo", "Lado Direito", "Superior", "Inferior", "Marcações"],
+    "FUZIL": ["Lado Esquerdo", "Lado Direito", "Superior", "Inferior", "Mecanismo"],
+    "METRALHADORA": ["Lado Esquerdo", "Lado Direito", "Mecanismo", "Marcações"],
+    "ESTOJO": ["Vista Lateral", "Base / Culote", "Boca"],
+    "PROJÉTIL": ["Vista Lateral", "Base", "Ápice"],
+    "CARTUCHO": ["Vista Lateral", "Base / Culote", "Ápice"],
+    "FACA": ["Lâmina Face A", "Lâmina Face B", "Cabo", "Marcações"],
+  }
+
+  const handlePhotoCapture = (key: string, file: File) => {
+    const url = URL.createObjectURL(file)
+    setPhotoUrls(prev => {
+      const next = new Map(prev)
+      next.set(key, url)
+      return next
+    })
+  }
+
+  const handlePhotoRemove = (key: string) => {
+    setPhotoUrls(prev => {
+      const next = new Map(prev)
+      next.delete(key)
+      return next
+    })
+  }
+
   const activeWeapon = weapons[activeWeaponIdx] ?? null
 
   const savePiece = () => {
@@ -1818,29 +1855,19 @@ export default function MunicaoDBInterfacePreview() {
                     </div>
                   )}
 
-                  {/* ── Imagens ── */}
+                  {/* ── Registro Fotográfico ── */}
                   <div>
                     <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
                       Imagens
                     </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <button className="rounded-2xl border border-[#d3c4a8] bg-[#ece6da] p-4 text-center transition hover:bg-[#e8dfcf]">
-                        <div className="flex h-20 items-center justify-center">
-                          <Camera className="h-10 w-10 text-[#7b6c52]" />
-                        </div>
-                        <div className="rounded-xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] px-4 py-3 text-sm font-black tracking-[0.16em] text-[#f8e3b3]">
-                          TIRAR FOTO
-                        </div>
-                      </button>
-                      <button className="rounded-2xl border border-[#d3c4a8] bg-[#ece6da] p-4 text-center transition hover:bg-[#e8dfcf]">
-                        <div className="flex h-20 items-center justify-center">
-                          <ImageIcon className="h-10 w-10 text-[#7b6c52]" />
-                        </div>
-                        <div className="rounded-xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] px-4 py-3 text-sm font-black tracking-[0.16em] text-[#f8e3b3]">
-                          GALERIA
-                        </div>
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPhotosOpen(true)}
+                      className="flex h-24 w-full flex-col items-center justify-center gap-2 rounded-[28px] border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] shadow-lg transition active:scale-[0.97]"
+                    >
+                      <Camera className="h-7 w-7 text-[#f0d08a]" />
+                      <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#f0d08a]">Iniciar Captura de Fotos</span>
+                    </button>
                   </div>
 
                   {/* ── Footer ── */}
