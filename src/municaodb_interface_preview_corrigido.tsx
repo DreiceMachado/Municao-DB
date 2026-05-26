@@ -7,6 +7,8 @@ import {
   CalendarDays,
   Camera,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CircleDot,
   Database,
   FolderKanban,
@@ -22,7 +24,9 @@ import {
   X,
 } from "lucide-react"
 
-type WeaponType = "REVÓLVER" | "PISTOLA" | "CARABINA"
+type WeaponType =
+  | "REVÓLVER" | "PISTOLA" | "ESPINGARDA" | "CARABINA" | "FUZIL" | "METRALHADORA"
+  | "ESTOJO" | "PROJÉTIL" | "CARTUCHO" | "FACA"
 
 type WeaponEntry = {
   type: WeaponType
@@ -185,6 +189,128 @@ function CollapsibleCard({
   )
 }
 
+function PieceIcon({ type, className = "h-14 w-auto" }: { type: WeaponType; className?: string }) {
+  switch (type) {
+    case "REVÓLVER": return (
+      <svg viewBox="0 0 64 40" fill="currentColor" className={className} aria-hidden="true">
+        <rect x="8" y="22" width="10" height="16" rx="3"/>
+        <rect x="8" y="14" width="22" height="9" rx="2"/>
+        <ellipse cx="25" cy="18" rx="9" ry="9"/>
+        <ellipse cx="25" cy="18" rx="5" ry="5" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+        <circle cx="25" cy="18" r="1.5"/>
+        <rect x="29" y="15" width="26" height="6" rx="2"/>
+        <path d="M11 23 Q11 30 18 30 L18 23" fill="none" stroke="currentColor" strokeWidth="2"/>
+        <rect x="6" y="12" width="5" height="7" rx="1.5"/>
+      </svg>
+    )
+    case "PISTOLA": return (
+      <svg viewBox="0 0 64 40" fill="currentColor" className={className} aria-hidden="true">
+        <rect x="12" y="20" width="11" height="18" rx="3"/>
+        <rect x="12" y="12" width="30" height="10" rx="2"/>
+        <rect x="20" y="8" width="26" height="9" rx="2"/>
+        <rect x="44" y="10" width="16" height="5" rx="2"/>
+        <path d="M15 22 Q15 30 24 30 L24 22" fill="none" stroke="currentColor" strokeWidth="2"/>
+        <rect x="34" y="9" width="7" height="4" rx="1" fill="none" stroke="currentColor" strokeWidth="1.2"/>
+        <rect x="20" y="6" width="4" height="3" rx="1"/>
+        <rect x="56" y="7" width="3" height="3" rx="1"/>
+      </svg>
+    )
+    case "ESPINGARDA": return (
+      <svg viewBox="0 0 88 36" fill="currentColor" className={className} aria-hidden="true">
+        <path d="M2 14 Q2 6 8 6 L20 8 L22 28 L8 30 Q2 30 2 22 Z"/>
+        <rect x="20" y="10" width="10" height="18" rx="2"/>
+        <rect x="18" y="8" width="22" height="13" rx="2"/>
+        <rect x="38" y="9" width="22" height="11" rx="2"/>
+        <rect x="58" y="10" width="28" height="9" rx="3"/>
+        <path d="M22 22 Q22 32 30 32 L30 24" fill="none" stroke="currentColor" strokeWidth="2"/>
+        <ellipse cx="86" cy="14.5" rx="2" ry="4.5"/>
+      </svg>
+    )
+    case "CARABINA": return (
+      <svg viewBox="0 0 80 32" fill="currentColor" className={className} aria-hidden="true">
+        <path d="M2 14 Q2 8 8 8 L16 8 L18 24 L8 26 Q2 26 2 20 Z"/>
+        <rect x="18" y="17" width="8" height="12" rx="2"/>
+        <rect x="16" y="9" width="22" height="10" rx="2"/>
+        <rect x="36" y="10" width="20" height="8" rx="2"/>
+        <rect x="54" y="12" width="24" height="4" rx="2"/>
+        <path d="M22 19 L28 19 L30 30 L20 30 Z"/>
+        <rect x="18" y="6" width="20" height="4" rx="1"/>
+        <rect x="77" y="11" width="3" height="6" rx="1"/>
+      </svg>
+    )
+    case "FUZIL": return (
+      <svg viewBox="0 0 88 36" fill="currentColor" className={className} aria-hidden="true">
+        <path d="M2 15 L14 13 L16 22 L2 24 Z"/>
+        <rect x="10" y="14" width="9" height="8" rx="1"/>
+        <rect x="16" y="13" width="22" height="10" rx="2"/>
+        <path d="M20 23 L28 22 L30 35 L18 35 Z"/>
+        <rect x="18" y="7" width="28" height="8" rx="2"/>
+        <rect x="18" y="5" width="26" height="3" rx="1" opacity="0.5"/>
+        <rect x="44" y="8" width="22" height="7" rx="2"/>
+        <rect x="64" y="10" width="22" height="4" rx="1.5"/>
+        <path d="M22 23 L32 23 L34 35 L20 35 Q20 33 22 30 Z"/>
+        <rect x="85" y="9" width="3" height="6" rx="1"/>
+      </svg>
+    )
+    case "METRALHADORA": return (
+      <svg viewBox="0 0 80 40" fill="currentColor" className={className} aria-hidden="true">
+        <path d="M2 16 L12 14 L14 22 L2 24 Z"/>
+        <rect x="10" y="10" width="28" height="14" rx="2"/>
+        <rect x="16" y="24" width="9" height="13" rx="2"/>
+        <rect x="36" y="11" width="30" height="12" rx="2"/>
+        <rect x="64" y="13" width="14" height="8" rx="2"/>
+        <rect x="12" y="24" width="22" height="14" rx="2"/>
+        <circle cx="42" cy="17" r="1.5" fill="none" stroke="currentColor" strokeWidth="1"/>
+        <circle cx="48" cy="17" r="1.5" fill="none" stroke="currentColor" strokeWidth="1"/>
+        <circle cx="54" cy="17" r="1.5" fill="none" stroke="currentColor" strokeWidth="1"/>
+        <circle cx="60" cy="17" r="1.5" fill="none" stroke="currentColor" strokeWidth="1"/>
+        <rect x="77" y="12" width="3" height="10" rx="1"/>
+      </svg>
+    )
+    case "ESTOJO": return (
+      <svg viewBox="0 0 24 56" fill="currentColor" className={className} aria-hidden="true">
+        <path d="M7 6 Q7 2 9 2 L15 2 Q17 2 17 6 Z"/>
+        <rect x="7" y="5" width="10" height="34" rx="1.5"/>
+        <rect x="5" y="39" width="14" height="3" rx="1" opacity="0.55"/>
+        <rect x="3" y="42" width="18" height="5" rx="1.5"/>
+        <rect x="5" y="47" width="14" height="4" rx="1"/>
+        <circle cx="12" cy="49.5" r="2.5" fill="none" stroke="currentColor" strokeWidth="1.2"/>
+      </svg>
+    )
+    case "PROJÉTIL": return (
+      <svg viewBox="0 0 20 52" fill="currentColor" className={className} aria-hidden="true">
+        <path d="M3 28 Q2 12 10 2 Q18 12 17 28 Z"/>
+        <rect x="3" y="26" width="14" height="22" rx="1"/>
+        <rect x="3" y="36" width="14" height="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+      </svg>
+    )
+    case "CARTUCHO": return (
+      <svg viewBox="0 0 24 68" fill="currentColor" className={className} aria-hidden="true">
+        <path d="M5 28 Q4 12 12 2 Q20 12 19 28 Z"/>
+        <rect x="5" y="26" width="14" height="8" rx="1"/>
+        <path d="M5 34 L7 40 L17 40 L19 34 Z"/>
+        <rect x="7" y="32" width="10" height="10" rx="1"/>
+        <rect x="5" y="39" width="14" height="17" rx="1"/>
+        <rect x="4" y="55" width="16" height="2.5" rx="1" opacity="0.55"/>
+        <rect x="3" y="57" width="18" height="5" rx="1.5"/>
+        <circle cx="12" cy="64" r="2.5" fill="none" stroke="currentColor" strokeWidth="1.2"/>
+      </svg>
+    )
+    case "FACA": return (
+      <svg viewBox="0 0 72 28" fill="currentColor" className={className} aria-hidden="true">
+        <rect x="2" y="10" width="18" height="10" rx="3"/>
+        <rect x="5" y="11" width="2" height="8" rx="1" opacity="0.32"/>
+        <rect x="9" y="11" width="2" height="8" rx="1" opacity="0.32"/>
+        <rect x="13" y="11" width="2" height="8" rx="1" opacity="0.32"/>
+        <rect x="19" y="7" width="3" height="16" rx="1.5"/>
+        <path d="M22 9 L68 14 L22 19 Z"/>
+        <path d="M22 9 L58 11 L68 14" fill="none" stroke="currentColor" strokeWidth="0.8"/>
+      </svg>
+    )
+    default: return null
+  }
+}
+
 function SidebarContent() {
   const item =
     "flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-[17px] font-medium transition"
@@ -307,8 +433,24 @@ export default function MunicaoDBInterfacePreview() {
   const [activeWeaponIdx, setActiveWeaponIdx] = useState(0)
   const [showAddWeaponSelector, setShowAddWeaponSelector] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [savedPieces, setSavedPieces] = useState<WeaponEntry[]>([])
+  const [pieceFormOpen, setPieceFormOpen] = useState(false)
+  const [examType, setExamType] = useState<"EFICIÊNCIA" | "CONSTATAÇÃO" | null>(null)
 
   const activeWeapon = weapons[activeWeaponIdx] ?? null
+
+  const savePiece = () => {
+    if (!activeWeapon) return
+    setSavedPieces(prev => [...prev, { ...activeWeapon }])
+    setWeaponType(null)
+    setWeapons([])
+    setActiveWeaponIdx(0)
+    setPieceFormOpen(false)
+  }
+
+  const removeSavedPiece = (idx: number) => {
+    setSavedPieces(prev => prev.filter((_, i) => i !== idx))
+  }
 
   const filteredRecords = useMemo(() => {
     return recordsSeed.filter((item) => {
@@ -323,9 +465,16 @@ export default function MunicaoDBInterfacePreview() {
   }, [numberFilter, yearFilter])
 
   const titleByType: Record<WeaponType, string> = {
-    "REVÓLVER": "Exame de Revólver",
-    "PISTOLA": "Exame de Pistola",
-    "CARABINA": "Exame de Carabina",
+    "REVÓLVER":     "Exame de Revólver",
+    "PISTOLA":      "Exame de Pistola",
+    "ESPINGARDA":   "Exame de Espingarda",
+    "CARABINA":     "Exame de Carabina",
+    "FUZIL":        "Exame de Fuzil",
+    "METRALHADORA": "Exame de Metralhadora",
+    "ESTOJO":       "Exame de Estojo",
+    "PROJÉTIL":     "Exame de Projétil",
+    "CARTUCHO":     "Exame de Cartucho",
+    "FACA":         "Exame de Faca",
   }
 
   const handleField =
@@ -477,27 +626,19 @@ export default function MunicaoDBInterfacePreview() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                      <div className="relative">
-                        <select
-                          defaultValue=""
-                          onChange={(e) => {
-                            const type = e.target.value as WeaponType
-                            if (!type) return
-                            setWeapons([{ type, brand: "", model: "", caliber: "", serial: "", paisFabricacao: "", material: "", acabamento: "", compCano: "", numCamaras: "", tipoMira: "", acaoSimples: true, acaoDupla: true, tamborGira: true, indexacaoCorreta: true, caoFuncional: true, gatilhoFuncional: true, seguranca: true, ferrugem: false, ferrugemObs: "", desgaste: false, desgasteObs: "", danoEstruturais: false, danoEstruturaisObs: "", pecasFaltantes: false, pecasFaltantesObs: "", aptoDisparo: true, funcMunicaoReal: true, testePercussao: true, marcacaoPercussor: true, sistemaRepeticao: true, carregadorPresente: true, carregadorFuncional: true, ferrolhoFuncional: true, percussorFuncional: true, extratorFuncional: true, ejetorFuncional: true, retencaoFerrolho: true, alimentacaoFuncional: true, desgasteMecanico: false, desgasteMecanicoObs: "", danosAparentes: false, danosAparentesObs: "", extracaoFuncional: true, ejacaoFuncional: true, ciclagemFuncional: true }])
-                            setActiveWeaponIdx(0)
-                            setWeaponType(type)
-                            e.currentTarget.value = ""
-                            setDrawerOpen(true)
-                          }}
-                          className="h-12 appearance-none rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] pl-4 pr-10 text-sm font-black tracking-wide text-[#1d2433] shadow outline-none cursor-pointer"
-                        >
-                          <option value="" disabled>NOVO REP</option>
-                          <option value="REVÓLVER">EFICIÊNCIA</option>
-                          <option value="PISTOLA">PISTOLA</option>
-                          <option value="CARABINA">CARABINA</option>
-                        </select>
-                        <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1d2433]" />
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWeaponType(null)
+                          setWeapons([])
+                          setSavedPieces([])
+                          setExamType(null)
+                          setDrawerOpen(true)
+                        }}
+                        className="flex h-12 items-center gap-2 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] px-6 text-sm font-black tracking-wide text-[#1d2433] shadow transition hover:brightness-105"
+                      >
+                        + NOVO REP
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -647,478 +788,25 @@ export default function MunicaoDBInterfacePreview() {
                           </div>
                         </div>
 
-                  <div className="space-y-6 p-5 md:p-6">
-                    <div>
-                      <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
-                        Identificação do exame
-                      </div>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            Número do exame
-                          </label>
-                          <div className="relative">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                            <input
-                              value={form.examNumber}
-                              onChange={handleField("examNumber")}
-                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            Data do exame
-                          </label>
-                          <div className="relative">
-                            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                            <input
-                              value={form.date}
-                              onChange={handleField("date")}
-                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            Unidade
-                          </label>
-                          <div className="relative">
-                            <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                            <input
-                              value={form.unit}
-                              onChange={handleField("unit")}
-                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            Perito
-                          </label>
-                          <div className="relative">
-                            <User2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                            <input
-                              value={form.expert}
-                              onChange={handleField("expert")}
-                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {weapons.length > 0 && (
-                      <div className="flex flex-wrap gap-3">
-                        <div className="relative flex-1">
-                          <select
-                            defaultValue=""
-                            onChange={(e) => {
-                              const t = e.target.value as WeaponType
-                              if (!t) return
-                              addWeapon(t)
-                              e.currentTarget.value = ""
-                            }}
-                            className="h-12 w-full appearance-none rounded-xl border border-[#8e7340] bg-[#162541] pl-4 pr-10 text-sm font-black tracking-wide text-[#f0d08a] outline-none cursor-pointer hover:bg-[#1a2c4f]"
-                          >
-                            <option value="" disabled>+ Adicionar arma</option>
-                            <option value="REVÓLVER">REVÓLVER</option>
-                            <option value="PISTOLA">PISTOLA</option>
-                            <option value="CARABINA">CARABINA</option>
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#f0d08a]" />
-                        </div>
+                  <div className="p-5 md:p-6">
+                    <div className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-[#6b5838]">Tipo de exame</div>
+                    <div className="mt-2 space-y-2">
+                      {(["EFICIÊNCIA", "CONSTATAÇÃO"] as const).map((t) => (
                         <button
-                          onClick={() => {
-                            const updated = weapons.filter((_, i) => i !== activeWeaponIdx)
-                            setWeapons(updated)
-                            setActiveWeaponIdx(Math.max(0, activeWeaponIdx - 1))
-                            if (updated.length === 0) setWeaponType(null)
-                          }}
-                          className="flex h-12 items-center gap-2 rounded-xl border border-[#7a3535] bg-[#2a1515] px-4 text-sm font-black tracking-wide text-[#f08a8a] hover:bg-[#3a1a1a]"
+                          key={t}
+                          type="button"
+                          onClick={() => setExamType(t)}
+                          className="flex w-full items-center justify-between rounded-xl border border-[#d3c4a8] bg-[#fbf8f3] px-4 py-3 text-left transition hover:border-[#b89a58] hover:bg-[#ece6da] active:scale-[.98]"
                         >
-                          <X className="h-4 w-4" />
-                          Remover arma
+                          <div>
+                            <div className="text-sm font-black uppercase tracking-[0.14em] text-[#3d2e12]">{t}</div>
+                            <div className="mt-0.5 text-xs text-[#8d7854]">
+                              {t === "EFICIÊNCIA" ? "Exame de disparo e funcionamento" : "Constatação de características"}
+                            </div>
+                          </div>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-[#8d7854]" />
                         </button>
-                      </div>
-                    )}
-
-                    <CollapsibleSection title="Dados da arma">
-
-                      {weapons.length > 1 && (
-                        <div className="mb-4 flex flex-wrap gap-2">
-                          {weapons.map((w, i) => (
-                            <button
-                              key={i}
-                              onClick={() => setActiveWeaponIdx(i)}
-                              className={cn(
-                                "rounded-xl border px-4 py-2 text-sm font-bold tracking-wide transition",
-                                activeWeaponIdx === i
-                                  ? "border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] text-[#1d2433]"
-                                  : "border-[#d3c4a8] bg-[#fbf8f3] text-[#50442f] hover:bg-[#ece6da]",
-                              )}
-                            >
-                              Arma {i + 1} — {w.type}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            Marca
-                          </label>
-                          <input
-                            value={activeWeapon?.brand ?? ""}
-                            onChange={handleWeaponField("brand")}
-                            disabled={!activeWeapon}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 disabled:opacity-40"
-                            placeholder="Ex.: Taurus"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            Modelo
-                          </label>
-                          <input
-                            value={activeWeapon?.model ?? ""}
-                            onChange={handleWeaponField("model")}
-                            disabled={!activeWeapon}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 disabled:opacity-40"
-                            placeholder="Ex.: RT 627"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            Número de série
-                          </label>
-                          <input
-                            value={activeWeapon?.serial ?? ""}
-                            onChange={handleWeaponField("serial")}
-                            disabled={!activeWeapon}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 disabled:opacity-40"
-                            placeholder="Informar identificação"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            Calibre
-                          </label>
-                          <input
-                            value={activeWeapon?.caliber ?? ""}
-                            onChange={handleWeaponField("caliber")}
-                            disabled={!activeWeapon}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 disabled:opacity-40"
-                            placeholder="Ex.: .38 SPL"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            País de fabricação
-                          </label>
-                          <input
-                            value={activeWeapon?.paisFabricacao ?? ""}
-                            onChange={handleWeaponField("paisFabricacao")}
-                            disabled={!activeWeapon}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 disabled:opacity-40"
-                            placeholder="Ex.: Brasil"
-                          />
-                        </div>
-                      </div>
-
-                      {/* ── REVÓLVER ── */}
-                      {activeWeapon?.type === "REVÓLVER" && (<>
-                        <div className="mt-4">
-                        <CollapsibleSection title="Características físicas" defaultOpen={false}>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            {([
-                              ["material",   "Material",             "Ex.: aço, inox"],
-                              ["acabamento", "Acabamento",           "Ex.: oxidado, niquelado"],
-                              ["compCano",   "Comprimento do cano",  "Ex.: 4 pol."],
-                              ["numCamaras", "Número de câmaras",    "Ex.: 6"],
-                            ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
-                              <div key={field}>
-                                <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                                <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
-                                  className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                  placeholder={ph} />
-                              </div>
-                            ))}
-                            <div className="md:col-span-2">
-                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de mira</label>
-                              <input value={activeWeapon?.tipoMira ?? ""} onChange={handleWeaponField("tipoMira")}
-                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                placeholder="Ex.: aberta fixada" />
-                            </div>
-                          </div>
-                        </CollapsibleSection>
-
-                        <div className="mt-5 space-y-4">
-                          <CollapsibleCard title="Mecanismo de funcionamento">
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              {([
-                                ["acaoSimples",      "Ação simples funcional"],
-                                ["acaoDupla",        "Ação dupla funcional"],
-                                ["tamborGira",       "Tambor gira livremente"],
-                                ["indexacaoCorreta", "Indexação correta do tambor"],
-                                ["caoFuncional",     "Cão funcional"],
-                                ["gatilhoFuncional", "Gatilho funcional"],
-                                ["seguranca",        "Sistema de segurança"],
-                              ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                                <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                  <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)}
-                                    onChange={handleWeaponField(key)}
-                                    className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                                  {label}
-                                </label>
-                              ))}
-                            </div>
-                          </CollapsibleCard>
-
-                          <CollapsibleCard title="Estado de conservação">
-                            <div className="space-y-3">
-                              {([
-                                ["ferrugem",       "ferrugemObs",       "Presença de ferrugem"],
-                                ["desgaste",       "desgasteObs",       "Desgaste"],
-                                ["danoEstruturais","danoEstruturaisObs","Danos estruturais"],
-                                ["pecasFaltantes", "pecasFaltantesObs", "Peças faltantes"],
-                              ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
-                                <div key={key}>
-                                  <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                    <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)}
-                                      onChange={handleWeaponField(key)}
-                                      className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                                    {label}
-                                  </label>
-                                  {activeWeapon?.[key] && (
-                                    <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
-                                      placeholder={`Descreva: ${label.toLowerCase()}`}
-                                      className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </CollapsibleCard>
-
-                          <CollapsibleCard title="Exame de disparo">
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              {([
-                                ["aptoDisparo",      "Apto a disparo"],
-                                ["funcMunicaoReal",  "Funcionamento com munição real"],
-                                ["testePercussao",   "Teste de percussão"],
-                                ["marcacaoPercussor","Marcação de percussor"],
-                              ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                                <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                  <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)}
-                                    onChange={handleWeaponField(key)}
-                                    className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                                  {label}
-                                </label>
-                              ))}
-                            </div>
-                          </CollapsibleCard>
-                        </div>
-                        </div>
-                      </>)}
-
-                      {/* ── CARABINA ── */}
-                      {activeWeapon?.type === "CARABINA" && (
-                        <div className="mt-5 space-y-4">
-                          <CollapsibleCard title="Funcionamento">
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              {([
-                                ["sistemaRepeticao",  "Sistema de repetição funcional"],
-                                ["ferrolhoFuncional",  "Ferrolho funcional"],
-                                ["percussorFuncional", "Percussor funcional"],
-                                ["extratorFuncional",  "Extrator funcional"],
-                                ["ejetorFuncional",    "Ejetor funcional"],
-                                ["gatilhoFuncional",   "Gatilho funcional"],
-                                ["seguranca",          "Trava de segurança funcional"],
-                                ["alimentacaoFuncional","Alimentação funcional"],
-                              ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                                <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                  <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)}
-                                    onChange={handleWeaponField(key)}
-                                    className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                                  {label}
-                                </label>
-                              ))}
-                            </div>
-                          </CollapsibleCard>
-
-                          <CollapsibleCard title="Estado de conservação">
-                            <div className="space-y-3">
-                              {([
-                                ["ferrugem",        "ferrugemObs",         "Presença de ferrugem"],
-                                ["desgasteMecanico","desgasteMecanicoObs", "Desgaste mecânico"],
-                                ["pecasFaltantes",  "pecasFaltantesObs",   "Peças faltantes"],
-                                ["danosAparentes",  "danosAparentesObs",   "Danos aparentes"],
-                              ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
-                                <div key={key}>
-                                  <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                    <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)}
-                                      onChange={handleWeaponField(key)}
-                                      className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                                    {label}
-                                  </label>
-                                  {activeWeapon?.[key] && (
-                                    <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
-                                      placeholder={`Descreva: ${label.toLowerCase()}`}
-                                      className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </CollapsibleCard>
-
-                          <CollapsibleCard title="Teste de disparo">
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              {([
-                                ["aptoDisparo",       "Apta para disparo"],
-                                ["testePercussao",    "Percussão funcional"],
-                                ["extracaoFuncional", "Extração funcional"],
-                                ["ejacaoFuncional",   "Ejeção funcional"],
-                                ["ciclagemFuncional", "Ciclagem funcional"],
-                              ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                                <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                  <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)}
-                                    onChange={handleWeaponField(key)}
-                                    className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                                  {label}
-                                </label>
-                              ))}
-                            </div>
-                          </CollapsibleCard>
-                        </div>
-                      )}
-
-                      {/* ── PISTOLA ── */}
-                      {activeWeapon?.type === "PISTOLA" && (
-                        <div className="mt-5 space-y-4">
-                          <CollapsibleCard title="Funcionamento">
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              {([
-                                ["carregadorPresente",  "Carregador presente"],
-                                ["carregadorFuncional", "Carregador funcional"],
-                                ["ferrolhoFuncional",   "Ferrolho funcional"],
-                                ["percussorFuncional",  "Percussor funcional"],
-                                ["extratorFuncional",   "Extrator funcional"],
-                                ["ejetorFuncional",     "Ejetor funcional"],
-                                ["gatilhoFuncional",    "Gatilho funcional"],
-                                ["seguranca",           "Trava de segurança funcional"],
-                                ["retencaoFerrolho",    "Retenção do ferrolho funcional"],
-                                ["alimentacaoFuncional","Alimentação funcional"],
-                              ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                                <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                  <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)}
-                                    onChange={handleWeaponField(key)}
-                                    className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                                  {label}
-                                </label>
-                              ))}
-                            </div>
-                          </CollapsibleCard>
-
-                          <CollapsibleCard title="Estado de conservação">
-                            <div className="space-y-3">
-                              {([
-                                ["ferrugem",       "ferrugemObs",          "Presença de ferrugem"],
-                                ["desgasteMecanico","desgasteMecanicoObs", "Desgaste mecânico"],
-                                ["pecasFaltantes", "pecasFaltantesObs",    "Peças faltantes"],
-                                ["danosAparentes", "danosAparentesObs",    "Danos aparentes"],
-                              ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
-                                <div key={key}>
-                                  <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                    <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)}
-                                      onChange={handleWeaponField(key)}
-                                      className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                                    {label}
-                                  </label>
-                                  {activeWeapon?.[key] && (
-                                    <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
-                                      placeholder={`Descreva: ${label.toLowerCase()}`}
-                                      className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </CollapsibleCard>
-
-                          <CollapsibleCard title="Teste de disparo">
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              {([
-                                ["aptoDisparo",       "Apta para disparo"],
-                                ["testePercussao",    "Percussão funcional"],
-                                ["extracaoFuncional", "Extração funcional"],
-                                ["ejacaoFuncional",   "Ejeção funcional"],
-                                ["ciclagemFuncional", "Ciclagem funcional"],
-                              ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                                <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                  <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)}
-                                    onChange={handleWeaponField(key)}
-                                    className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                                  {label}
-                                </label>
-                              ))}
-                            </div>
-                          </CollapsibleCard>
-                        </div>
-                      )}
-                    </CollapsibleSection>
-
-                    <div>
-                      <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
-                        Imagens
-                      </div>
-
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <button className="rounded-2xl border border-[#d3c4a8] bg-[#ece6da] p-4 text-center transition hover:bg-[#e8dfcf]">
-                          <div className="flex h-20 items-center justify-center">
-                            <Camera className="h-10 w-10 text-[#7b6c52]" />
-                          </div>
-                          <div className="rounded-xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] px-4 py-3 text-sm font-black tracking-[0.16em] text-[#f8e3b3]">
-                            TIRAR FOTO
-                          </div>
-                        </button>
-
-                        <button className="rounded-2xl border border-[#d3c4a8] bg-[#ece6da] p-4 text-center transition hover:bg-[#e8dfcf]">
-                          <div className="flex h-20 items-center justify-center">
-                            <ImageIcon className="h-10 w-10 text-[#7b6c52]" />
-                          </div>
-                          <div className="rounded-xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] px-4 py-3 text-sm font-black tracking-[0.16em] text-[#f8e3b3]">
-                            GALERIA
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                        Observações
-                      </label>
-                      <textarea
-                        value={form.observacoes}
-                        onChange={handleField("observacoes")}
-                        className="min-h-[140px] w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 py-3 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                        placeholder="Inserir observações técnicas, estado geral, particularidades e demais elementos relevantes."
-                      />
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[#d3c3a4] pt-5">
-                      <button className="rounded-2xl border border-[#a8894c] bg-[#efe1b5] px-5 py-3 text-sm font-black tracking-[0.14em] text-[#4b3b21] transition hover:brightness-95">
-                        LIMPAR
-                      </button>
-                      <button className="rounded-2xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] px-7 py-3 text-sm font-black tracking-[0.16em] text-[#f8e3b3] shadow-[0_12px_24px_rgba(66,50,24,.22)] transition hover:brightness-105">
-                        SALVAR EXAME
-                      </button>
+                      ))}
                     </div>
                   </div>
                       </div>
@@ -1129,6 +817,508 @@ export default function MunicaoDBInterfacePreview() {
             </div>
           </main>
         </div>
+
+        {/* ── Formulário do REP ── */}
+        <AnimatePresence>
+          {examType !== null && (
+            <motion.div
+              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 200 }}
+              className="fixed inset-0 z-[60] overflow-y-auto"
+            >
+              <div className="min-h-full bg-[#f5efe3] text-[#26221b]">
+                {/* header */}
+                <div className="sticky top-0 z-10 border-b border-[#cab88f] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <button type="button" onClick={() => setExamType(null)}
+                        className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] hover:bg-[#1a2c4f]">
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      <div>
+                        <div className="text-xl font-black text-[#f0d08a]">Novo REP</div>
+                        <div className="text-xs uppercase tracking-[0.22em] text-[#ccb780]">{examType}</div>
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => { setExamType(null); setDrawerOpen(false) }}
+                      className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] hover:bg-[#1a2c4f]">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* conteúdo */}
+                <div className="space-y-6 p-5 md:p-6">
+                  {/* Identificação */}
+                  <div>
+                    <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
+                      Identificação do exame
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número do exame</label>
+                        <div className="relative">
+                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
+                          <input value={form.examNumber} onChange={handleField("examNumber")}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Data do exame</label>
+                        <div className="relative">
+                          <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
+                          <input value={form.date} onChange={handleField("date")}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Unidade</label>
+                        <div className="relative">
+                          <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
+                          <input value={form.unit} onChange={handleField("unit")}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Perito</label>
+                        <div className="relative">
+                          <User2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
+                          <input value={form.expert} onChange={handleField("expert")}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Peças salvas */}
+                  {savedPieces.length > 0 && (
+                    <div>
+                      <div className="mb-3 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
+                        Peças do exame
+                      </div>
+                      <div className="space-y-3">
+                        {savedPieces.map((p, i) => (
+                          <div key={i} className="flex items-center gap-4 rounded-2xl border border-[#c8b47e] bg-[#fbf8f3] px-4 py-3 shadow-sm">
+                            <div className="flex shrink-0 items-center justify-center rounded-xl bg-[#12213d] p-2 text-[#f0d08a]">
+                              <PieceIcon type={p.type} className="h-9 w-auto max-w-[60px]" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#6b5838]">{p.type}</div>
+                              <div className="truncate text-sm font-bold text-[#26221b]">{p.model || <span className="italic text-[#a89268]">modelo não informado</span>}</div>
+                              <div className="text-xs text-[#6b5838]">Nº {p.serial || "—"}{p.caliber ? ` • ${p.caliber}` : ""}</div>
+                            </div>
+                            <button type="button" onClick={() => removeSavedPiece(i)}
+                              className="shrink-0 rounded-lg border border-[#7a3535] bg-[#2a1515] p-1.5 text-[#f08a8a] hover:bg-[#3a1a1a]">
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tipo de peça */}
+                  <div>
+                    <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
+                      Tipo de peça
+                    </div>
+                    <div className="grid grid-cols-2 min-[420px]:grid-cols-5 gap-2">
+                      {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ESTOJO","PROJÉTIL","CARTUCHO","FACA"] as WeaponType[]).map((type) => (
+                        <button key={type} type="button"
+                          onClick={() => {
+                            setWeaponType(type)
+                            setWeapons([{ type, brand: "", model: "", caliber: "", serial: "", paisFabricacao: "", material: "", acabamento: "", compCano: "", numCamaras: "", tipoMira: "", acaoSimples: true, acaoDupla: true, tamborGira: true, indexacaoCorreta: true, caoFuncional: true, gatilhoFuncional: true, seguranca: true, ferrugem: false, ferrugemObs: "", desgaste: false, desgasteObs: "", danoEstruturais: false, danoEstruturaisObs: "", pecasFaltantes: false, pecasFaltantesObs: "", aptoDisparo: true, funcMunicaoReal: true, testePercussao: true, marcacaoPercussor: true, sistemaRepeticao: true, carregadorPresente: true, carregadorFuncional: true, ferrolhoFuncional: true, percussorFuncional: true, extratorFuncional: true, ejetorFuncional: true, retencaoFerrolho: true, alimentacaoFuncional: true, desgasteMecanico: false, desgasteMecanicoObs: "", danosAparentes: false, danosAparentesObs: "", extracaoFuncional: true, ejacaoFuncional: true, ciclagemFuncional: true }])
+                            setActiveWeaponIdx(0)
+                            setPieceFormOpen(true)
+                          }}
+                          className="rounded-xl border-2 border-[#d3c4a8] bg-[#fbf8f3] px-2 py-3 text-center text-[10px] font-black uppercase tracking-[0.1em] leading-tight text-[#50442f] transition hover:border-[#b89a58] hover:bg-[#ece6da]"
+                        >
+                          <div className="flex justify-center mb-1 text-[#3d3020]">
+                            <PieceIcon type={type} className="h-8 w-auto max-w-[52px]" />
+                          </div>
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Observações */}
+                  <div>
+                    <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
+                      Observações
+                    </div>
+                    <textarea value={form.observacoes} onChange={handleField("observacoes")}
+                      className="min-h-[120px] w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 py-3 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                      placeholder="Inserir observações técnicas, estado geral, particularidades e demais elementos relevantes." />
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex justify-end border-t border-[#d3c3a4] pt-5">
+                    <button className="rounded-2xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] px-7 py-3 text-sm font-black tracking-[0.16em] text-[#f8e3b3] shadow-[0_12px_24px_rgba(66,50,24,.22)] transition hover:brightness-105">
+                      SALVAR EXAME
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Tela de detalhes da peça ── */}
+        <AnimatePresence>
+          {pieceFormOpen && weaponType && (
+            <motion.div
+              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 200 }}
+              className="fixed inset-0 z-[70] overflow-y-auto"
+            >
+              <div className="min-h-full bg-[#f5efe3] text-[#26221b]">
+                <div className="sticky top-0 z-10 border-b border-[#cab88f] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => { setPieceFormOpen(false); setWeaponType(null); setWeapons([]) }}
+                        className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] hover:bg-[#1a2c4f]"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      <div>
+                        <div className="text-xl font-black text-[#f0d08a]">{weaponType}</div>
+                        <div className="text-xs uppercase tracking-[0.22em] text-[#ccb780]">Dados da peça</div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setPieceFormOpen(false); setWeaponType(null); setWeapons([]); setDrawerOpen(false) }}
+                      className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] hover:bg-[#1a2c4f]"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-6 p-5 md:p-6">
+                  {/* ── Ícone da peça ── */}
+                  <div className="flex items-center gap-4 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(135deg,#1b2947_0%,#12213d_100%)] px-5 py-4 shadow-[0_6px_22px_rgba(0,0,0,.28)]">
+                    <div className="flex shrink-0 items-center justify-center rounded-xl bg-[#0f1e39] p-3 text-[#f0d08a]">
+                      <PieceIcon type={weaponType} className="h-12 w-auto max-w-[80px]" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#ccb780]">Tipo de peça</div>
+                      <div className="text-lg font-black uppercase tracking-[0.1em] text-[#f0d08a]">{weaponType}</div>
+                    </div>
+                  </div>
+
+                  {/* ── Campos base ── */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Marca</label>
+                      <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
+                        className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        placeholder="Ex.: Taurus" />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Modelo</label>
+                      <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
+                        className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        placeholder="Ex.: RT 627" />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de série</label>
+                      <input value={activeWeapon?.serial ?? ""} onChange={handleWeaponField("serial")}
+                        className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        placeholder="Informar identificação" />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre</label>
+                      <input value={activeWeapon?.caliber ?? ""} onChange={handleWeaponField("caliber")}
+                        className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        placeholder="Ex.: .38 SPL" />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
+                      <input value={activeWeapon?.paisFabricacao ?? ""} onChange={handleWeaponField("paisFabricacao")}
+                        className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        placeholder="Ex.: Brasil" />
+                    </div>
+                  </div>
+
+                  {/* ── REVÓLVER ── */}
+                  {activeWeapon?.type === "REVÓLVER" && (<>
+                    <CollapsibleSection title="Características físicas" defaultOpen={false}>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {([
+                          ["material",   "Material",             "Ex.: aço, inox"],
+                          ["acabamento", "Acabamento",           "Ex.: oxidado, niquelado"],
+                          ["compCano",   "Comprimento do cano",  "Ex.: 4 pol."],
+                          ["numCamaras", "Número de câmaras",    "Ex.: 6"],
+                        ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                          <div key={field}>
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                            <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                              placeholder={ph} />
+                          </div>
+                        ))}
+                        <div className="md:col-span-2">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de mira</label>
+                          <input value={activeWeapon?.tipoMira ?? ""} onChange={handleWeaponField("tipoMira")}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            placeholder="Ex.: aberta fixada" />
+                        </div>
+                      </div>
+                    </CollapsibleSection>
+
+                    <div className="space-y-4">
+                      <CollapsibleCard title="Mecanismo de funcionamento">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["acaoSimples",      "Ação simples funcional"],
+                            ["acaoDupla",        "Ação dupla funcional"],
+                            ["tamborGira",       "Tambor gira livremente"],
+                            ["indexacaoCorreta", "Indexação correta do tambor"],
+                            ["caoFuncional",     "Cão funcional"],
+                            ["gatilhoFuncional", "Gatilho funcional"],
+                            ["seguranca",        "Sistema de segurança"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+
+                      <CollapsibleCard title="Estado de conservação">
+                        <div className="space-y-3">
+                          {([
+                            ["ferrugem",       "ferrugemObs",       "Presença de ferrugem"],
+                            ["desgaste",       "desgasteObs",       "Desgaste"],
+                            ["danoEstruturais","danoEstruturaisObs","Danos estruturais"],
+                            ["pecasFaltantes", "pecasFaltantesObs", "Peças faltantes"],
+                          ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
+                            <div key={key}>
+                              <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                  className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                {label}
+                              </label>
+                              {activeWeapon?.[key] && (
+                                <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
+                                  placeholder={`Descreva: ${label.toLowerCase()}`}
+                                  className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+
+                      <CollapsibleCard title="Exame de disparo">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["aptoDisparo",      "Apto a disparo"],
+                            ["funcMunicaoReal",  "Funcionamento com munição real"],
+                            ["testePercussao",   "Teste de percussão"],
+                            ["marcacaoPercussor","Marcação de percussor"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                    </div>
+                  </>)}
+
+                  {/* ── CARABINA ── */}
+                  {activeWeapon?.type === "CARABINA" && (
+                    <div className="space-y-4">
+                      <CollapsibleCard title="Funcionamento">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["sistemaRepeticao",   "Sistema de repetição funcional"],
+                            ["ferrolhoFuncional",  "Ferrolho funcional"],
+                            ["percussorFuncional", "Percussor funcional"],
+                            ["extratorFuncional",  "Extrator funcional"],
+                            ["ejetorFuncional",    "Ejetor funcional"],
+                            ["gatilhoFuncional",   "Gatilho funcional"],
+                            ["seguranca",          "Trava de segurança funcional"],
+                            ["alimentacaoFuncional","Alimentação funcional"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+
+                      <CollapsibleCard title="Estado de conservação">
+                        <div className="space-y-3">
+                          {([
+                            ["ferrugem",        "ferrugemObs",         "Presença de ferrugem"],
+                            ["desgasteMecanico","desgasteMecanicoObs", "Desgaste mecânico"],
+                            ["pecasFaltantes",  "pecasFaltantesObs",   "Peças faltantes"],
+                            ["danosAparentes",  "danosAparentesObs",   "Danos aparentes"],
+                          ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
+                            <div key={key}>
+                              <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                  className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                {label}
+                              </label>
+                              {activeWeapon?.[key] && (
+                                <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
+                                  placeholder={`Descreva: ${label.toLowerCase()}`}
+                                  className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+
+                      <CollapsibleCard title="Teste de disparo">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["aptoDisparo",       "Apta para disparo"],
+                            ["testePercussao",    "Percussão funcional"],
+                            ["extracaoFuncional", "Extração funcional"],
+                            ["ejacaoFuncional",   "Ejeção funcional"],
+                            ["ciclagemFuncional", "Ciclagem funcional"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                    </div>
+                  )}
+
+                  {/* ── PISTOLA ── */}
+                  {activeWeapon?.type === "PISTOLA" && (
+                    <div className="space-y-4">
+                      <CollapsibleCard title="Funcionamento">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["carregadorPresente",  "Carregador presente"],
+                            ["carregadorFuncional", "Carregador funcional"],
+                            ["ferrolhoFuncional",   "Ferrolho funcional"],
+                            ["percussorFuncional",  "Percussor funcional"],
+                            ["extratorFuncional",   "Extrator funcional"],
+                            ["ejetorFuncional",     "Ejetor funcional"],
+                            ["gatilhoFuncional",    "Gatilho funcional"],
+                            ["seguranca",           "Trava de segurança funcional"],
+                            ["retencaoFerrolho",    "Retenção do ferrolho funcional"],
+                            ["alimentacaoFuncional","Alimentação funcional"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+
+                      <CollapsibleCard title="Estado de conservação">
+                        <div className="space-y-3">
+                          {([
+                            ["ferrugem",        "ferrugemObs",         "Presença de ferrugem"],
+                            ["desgasteMecanico","desgasteMecanicoObs", "Desgaste mecânico"],
+                            ["pecasFaltantes",  "pecasFaltantesObs",   "Peças faltantes"],
+                            ["danosAparentes",  "danosAparentesObs",   "Danos aparentes"],
+                          ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
+                            <div key={key}>
+                              <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                  className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                {label}
+                              </label>
+                              {activeWeapon?.[key] && (
+                                <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
+                                  placeholder={`Descreva: ${label.toLowerCase()}`}
+                                  className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+
+                      <CollapsibleCard title="Teste de disparo">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["aptoDisparo",       "Apta para disparo"],
+                            ["testePercussao",    "Percussão funcional"],
+                            ["extracaoFuncional", "Extração funcional"],
+                            ["ejacaoFuncional",   "Ejeção funcional"],
+                            ["ciclagemFuncional", "Ciclagem funcional"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                    </div>
+                  )}
+
+                  {/* ── Imagens ── */}
+                  <div>
+                    <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
+                      Imagens
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <button className="rounded-2xl border border-[#d3c4a8] bg-[#ece6da] p-4 text-center transition hover:bg-[#e8dfcf]">
+                        <div className="flex h-20 items-center justify-center">
+                          <Camera className="h-10 w-10 text-[#7b6c52]" />
+                        </div>
+                        <div className="rounded-xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] px-4 py-3 text-sm font-black tracking-[0.16em] text-[#f8e3b3]">
+                          TIRAR FOTO
+                        </div>
+                      </button>
+                      <button className="rounded-2xl border border-[#d3c4a8] bg-[#ece6da] p-4 text-center transition hover:bg-[#e8dfcf]">
+                        <div className="flex h-20 items-center justify-center">
+                          <ImageIcon className="h-10 w-10 text-[#7b6c52]" />
+                        </div>
+                        <div className="rounded-xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] px-4 py-3 text-sm font-black tracking-[0.16em] text-[#f8e3b3]">
+                          GALERIA
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ── Footer ── */}
+                  <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[#d3c3a4] pt-5">
+                    <button
+                      type="button"
+                      onClick={() => { setPieceFormOpen(false); setWeaponType(null); setWeapons([]) }}
+                      className="rounded-2xl border border-[#a8894c] bg-[#efe1b5] px-5 py-3 text-sm font-black tracking-[0.14em] text-[#4b3b21] transition hover:brightness-95"
+                    >
+                      CANCELAR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={savePiece}
+                      className="rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-7 py-3 text-sm font-black tracking-[0.16em] text-[#f0d08a] shadow-[0_12px_24px_rgba(0,0,0,.28)] transition hover:brightness-110"
+                    >
+                      SALVAR PEÇA
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {weaponType && !drawerOpen && (
