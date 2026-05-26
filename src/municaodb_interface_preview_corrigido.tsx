@@ -853,22 +853,6 @@ export default function MunicaoDBInterfacePreview() {
                             className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
                         </div>
                       </div>
-                      <div>
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Unidade</label>
-                        <div className="relative">
-                          <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                          <input value={form.unit} onChange={handleField("unit")}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Perito</label>
-                        <div className="relative">
-                          <User2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                          <input value={form.expert} onChange={handleField("expert")}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
-                        </div>
-                      </div>
                     </div>
                   </div>
 
