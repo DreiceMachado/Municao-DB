@@ -84,6 +84,42 @@ type WeaponEntry = {
   extracaoFuncional: boolean
   ejacaoFuncional: boolean
   ciclagemFuncional: boolean
+  // Físicas gerais (multi-tipo)
+  compTotal: string
+  capacidadeCarregador: string
+  numCanos: string
+  // FUZIL / METRALHADORA
+  modoFogo: string
+  seletoDisparo: boolean
+  modoSemiAuto: boolean
+  modoAutoFuncional: boolean
+  culatelFuncional: boolean
+  // ESTOJO / PROJÉTIL
+  formato: string
+  numEstrias: string
+  sentidoEstrias: string
+  diametro: string
+  marcacaoExtrator: boolean
+  marcacaoEjetor: boolean
+  marcacaoCamara: boolean
+  estriasPresentes: boolean
+  deformacaoPresente: boolean
+  fragmentado: boolean
+  oxidacaoPresente: boolean
+  inscricaoFabricante: string
+  // CARTUCHO
+  amassado: boolean
+  completo: boolean
+  // FACA
+  tipoLamina: string
+  compLamina: string
+  tipoGume: string
+  gumeFuncional: boolean
+  aptaUso: boolean
+  laminaIntegra: boolean
+  caboDanificado: boolean
+  manchas: boolean
+  manchasObs: string
 }
 
 type RecordItem = {
@@ -501,57 +537,35 @@ export default function MunicaoDBInterfacePreview() {
       )
     }
 
+  const makeWeaponEntry = (type: WeaponType): WeaponEntry => ({
+    type,
+    brand: "", model: "", caliber: "", serial: "", paisFabricacao: "",
+    material: "", acabamento: "", compCano: "", numCamaras: "", tipoMira: "",
+    acaoSimples: true, acaoDupla: true, tamborGira: true, indexacaoCorreta: true,
+    caoFuncional: true, gatilhoFuncional: true, seguranca: true,
+    ferrugem: false, ferrugemObs: "", desgaste: false, desgasteObs: "",
+    danoEstruturais: false, danoEstruturaisObs: "", pecasFaltantes: false, pecasFaltantesObs: "",
+    aptoDisparo: true, funcMunicaoReal: true, testePercussao: true, marcacaoPercussor: true,
+    sistemaRepeticao: true, carregadorPresente: true, carregadorFuncional: true,
+    ferrolhoFuncional: true, percussorFuncional: true, extratorFuncional: true,
+    ejetorFuncional: true, retencaoFerrolho: true, alimentacaoFuncional: true,
+    desgasteMecanico: false, desgasteMecanicoObs: "", danosAparentes: false, danosAparentesObs: "",
+    extracaoFuncional: true, ejacaoFuncional: true, ciclagemFuncional: true,
+    compTotal: "", capacidadeCarregador: "", numCanos: "", modoFogo: "",
+    seletoDisparo: true, modoSemiAuto: true, modoAutoFuncional: true, culatelFuncional: true,
+    formato: "", numEstrias: "", sentidoEstrias: "", diametro: "",
+    marcacaoExtrator: false, marcacaoEjetor: false, marcacaoCamara: false,
+    estriasPresentes: true, deformacaoPresente: false, fragmentado: false,
+    oxidacaoPresente: false, inscricaoFabricante: "",
+    amassado: false, completo: true,
+    tipoLamina: "", compLamina: "", tipoGume: "",
+    gumeFuncional: true, aptaUso: true, laminaIntegra: true,
+    caboDanificado: false, manchas: false, manchasObs: "",
+  })
+
   const addWeapon = (type: WeaponType) => {
-    const newWeapon: WeaponEntry = {
-      type,
-      brand: "",
-      model: "",
-      caliber: "",
-      serial: "",
-      paisFabricacao: "",
-      material: "",
-      acabamento: "",
-      compCano: "",
-      numCamaras: "",
-      tipoMira: "",
-      acaoSimples: true,
-      acaoDupla: true,
-      tamborGira: true,
-      indexacaoCorreta: true,
-      caoFuncional: true,
-      gatilhoFuncional: true,
-      seguranca: true,
-      ferrugem: false,
-      ferrugemObs: "",
-      desgaste: false,
-      desgasteObs: "",
-      danoEstruturais: false,
-      danoEstruturaisObs: "",
-      pecasFaltantes: false,
-      pecasFaltantesObs: "",
-      aptoDisparo: true,
-      funcMunicaoReal: true,
-      testePercussao: true,
-      marcacaoPercussor: true,
-      sistemaRepeticao: true,
-      carregadorPresente: true,
-      carregadorFuncional: true,
-      ferrolhoFuncional: true,
-      percussorFuncional: true,
-      extratorFuncional: true,
-      ejetorFuncional: true,
-      retencaoFerrolho: true,
-      alimentacaoFuncional: true,
-      desgasteMecanico: false,
-      desgasteMecanicoObs: "",
-      danosAparentes: false,
-      danosAparentesObs: "",
-      extracaoFuncional: true,
-      ejacaoFuncional: true,
-      ciclagemFuncional: true,
-    }
     setActiveWeaponIdx(weapons.length)
-    setWeapons((prev) => [...prev, newWeapon])
+    setWeapons((prev) => [...prev, makeWeaponEntry(type)])
   }
 
   const sidebarDesktop = (
@@ -904,7 +918,7 @@ export default function MunicaoDBInterfacePreview() {
                         <button key={type} type="button"
                           onClick={() => {
                             setWeaponType(type)
-                            setWeapons([{ type, brand: "", model: "", caliber: "", serial: "", paisFabricacao: "", material: "", acabamento: "", compCano: "", numCamaras: "", tipoMira: "", acaoSimples: true, acaoDupla: true, tamborGira: true, indexacaoCorreta: true, caoFuncional: true, gatilhoFuncional: true, seguranca: true, ferrugem: false, ferrugemObs: "", desgaste: false, desgasteObs: "", danoEstruturais: false, danoEstruturaisObs: "", pecasFaltantes: false, pecasFaltantesObs: "", aptoDisparo: true, funcMunicaoReal: true, testePercussao: true, marcacaoPercussor: true, sistemaRepeticao: true, carregadorPresente: true, carregadorFuncional: true, ferrolhoFuncional: true, percussorFuncional: true, extratorFuncional: true, ejetorFuncional: true, retencaoFerrolho: true, alimentacaoFuncional: true, desgasteMecanico: false, desgasteMecanicoObs: "", danosAparentes: false, danosAparentesObs: "", extracaoFuncional: true, ejacaoFuncional: true, ciclagemFuncional: true }])
+                            setWeapons([makeWeaponEntry(type)])
                             setActiveWeaponIdx(0)
                             setPieceFormOpen(true)
                           }}
@@ -1074,7 +1088,7 @@ export default function MunicaoDBInterfacePreview() {
 
                   {/* ── REVÓLVER ── */}
                   {activeWeapon?.type === "REVÓLVER" && (<>
-                    <CollapsibleSection title="Características físicas" defaultOpen={false}>
+                    <CollapsibleSection title="Características físicas" defaultOpen={true}>
                       <div className="grid gap-4 md:grid-cols-2">
                         {([
                           ["material",   "Material",             "Ex.: aço, inox"],
@@ -1165,7 +1179,25 @@ export default function MunicaoDBInterfacePreview() {
                   {/* ── CARABINA ── */}
                   {activeWeapon?.type === "CARABINA" && (
                     <div className="space-y-4">
-                      <CollapsibleCard title="Funcionamento">
+                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {([
+                            ["material",   "Material",            "Ex.: aço, madeira"],
+                            ["acabamento", "Acabamento",          "Ex.: oxidado, brunido"],
+                            ["compCano",   "Comprimento do cano", "Ex.: 510 mm"],
+                            ["compTotal",  "Comprimento total",   "Ex.: 940 mm"],
+                            ["tipoMira",   "Tipo de mira",        "Ex.: aberta, telescópica"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                            <div key={field}>
+                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                placeholder={ph} />
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+                      <CollapsibleCard title="Mecanismo de funcionamento">
                         <div className="grid gap-3 sm:grid-cols-2">
                           {([
                             ["sistemaRepeticao",   "Sistema de repetição funcional"],
@@ -1210,7 +1242,7 @@ export default function MunicaoDBInterfacePreview() {
                         </div>
                       </CollapsibleCard>
 
-                      <CollapsibleCard title="Teste de disparo">
+                      <CollapsibleCard title="Exame de disparo">
                         <div className="grid gap-3 sm:grid-cols-2">
                           {([
                             ["aptoDisparo",       "Apta para disparo"],
@@ -1233,7 +1265,26 @@ export default function MunicaoDBInterfacePreview() {
                   {/* ── PISTOLA ── */}
                   {activeWeapon?.type === "PISTOLA" && (
                     <div className="space-y-4">
-                      <CollapsibleCard title="Funcionamento">
+                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {([
+                            ["material",             "Material",                "Ex.: aço, polímero"],
+                            ["acabamento",           "Acabamento",              "Ex.: oxidado, niquelado"],
+                            ["compCano",             "Comprimento do cano",     "Ex.: 100 mm"],
+                            ["compTotal",            "Comprimento total",       "Ex.: 180 mm"],
+                            ["tipoMira",             "Tipo de mira",            "Ex.: ajustável, ponto branco"],
+                            ["capacidadeCarregador", "Capacidade do carregador","Ex.: 17 cartuchos"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                            <div key={field}>
+                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                placeholder={ph} />
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+                      <CollapsibleCard title="Mecanismo de funcionamento">
                         <div className="grid gap-3 sm:grid-cols-2">
                           {([
                             ["carregadorPresente",  "Carregador presente"],
@@ -1280,7 +1331,7 @@ export default function MunicaoDBInterfacePreview() {
                         </div>
                       </CollapsibleCard>
 
-                      <CollapsibleCard title="Teste de disparo">
+                      <CollapsibleCard title="Exame de disparo">
                         <div className="grid gap-3 sm:grid-cols-2">
                           {([
                             ["aptoDisparo",       "Apta para disparo"],
@@ -1291,6 +1342,473 @@ export default function MunicaoDBInterfacePreview() {
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
                               <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                    </div>
+                  )}
+
+                  {/* ── ESPINGARDA ── */}
+                  {activeWeapon?.type === "ESPINGARDA" && (
+                    <div className="space-y-4">
+                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {([
+                            ["material",   "Material",            "Ex.: aço, madeira"],
+                            ["acabamento", "Acabamento",          "Ex.: oxidado, pavonado"],
+                            ["compCano",   "Comprimento do cano", "Ex.: 510 mm"],
+                            ["compTotal",  "Comprimento total",   "Ex.: 940 mm"],
+                            ["numCanos",   "Número de canos",     "Ex.: 1, 2"],
+                            ["tipoMira",   "Tipo de mira",        "Ex.: bead, aberta"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                            <div key={field}>
+                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                placeholder={ph} />
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+                      <CollapsibleCard title="Mecanismo de funcionamento">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["gatilhoFuncional",    "Gatilho funcional"],
+                            ["caoFuncional",        "Cão funcional"],
+                            ["extratorFuncional",   "Extrator funcional"],
+                            ["seguranca",           "Trava de segurança funcional"],
+                            ["sistemaRepeticao",    "Sistema de repetição funcional"],
+                            ["alimentacaoFuncional","Alimentação funcional"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                      <CollapsibleCard title="Estado de conservação">
+                        <div className="space-y-3">
+                          {([
+                            ["ferrugem",        "ferrugemObs",         "Presença de ferrugem"],
+                            ["desgasteMecanico","desgasteMecanicoObs", "Desgaste mecânico"],
+                            ["pecasFaltantes",  "pecasFaltantesObs",   "Peças faltantes"],
+                            ["danosAparentes",  "danosAparentesObs",   "Danos aparentes"],
+                          ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
+                            <div key={key}>
+                              <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                  className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                {label}
+                              </label>
+                              {activeWeapon?.[key] && (
+                                <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
+                                  placeholder={`Descreva: ${label.toLowerCase()}`}
+                                  className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                      <CollapsibleCard title="Exame de disparo">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["aptoDisparo",      "Apta para disparo"],
+                            ["testePercussao",   "Percussão funcional"],
+                            ["extracaoFuncional","Extração funcional"],
+                            ["ejacaoFuncional",  "Ejeção funcional"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                    </div>
+                  )}
+
+                  {/* ── FUZIL ── */}
+                  {activeWeapon?.type === "FUZIL" && (
+                    <div className="space-y-4">
+                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {([
+                            ["material",   "Material",            "Ex.: aço, polímero"],
+                            ["acabamento", "Acabamento",          "Ex.: oxidado, fosfatado"],
+                            ["compCano",   "Comprimento do cano", "Ex.: 410 mm"],
+                            ["compTotal",  "Comprimento total",   "Ex.: 860 mm"],
+                            ["tipoMira",   "Tipo de mira",        "Ex.: aberta, óptica, red dot"],
+                            ["modoFogo",   "Modo de fogo",        "Ex.: semi, auto, rajada"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                            <div key={field}>
+                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                placeholder={ph} />
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+                      <CollapsibleCard title="Mecanismo de funcionamento">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["ferrolhoFuncional",   "Ferrolho funcional"],
+                            ["percussorFuncional",  "Percussor funcional"],
+                            ["extratorFuncional",   "Extrator funcional"],
+                            ["ejetorFuncional",     "Ejetor funcional"],
+                            ["gatilhoFuncional",    "Gatilho funcional"],
+                            ["seguranca",           "Trava de segurança funcional"],
+                            ["alimentacaoFuncional","Alimentação funcional"],
+                            ["seletoDisparo",       "Seletor de disparo funcional"],
+                            ["modoSemiAuto",        "Modo semi-automático funcional"],
+                            ["modoAutoFuncional",   "Modo automático funcional"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                      <CollapsibleCard title="Estado de conservação">
+                        <div className="space-y-3">
+                          {([
+                            ["ferrugem",        "ferrugemObs",         "Presença de ferrugem"],
+                            ["desgasteMecanico","desgasteMecanicoObs", "Desgaste mecânico"],
+                            ["pecasFaltantes",  "pecasFaltantesObs",   "Peças faltantes"],
+                            ["danosAparentes",  "danosAparentesObs",   "Danos aparentes"],
+                          ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
+                            <div key={key}>
+                              <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                  className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                {label}
+                              </label>
+                              {activeWeapon?.[key] && (
+                                <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
+                                  placeholder={`Descreva: ${label.toLowerCase()}`}
+                                  className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                      <CollapsibleCard title="Exame de disparo">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["aptoDisparo",      "Apto a disparo"],
+                            ["testePercussao",   "Percussão funcional"],
+                            ["extracaoFuncional","Extração funcional"],
+                            ["ejacaoFuncional",  "Ejeção funcional"],
+                            ["ciclagemFuncional","Ciclagem funcional"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                    </div>
+                  )}
+
+                  {/* ── METRALHADORA ── */}
+                  {activeWeapon?.type === "METRALHADORA" && (
+                    <div className="space-y-4">
+                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {([
+                            ["material",   "Material",            "Ex.: aço, polímero"],
+                            ["acabamento", "Acabamento",          "Ex.: fosfatado, oxidado"],
+                            ["compCano",   "Comprimento do cano", "Ex.: 260 mm"],
+                            ["compTotal",  "Comprimento total",   "Ex.: 690 mm"],
+                            ["tipoMira",   "Tipo de mira",        "Ex.: aberta, óptica"],
+                            ["modoFogo",   "Modo de fogo",        "Ex.: semi, auto"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                            <div key={field}>
+                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                placeholder={ph} />
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+                      <CollapsibleCard title="Mecanismo de funcionamento">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["ferrolhoFuncional",   "Ferrolho funcional"],
+                            ["percussorFuncional",  "Percussor funcional"],
+                            ["extratorFuncional",   "Extrator funcional"],
+                            ["ejetorFuncional",     "Ejetor funcional"],
+                            ["gatilhoFuncional",    "Gatilho funcional"],
+                            ["seguranca",           "Trava de segurança funcional"],
+                            ["alimentacaoFuncional","Alimentação funcional"],
+                            ["seletoDisparo",       "Seletor de disparo funcional"],
+                            ["modoAutoFuncional",   "Modo automático funcional"],
+                            ["culatelFuncional",    "Culatel funcional"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                      <CollapsibleCard title="Estado de conservação">
+                        <div className="space-y-3">
+                          {([
+                            ["ferrugem",        "ferrugemObs",         "Presença de ferrugem"],
+                            ["desgasteMecanico","desgasteMecanicoObs", "Desgaste mecânico"],
+                            ["pecasFaltantes",  "pecasFaltantesObs",   "Peças faltantes"],
+                            ["danosAparentes",  "danosAparentesObs",   "Danos aparentes"],
+                          ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
+                            <div key={key}>
+                              <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                  className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                {label}
+                              </label>
+                              {activeWeapon?.[key] && (
+                                <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
+                                  placeholder={`Descreva: ${label.toLowerCase()}`}
+                                  className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                      <CollapsibleCard title="Exame de disparo">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["aptoDisparo",      "Apto a disparo"],
+                            ["testePercussao",   "Percussão funcional"],
+                            ["extracaoFuncional","Extração funcional"],
+                            ["ejacaoFuncional",  "Ejeção funcional"],
+                            ["ciclagemFuncional","Ciclagem funcional"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                    </div>
+                  )}
+
+                  {/* ── ESTOJO ── */}
+                  {activeWeapon?.type === "ESTOJO" && (
+                    <div className="space-y-4">
+                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {([
+                            ["material",           "Material",          "Ex.: latão, aço"],
+                            ["formato",            "Formato",           "Ex.: semi-rebordo, rebordo"],
+                            ["numEstrias",         "Número de estrias", "Ex.: 6"],
+                            ["sentidoEstrias",     "Sentido das estrias","Ex.: dextrorso, sinistrorso"],
+                            ["inscricaoFabricante","Inscrição / headstamp","Ex.: CBC .38"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                            <div key={field}>
+                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                placeholder={ph} />
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+                      <CollapsibleCard title="Marcações balísticas">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["marcacaoPercussor","Marcação de percussor"],
+                            ["marcacaoExtrator", "Marcação de extrator"],
+                            ["marcacaoEjetor",   "Marcação de ejetor"],
+                            ["marcacaoCamara",   "Marcação de câmara"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                      <CollapsibleCard title="Estado de conservação">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["ferrugem",          "Ferrugem presente"],
+                            ["deformacaoPresente","Deformação presente"],
+                            ["fragmentado",       "Fragmentado"],
+                            ["oxidacaoPresente",  "Oxidação presente"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                    </div>
+                  )}
+
+                  {/* ── PROJÉTIL ── */}
+                  {activeWeapon?.type === "PROJÉTIL" && (
+                    <div className="space-y-4">
+                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {([
+                            ["material",       "Material",            "Ex.: chumbo, encamisado"],
+                            ["formato",        "Formato",             "Ex.: ogival, expansivo, wadcutter"],
+                            ["numEstrias",     "Número de estrias",   "Ex.: 6"],
+                            ["sentidoEstrias", "Sentido das estrias", "Ex.: dextrorso, sinistrorso"],
+                            ["diametro",       "Diâmetro",            "Ex.: 9,02 mm"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                            <div key={field}>
+                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                placeholder={ph} />
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+                      <CollapsibleCard title="Marcações balísticas">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["estriasPresentes",  "Estrias presentes"],
+                            ["deformacaoPresente","Deformação presente"],
+                            ["fragmentado",       "Fragmentado"],
+                            ["oxidacaoPresente",  "Oxidação presente"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                      <CollapsibleCard title="Estado de conservação">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["completo", "Projétil íntegro / completo"],
+                            ["manchas",  "Manchas ou resíduos presentes"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                    </div>
+                  )}
+
+                  {/* ── CARTUCHO ── */}
+                  {activeWeapon?.type === "CARTUCHO" && (
+                    <div className="space-y-4">
+                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {([
+                            ["material",  "Material",           "Ex.: latão, aço"],
+                            ["compTotal", "Comprimento total",  "Ex.: 29,7 mm"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                            <div key={field}>
+                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                placeholder={ph} />
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+                      <CollapsibleCard title="Estado de conservação">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["completo", "Cartucho íntegro / completo"],
+                            ["amassado", "Amassado"],
+                            ["oxidacaoPresente","Oxidação presente"],
+                            ["aptoDisparo","Apto a disparo"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                    </div>
+                  )}
+
+                  {/* ── FACA ── */}
+                  {activeWeapon?.type === "FACA" && (
+                    <div className="space-y-4">
+                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {([
+                            ["material",   "Material da lâmina", "Ex.: aço inox, aço carbono"],
+                            ["tipoLamina", "Tipo de lâmina",     "Ex.: lisa, serrilhada, mista"],
+                            ["compLamina", "Comprimento da lâmina","Ex.: 120 mm"],
+                            ["compTotal",  "Comprimento total",  "Ex.: 240 mm"],
+                            ["tipoGume",   "Tipo de gume",       "Ex.: simples, duplo"],
+                            ["acabamento", "Acabamento",         "Ex.: polido, brunido"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                            <div key={field}>
+                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                placeholder={ph} />
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+                      <CollapsibleCard title="Estado de conservação">
+                        <div className="space-y-3">
+                          {([
+                            ["ferrugem",      "ferrugemObs",      "Ferrugem presente"],
+                            ["desgaste",      "desgasteObs",      "Desgaste na lâmina"],
+                            ["manchas",       "manchasObs",       "Manchas / resíduos"],
+                            ["danoEstruturais","danoEstruturaisObs","Danos estruturais"],
+                          ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
+                            <div key={key}>
+                              <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                  className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                {label}
+                              </label>
+                              {activeWeapon?.[key] && (
+                                <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
+                                  placeholder={`Descreva: ${label.toLowerCase()}`}
+                                  className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                      <CollapsibleCard title="Exame de corte">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["laminaIntegra",  "Lâmina íntegra"],
+                            ["gumeFuncional",  "Gume funcional / afiado"],
+                            ["caboDanificado", "Cabo danificado"],
+                            ["aptaUso",        "Apta ao uso"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
