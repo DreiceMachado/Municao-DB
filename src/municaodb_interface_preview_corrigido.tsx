@@ -436,6 +436,8 @@ export default function MunicaoDBInterfacePreview() {
   const [pieceFormOpen, setPieceFormOpen] = useState(false)
   const [typePickerOpen, setTypePickerOpen] = useState(false)
   const [examType, setExamType] = useState<"EFICIÊNCIA" | "CONSTATAÇÃO" | null>(null)
+  const [repMinimized, setRepMinimized] = useState(false)
+  const [confirmDeleteRep, setConfirmDeleteRep] = useState(false)
 
   const activeWeapon = weapons[activeWeaponIdx] ?? null
 
@@ -633,6 +635,7 @@ export default function MunicaoDBInterfacePreview() {
                           setWeapons([])
                           setSavedPieces([])
                           setExamType(null)
+                          setRepMinimized(false)
                           setTypePickerOpen(true)
                         }}
                         className="flex h-12 items-center gap-2 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] px-6 text-sm font-black tracking-wide text-[#1d2433] shadow transition hover:brightness-105"
@@ -766,34 +769,42 @@ export default function MunicaoDBInterfacePreview() {
                 onClick={() => setTypePickerOpen(false)}
               />
               <motion.div
-                className="fixed inset-0 z-50 flex items-center justify-center p-6"
-                initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.94 }}
-                transition={{ type: "spring", damping: 26, stiffness: 320 }}
+                className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4 sm:p-6"
+                initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
               >
-                <div className="w-full max-w-xs rounded-3xl border border-[#cab88f] bg-[#f5efe3] p-6 shadow-[0_24px_64px_rgba(0,0,0,.45)]">
-                  <div className="mb-5">
-                    <div className="text-base font-black uppercase tracking-[0.16em] text-[#50442f]">Tipo de exame</div>
-                    <div className="mt-0.5 text-xs text-[#8d7854]">Selecione para iniciar o preenchimento</div>
+                <div className="w-full max-w-sm rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_32px_80px_rgba(0,0,0,.55)] overflow-hidden">
+                  {/* topo */}
+                  <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-5">
+                    <div className="text-xl font-black text-[#f0d08a]">Novo REP</div>
+                    <div className="mt-0.5 text-xs uppercase tracking-[0.2em] text-[#ccb780]">Selecione o tipo de exame</div>
                   </div>
-                  <div className="space-y-3">
+                  {/* opções */}
+                  <div className="space-y-3 p-4">
                     {(["EFICIÊNCIA", "CONSTATAÇÃO"] as const).map((t) => (
                       <button
                         key={t}
                         type="button"
                         onClick={() => { setTypePickerOpen(false); setExamType(t) }}
-                        className="w-full rounded-2xl border-2 border-[#d3c4a8] bg-[#fbf8f3] px-5 py-4 text-left transition hover:border-[#c9a93e] hover:bg-[#ece6da] active:scale-[.98]"
+                        className="flex w-full items-center justify-between rounded-2xl border-2 border-[#d3c4a8] bg-white px-5 py-5 text-left transition active:scale-[.97] active:bg-[#ece6da]"
                       >
-                        <div className="text-sm font-black uppercase tracking-[0.16em] text-[#3d2e12]">{t}</div>
-                        <div className="mt-0.5 text-xs text-[#8d7854]">
-                          {t === "EFICIÊNCIA" ? "Exame de disparo e funcionamento" : "Constatação de características e estado"}
+                        <div>
+                          <div className="text-base font-black uppercase tracking-[0.12em] text-[#1d2433]">{t}</div>
+                          <div className="mt-1 text-xs leading-relaxed text-[#8d7854]">
+                            {t === "EFICIÊNCIA" ? "Exame de disparo e funcionamento da arma" : "Constatação de características e estado geral"}
+                          </div>
                         </div>
+                        <ChevronRight className="ml-3 h-5 w-5 shrink-0 text-[#b89a58]" />
                       </button>
                     ))}
                   </div>
-                  <button type="button" onClick={() => setTypePickerOpen(false)}
-                    className="mt-4 w-full rounded-xl py-2 text-xs font-bold uppercase tracking-[0.14em] text-[#8d7854] hover:text-[#50442f]">
-                    Cancelar
-                  </button>
+                  {/* cancelar */}
+                  <div className="px-4 pb-5">
+                    <button type="button" onClick={() => setTypePickerOpen(false)}
+                      className="w-full rounded-2xl border border-[#d3c4a8] bg-[#ece6da] py-4 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838] active:brightness-95">
+                      Cancelar
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             </>
@@ -802,7 +813,7 @@ export default function MunicaoDBInterfacePreview() {
 
         {/* ── Formulário do REP ── */}
         <AnimatePresence>
-          {examType !== null && (
+          {examType !== null && !repMinimized && (
             <motion.div
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 200 }}
@@ -810,20 +821,20 @@ export default function MunicaoDBInterfacePreview() {
             >
               <div className="min-h-full bg-[#f5efe3] text-[#26221b]">
                 {/* header */}
-                <div className="sticky top-0 z-10 border-b border-[#cab88f] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
+                <div className="sticky top-0 z-10 border-b border-[#cab88f] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-4 py-3">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <button type="button" onClick={() => setExamType(null)}
-                        className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] hover:bg-[#1a2c4f]">
+                      <button type="button" onClick={() => setRepMinimized(true)}
+                        className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#8e7340] bg-[#12213d] text-[#f0d08a] active:bg-[#1a2c4f]">
                         <ChevronLeft className="h-5 w-5" />
                       </button>
                       <div>
-                        <div className="text-xl font-black text-[#f0d08a]">Novo REP</div>
-                        <div className="text-xs uppercase tracking-[0.22em] text-[#ccb780]">{examType}</div>
+                        <div className="text-lg font-black text-[#f0d08a]">Novo REP</div>
+                        <div className="inline-block rounded-full bg-[#f0d08a]/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#f0d08a]">{examType}</div>
                       </div>
                     </div>
-                    <button type="button" onClick={() => setExamType(null)}
-                      className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] hover:bg-[#1a2c4f]">
+                    <button type="button" onClick={() => setRepMinimized(true)}
+                      className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#8e7340] bg-[#12213d] text-[#f0d08a] active:bg-[#1a2c4f]">
                       <X className="h-5 w-5" />
                     </button>
                   </div>
@@ -866,7 +877,7 @@ export default function MunicaoDBInterfacePreview() {
                         {savedPieces.map((p, i) => (
                           <div key={i} className="flex items-center gap-4 rounded-2xl border border-[#c8b47e] bg-[#fbf8f3] px-4 py-3 shadow-sm">
                             <div className="flex shrink-0 items-center justify-center rounded-xl bg-[#12213d] p-2 text-[#f0d08a]">
-                              <PieceIcon type={p.type} className="h-9 w-auto max-w-[60px]" />
+                              <PieceIcon type={p.type} className="h-5 w-auto max-w-[36px]" />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#6b5838]">{p.type}</div>
@@ -888,7 +899,7 @@ export default function MunicaoDBInterfacePreview() {
                     <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
                       Tipo de peça
                     </div>
-                    <div className="grid grid-cols-2 min-[420px]:grid-cols-5 gap-2">
+                    <div className="grid grid-cols-2 gap-2.5">
                       {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ESTOJO","PROJÉTIL","CARTUCHO","FACA"] as WeaponType[]).map((type) => (
                         <button key={type} type="button"
                           onClick={() => {
@@ -897,7 +908,7 @@ export default function MunicaoDBInterfacePreview() {
                             setActiveWeaponIdx(0)
                             setPieceFormOpen(true)
                           }}
-                          className="rounded-xl border-2 border-[#d3c4a8] bg-[#fbf8f3] px-2 py-3 text-center text-[10px] font-black uppercase tracking-[0.1em] leading-tight text-[#50442f] transition hover:border-[#b89a58] hover:bg-[#ece6da]"
+                          className="rounded-2xl border-2 border-[#d3c4a8] bg-[#fbf8f3] py-4 text-center text-[11px] font-black uppercase tracking-[0.1em] text-[#50442f] shadow-sm transition active:scale-[.96] active:bg-[#e8dfcf]"
                         >
                           {type}
                         </button>
@@ -916,11 +927,65 @@ export default function MunicaoDBInterfacePreview() {
                   </div>
 
                   {/* Footer */}
-                  <div className="flex justify-end border-t border-[#d3c3a4] pt-5">
-                    <button className="rounded-2xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] px-7 py-3 text-sm font-black tracking-[0.16em] text-[#f8e3b3] shadow-[0_12px_24px_rgba(66,50,24,.22)] transition hover:brightness-105">
+                  <div className="border-t border-[#d3c3a4] pt-5 flex gap-3">
+                    <button
+                      onClick={() => setConfirmDeleteRep(true)}
+                      className="flex-1 rounded-2xl border-2 border-[#b03030] bg-[linear-gradient(180deg,#8b2020_0%,#5c1515_100%)] py-4 text-sm font-black tracking-[0.14em] text-[#ffd4d4] shadow-[0_8px_20px_rgba(120,20,20,.30)] transition active:brightness-95">
+                      EXCLUIR
+                    </button>
+                    <button className="flex-[2] rounded-2xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] py-4 text-sm font-black tracking-[0.18em] text-[#f8e3b3] shadow-[0_12px_24px_rgba(66,50,24,.22)] transition active:brightness-95">
                       SALVAR EXAME
                     </button>
                   </div>
+
+                  {/* Confirm delete dialog */}
+                  <AnimatePresence>
+                    {confirmDeleteRep && (
+                      <>
+                        <motion.div
+                          className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-[2px]"
+                          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                          onClick={() => setConfirmDeleteRep(false)}
+                        />
+                        <motion.div
+                          className="fixed inset-0 z-[90] flex items-end justify-center sm:items-center p-4 sm:p-6"
+                          initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }}
+                          transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                        >
+                          <div className="w-full max-w-xs rounded-3xl border border-[#e8c0c0] bg-[#f5efe3] shadow-[0_32px_80px_rgba(0,0,0,.55)] overflow-hidden">
+                            <div className="bg-[linear-gradient(180deg,#2e1414_0%,#1a0a0a_100%)] px-6 py-5">
+                              <div className="text-xl font-black text-[#ffb3b3]">Excluir exame?</div>
+                              <div className="mt-1 text-xs leading-relaxed text-[#e08080]">Esta ação não pode ser desfeita. Todas as peças adicionadas serão perdidas.</div>
+                            </div>
+                            <div className="flex gap-3 p-4">
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteRep(false)}
+                                className="flex-1 rounded-2xl border border-[#d3c4a8] bg-[#ece6da] py-4 text-sm font-bold uppercase tracking-[0.12em] text-[#6b5838] active:brightness-95"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setConfirmDeleteRep(false)
+                                  setExamType(null)
+                                  setRepMinimized(false)
+                                  setSavedPieces([])
+                                  setWeaponType(null)
+                                  setWeapons([])
+                                  setPieceFormOpen(false)
+                                }}
+                                className="flex-1 rounded-2xl border-2 border-[#b03030] bg-[linear-gradient(180deg,#8b2020_0%,#5c1515_100%)] py-4 text-sm font-black uppercase tracking-[0.12em] text-[#ffd4d4] active:brightness-90"
+                              >
+                                Sim, excluir
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
             </motion.div>
@@ -1277,6 +1342,54 @@ export default function MunicaoDBInterfacePreview() {
                       SALVAR PEÇA
                     </button>
                   </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── REP pendente ── */}
+        <AnimatePresence>
+          {examType !== null && repMinimized && (
+            <motion.div
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 80, opacity: 0 }}
+              transition={{ type: "spring", damping: 22, stiffness: 200 }}
+              className="fixed bottom-6 left-1/2 z-40 w-[calc(100%-3rem)] max-w-sm -translate-x-1/2"
+            >
+              <div className="overflow-hidden rounded-3xl border border-[#f1d58d]/40 bg-[linear-gradient(160deg,#1e2f50_0%,#0f1e39_100%)] shadow-[0_16px_48px_rgba(0,0,0,.6)]">
+                {/* topo colorido */}
+                <div className="flex items-center gap-3 border-b border-[#f1d58d]/20 px-5 py-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f0d08a]/10">
+                    <CircleDot className="h-5 w-5 text-[#f0d08a]" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#ccb780]">REP não salvo</div>
+                    <div className="text-base font-black text-[#f0d08a]">{examType}</div>
+                  </div>
+                  {savedPieces.length > 0 && (
+                    <div className="shrink-0 rounded-full bg-[#f0d08a]/15 px-2.5 py-1 text-[11px] font-black text-[#f0d08a]">
+                      {savedPieces.length} {savedPieces.length === 1 ? "peça" : "peças"}
+                    </div>
+                  )}
+                </div>
+                {/* ações */}
+                <div className="flex gap-2 p-3">
+                  <button
+                    type="button"
+                    onClick={() => setRepMinimized(false)}
+                    className="flex-1 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] py-3.5 text-sm font-black tracking-[0.14em] text-[#1d2433] transition active:brightness-95"
+                  >
+                    CONTINUAR
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setExamType(null); setRepMinimized(false); setSavedPieces([]); setWeaponType(null); setWeapons([]) }}
+                    className="rounded-2xl border border-[#8e7340]/60 bg-[#0f1e39] px-5 py-3.5 text-sm font-bold text-[#ccb780] transition active:bg-[#1a2c4f]"
+                  >
+                    Descartar
+                  </button>
                 </div>
               </div>
             </motion.div>
