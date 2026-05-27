@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react"
+import React, { useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import logo from "./assets/logo.png" 
 import {
@@ -216,11 +216,11 @@ function CollapsibleCard({
         className="flex w-full items-center justify-between px-5 py-4 md:cursor-default"
       >
         <span className="text-sm font-black uppercase tracking-[0.14em] text-[#50442f] md:text-xs md:tracking-[0.18em] md:text-[#6b5838]">{title}</span>
-        <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#e8dfc8] text-[#6b5838] transition-transform md:hidden", open ? "rotate-180" : "")}>
+        <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#e8dfc8] text-[#6b5838] transition-all shadow-sm md:hidden", open ? "rotate-180 bg-[#dcc17c]" : "")}>
           <ChevronDown className="h-4 w-4" />
         </div>
       </button>
-      <div className={cn("px-4 pb-4 md:!block", open ? "block" : "hidden")}>{children}</div>
+      <div className={cn("px-5 pb-6 md:!block", open ? "block" : "hidden")}>{children}</div>
     </div>
   )
 }
@@ -449,6 +449,90 @@ function TopTab({
   )
 }
 
+function PhotoSlot({
+  label,
+  slotKey,
+  photoUrl,
+  onCapture,
+  onRemove,
+  onView,
+}: {
+  label: string
+  slotKey: string
+  photoUrl?: string
+  onCapture: (key: string, file: File) => void
+  onRemove: (key: string) => void
+  onView: (url: string) => void
+}) {
+  const cameraRef = React.useRef<HTMLInputElement>(null)
+  const galleryRef = React.useRef<HTMLInputElement>(null)
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) onCapture(slotKey, file)
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="px-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#6b5838]">{label}</span>
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handleFile} className="hidden" />
+      <input ref={galleryRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+      {photoUrl ? (
+        <div className="overflow-hidden rounded-2xl border-2 border-[#b89a58] bg-white shadow-sm">
+          <button type="button" onClick={() => onView(photoUrl)} className="block w-full">
+            <img src={photoUrl} alt={label} className="aspect-[4/3] w-full object-cover" />
+          </button>
+          <div className="flex divide-x divide-[#e8dfc8] bg-[#fbf8f2]">
+            <button type="button" onClick={() => cameraRef.current?.click()} className="flex flex-1 items-center justify-center gap-1 py-3 text-[#6b5838] active:bg-[#ece6da]">
+              <Camera className="h-4 w-4" />
+              <span className="text-[10px] font-bold">Refazer</span>
+            </button>
+            <button type="button" onClick={() => galleryRef.current?.click()} className="flex flex-1 items-center justify-center gap-1 py-3 text-[#6b5838] active:bg-[#ece6da]">
+              <ImageIcon className="h-4 w-4" />
+              <span className="text-[10px] font-bold">Galeria</span>
+            </button>
+            <button type="button" onClick={() => onRemove(slotKey)} className="flex items-center justify-center px-4 py-3 text-[#b03030] active:bg-[#fdf0f0]">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border-2 border-dashed border-[#c8b47e] bg-[#fbf8f2]">
+          <button
+            type="button"
+            onClick={() => cameraRef.current?.click()}
+            className="absolute inset-0 flex flex-col items-center justify-center gap-2 active:bg-[#ece6da]"
+          >
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#e8dfc8]">
+              <Camera className="h-7 w-7 text-[#8d7854]" />
+            </div>
+            <span className="text-[12px] font-semibold text-[#8d7854]">Tirar foto</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => galleryRef.current?.click()}
+            className="absolute bottom-2.5 right-2.5 z-10 flex items-center gap-1 rounded-xl bg-[#e8dfc8]/90 px-2.5 py-1.5 active:bg-[#d3c4a8]"
+          >
+            <ImageIcon className="h-3.5 w-3.5 text-[#6b5838]" />
+            <span className="text-[9px] font-bold text-[#6b5838]">Galeria</span>
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const photoSlotsByType: Record<WeaponType, string[]> = {
+  "REVÓLVER":     ["Frente – boca do cano", "Lado direito", "Lado esquerdo", "Superior", "Inferior", "Numeração de série"],
+  "PISTOLA":      ["Frente – boca do cano", "Lado direito", "Lado esquerdo", "Superior", "Inferior", "Numeração de série"],
+  "ESPINGARDA":   ["Frente – boca do cano", "Lado direito", "Lado esquerdo", "Superior", "Inferior", "Numeração de série"],
+  "CARABINA":     ["Frente – boca do cano", "Lado direito", "Lado esquerdo", "Superior", "Inferior", "Numeração de série"],
+  "FUZIL":        ["Frente – boca do cano", "Lado direito", "Lado esquerdo", "Superior", "Inferior", "Numeração de série"],
+  "METRALHADORA": ["Frente – boca do cano", "Lado direito", "Lado esquerdo", "Superior", "Inferior", "Numeração de série"],
+  "ESTOJO":       ["Vista lateral", "Base – headstamp", "Boca do estojo", "Marcação de percussor"],
+  "PROJÉTIL":     ["Vista lateral", "Base do projétil", "Ápice", "Estrias"],
+  "CARTUCHO":     ["Vista lateral", "Base – headstamp", "Vista do projétil", "Vista geral"],
+  "FACA":         ["Lâmina – frente", "Lâmina – verso", "Cabo", "Ponta", "Gume", "Numeração"],
+}
+
 export default function MunicaoDBInterfacePreview() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [weaponType, setWeaponType] = useState<WeaponType | null>(null)
@@ -474,26 +558,11 @@ export default function MunicaoDBInterfacePreview() {
   const [examType, setExamType] = useState<"EFICIÊNCIA" | "CONSTATAÇÃO" | null>(null)
   const [repMinimized, setRepMinimized] = useState(false)
   const [confirmDeleteRep, setConfirmDeleteRep] = useState(false)
-
   const [photosOpen, setPhotosOpen] = useState(false)
-  const [activePhotoTab, setActivePhotoTab] = useState<"PEÇA" | "LACRE">("PEÇA")
+  const [lacreNumero, setLacreNumero] = useState("")
+  const [lacreSaidaNumero, setLacreSaidaNumero] = useState("")
   const [photoUrls, setPhotoUrls] = useState<Map<string, string>>(new Map())
-  const [lacreEntrada, setLacreEntrada] = useState("")
-  const [lacreSaida, setLacreSaida] = useState("")
   const [viewerPhoto, setViewerPhoto] = useState<string | null>(null)
-
-  const photoSlotsByType: Record<string, string[]> = {
-    "REVÓLVER": ["Lado Esquerdo", "Lado Direito", "Vista Superior", "Vista Inferior", "Tambor Aberto", "Número de Série", "Boca do Cano"],
-    "PISTOLA": ["Lado Esquerdo", "Lado Direito", "Vista Superior", "Vista Inferior", "Ferrolho Aberto", "Número de Série", "Boca do Cano"],
-    "ESPINGARDA": ["Lado Esquerdo", "Lado Direito", "Superior", "Inferior", "Marcações"],
-    "CARABINA": ["Lado Esquerdo", "Lado Direito", "Superior", "Inferior", "Marcações"],
-    "FUZIL": ["Lado Esquerdo", "Lado Direito", "Superior", "Inferior", "Mecanismo"],
-    "METRALHADORA": ["Lado Esquerdo", "Lado Direito", "Mecanismo", "Marcações"],
-    "ESTOJO": ["Vista Lateral", "Base / Culote", "Boca"],
-    "PROJÉTIL": ["Vista Lateral", "Base", "Ápice"],
-    "CARTUCHO": ["Vista Lateral", "Base / Culote", "Ápice"],
-    "FACA": ["Lâmina Face A", "Lâmina Face B", "Cabo", "Marcações"],
-  }
 
   const handlePhotoCapture = (key: string, file: File) => {
     const url = URL.createObjectURL(file)
@@ -503,14 +572,8 @@ export default function MunicaoDBInterfacePreview() {
       return next
     })
   }
-
-  const handlePhotoRemove = (key: string) => {
-    setPhotoUrls(prev => {
-      const next = new Map(prev)
-      next.delete(key)
-      return next
-    })
-  }
+  const handlePhotoRemove = (key: string) =>
+    setPhotoUrls(prev => { const n = new Map(prev); n.delete(key); return n })
 
   const activeWeapon = weapons[activeWeaponIdx] ?? null
 
@@ -521,6 +584,10 @@ export default function MunicaoDBInterfacePreview() {
     setWeapons([])
     setActiveWeaponIdx(0)
     setPieceFormOpen(false)
+    setPhotosOpen(false)
+    setLacreNumero("")
+    setLacreSaidaNumero("")
+    setPhotoUrls(new Map()); setViewerPhoto(null)
   }
 
   const removeSavedPiece = (idx: number) => {
@@ -862,6 +929,69 @@ export default function MunicaoDBInterfacePreview() {
           )}
         </AnimatePresence>
 
+
+        {/* ── REP Minimizado ── */}
+        <AnimatePresence>
+          {examType !== null && repMinimized && (
+            <motion.div
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 80, opacity: 0 }}
+              className="fixed bottom-6 left-4 right-4 z-40 mx-auto max-w-sm"
+            >
+              <button
+                type="button"
+                onClick={() => setRepMinimized(false)}
+                className="w-full overflow-hidden rounded-[32px] border border-[#f1d58d]/30 bg-[#12213d] p-1 shadow-2xl active:brightness-110"
+              >
+                <div className="flex items-center gap-4 rounded-[28px] bg-[linear-gradient(135deg,#1b2947_0%,#12213d_100%)] p-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#f0d08a]/10 text-[#f0d08a]">
+                    <CircleDot className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#ccb780]">REP em andamento</div>
+                    <div className="text-sm font-black text-[#f0d08a]">{examType}</div>
+                  </div>
+                  <div className="rounded-xl bg-[#f1d58d] px-4 py-2 text-xs font-black text-[#12213d]">
+                    VOLTAR
+                  </div>
+                </div>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Menu Mobile ── */}
+        <AnimatePresence>
+          {menuOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setMenuOpen(false)}
+                className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm lg:hidden"
+              />
+              <motion.aside
+                initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="fixed bottom-0 left-0 top-0 z-[100] w-[300px] bg-[#0d1a31] lg:hidden"
+              >
+                <div className="flex h-full flex-col">
+                  <div className="flex items-center justify-between border-b border-white/10 p-6">
+                    <div className="text-xl font-black text-[#f0d08a]">MunicaoDB</div>
+                    <button onClick={() => setMenuOpen(false)} className="text-white/60">
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto">
+                    <SidebarContent />
+                  </div>
+                </div>
+              </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
+
+
         {/* ── Formulário do REP ── */}
         <AnimatePresence>
           {examType !== null && !repMinimized && (
@@ -895,16 +1025,16 @@ export default function MunicaoDBInterfacePreview() {
                 <div className="space-y-6 p-5 md:p-6">
                   {/* Identificação */}
                   <div>
-                    <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
+                    <div className="mb-6 border-b border-[#d3c3a4] pb-3 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
                       Identificação do exame
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-5 md:grid-cols-2">
                       <div>
                         <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número do exame</label>
                         <div className="relative">
                           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
                           <input value={form.examNumber} onChange={handleField("examNumber")}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm" />
                         </div>
                       </div>
                       <div>
@@ -912,7 +1042,7 @@ export default function MunicaoDBInterfacePreview() {
                         <div className="relative">
                           <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
                           <input value={form.date} onChange={handleField("date")}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm" />
                         </div>
                       </div>
                     </div>
@@ -921,12 +1051,12 @@ export default function MunicaoDBInterfacePreview() {
                   {/* Peças salvas */}
                   {savedPieces.length > 0 && (
                     <div>
-                      <div className="mb-3 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
+                      <div className="mb-5 border-b border-[#d3c3a4] pb-3 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
                         Peças do exame
                       </div>
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         {savedPieces.map((p, i) => (
-                          <div key={i} className="flex items-center gap-4 rounded-2xl border border-[#c8b47e] bg-[#fbf8f3] px-4 py-3 shadow-sm">
+                          <div key={i} className="flex items-center gap-4 rounded-[24px] border border-[#c8b47e] bg-[#fbf8f3] px-5 py-4 shadow-sm">
                             <div className="flex shrink-0 items-center justify-center rounded-xl bg-[#12213d] p-2 text-[#f0d08a]">
                               <PieceIcon type={p.type} className="h-5 w-auto max-w-[36px]" />
                             </div>
@@ -947,10 +1077,10 @@ export default function MunicaoDBInterfacePreview() {
 
                   {/* Tipo de peça */}
                   <div>
-                    <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
+                    <div className="mb-6 border-b border-[#d3c3a4] pb-3 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
                       Tipo de peça
                     </div>
-                    <div className="grid grid-cols-2 gap-2.5">
+                    <div className="grid grid-cols-2 gap-3">
                       {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ESTOJO","PROJÉTIL","CARTUCHO","FACA"] as WeaponType[]).map((type) => (
                         <button key={type} type="button"
                           onClick={() => {
@@ -959,7 +1089,7 @@ export default function MunicaoDBInterfacePreview() {
                             setActiveWeaponIdx(0)
                             setPieceFormOpen(true)
                           }}
-                          className="rounded-2xl border-2 border-[#d3c4a8] bg-[#fbf8f3] py-4 text-center text-[11px] font-black uppercase tracking-[0.1em] text-[#50442f] shadow-sm transition active:scale-[.96] active:bg-[#e8dfcf]"
+                          className="rounded-2xl border-2 border-[#d3c4a8] bg-white py-5 text-center text-[10px] font-black uppercase tracking-[0.15em] text-[#50442f] shadow-sm transition active:scale-[.96] active:bg-[#ece6da]"
                         >
                           {type}
                         </button>
@@ -969,11 +1099,11 @@ export default function MunicaoDBInterfacePreview() {
 
                   {/* Observações */}
                   <div>
-                    <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
+                    <div className="mb-6 border-b border-[#d3c3a4] pb-3 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
                       Observações
                     </div>
                     <textarea value={form.observacoes} onChange={handleField("observacoes")}
-                      className="min-h-[120px] w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 py-3 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                      className="min-h-[140px] w-full rounded-[24px] border border-[#cdbf9e] bg-[#fbf8f2] px-5 py-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                       placeholder="Inserir observações técnicas, estado geral, particularidades e demais elementos relevantes." />
                   </div>
 
@@ -1057,7 +1187,7 @@ export default function MunicaoDBInterfacePreview() {
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
-                        onClick={() => { setPieceFormOpen(false); setWeaponType(null); setWeapons([]) }}
+                        onClick={() => { setPieceFormOpen(false); setWeaponType(null); setWeapons([]); setPhotosOpen(false); setLacreNumero(""); setLacreSaidaNumero(""); setPhotoUrls(new Map()); setViewerPhoto(null) }}
                         className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] hover:bg-[#1a2c4f]"
                       >
                         <ChevronLeft className="h-5 w-5" />
@@ -1069,7 +1199,7 @@ export default function MunicaoDBInterfacePreview() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => { setPieceFormOpen(false); setWeaponType(null); setWeapons([]) }}
+                      onClick={() => { setPieceFormOpen(false); setWeaponType(null); setWeapons([]); setPhotosOpen(false); setLacreNumero(""); setLacreSaidaNumero(""); setPhotoUrls(new Map()); setViewerPhoto(null) }}
                       className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] hover:bg-[#1a2c4f]"
                     >
                       <X className="h-5 w-5" />
@@ -1090,35 +1220,35 @@ export default function MunicaoDBInterfacePreview() {
                   </div>
 
                   {/* ── Campos base ── */}
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-5 md:grid-cols-2">
                     <div>
                       <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Marca</label>
                       <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
-                        className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                         placeholder="Ex.: Taurus" />
                     </div>
                     <div>
                       <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Modelo</label>
                       <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
-                        className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                         placeholder="Ex.: RT 627" />
                     </div>
                     <div>
                       <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de série</label>
                       <input value={activeWeapon?.serial ?? ""} onChange={handleWeaponField("serial")}
-                        className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                         placeholder="Informar identificação" />
                     </div>
                     <div>
                       <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre</label>
                       <input value={activeWeapon?.caliber ?? ""} onChange={handleWeaponField("caliber")}
-                        className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                         placeholder="Ex.: .38 SPL" />
                     </div>
                     <div>
                       <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
                       <input value={activeWeapon?.paisFabricacao ?? ""} onChange={handleWeaponField("paisFabricacao")}
-                        className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                         placeholder="Ex.: Brasil" />
                     </div>
                   </div>
@@ -1855,7 +1985,7 @@ export default function MunicaoDBInterfacePreview() {
                     </div>
                   )}
 
-                  {/* ── Registro Fotográfico ── */}
+                  {/* ── Imagens ── */}
                   <div>
                     <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
                       Imagens
@@ -1863,10 +1993,37 @@ export default function MunicaoDBInterfacePreview() {
                     <button
                       type="button"
                       onClick={() => setPhotosOpen(true)}
-                      className="flex h-24 w-full flex-col items-center justify-center gap-2 rounded-[28px] border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] shadow-lg transition active:scale-[0.97]"
+                      className="w-full overflow-hidden rounded-2xl border-2 border-[#d3c4a8] bg-[#fbf8f3] shadow-sm active:bg-[#ece6da]"
                     >
-                      <Camera className="h-7 w-7 text-[#f0d08a]" />
-                      <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#f0d08a]">Iniciar Captura de Fotos</span>
+                      {photoUrls.size > 0 ? (
+                        <>
+                          <div className="flex gap-2 overflow-x-auto p-3 pb-2">
+                            {Array.from(photoUrls.entries()).map(([k, url]) => (
+                              <img key={k} src={url} alt="" className="h-[72px] w-[72px] shrink-0 rounded-xl object-cover" />
+                            ))}
+                          </div>
+                          <div className="flex items-center justify-between border-t border-[#e8dfc8] px-4 py-3">
+                            <span className="text-xs font-bold text-[#6b5838]">
+                              {photoUrls.size} foto{photoUrls.size > 1 ? "s" : ""} adicionada{photoUrls.size > 1 ? "s" : ""}
+                            </span>
+                            <div className="flex items-center gap-1 text-[#b89a58]">
+                              <span className="text-xs font-bold">Gerenciar</span>
+                              <ChevronRight className="h-4 w-4" />
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-4 px-5 py-5">
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#e8dfc8]">
+                            <Camera className="h-7 w-7 text-[#8d7854]" />
+                          </div>
+                          <div className="text-left">
+                            <div className="text-sm font-black uppercase tracking-[0.12em] text-[#50442f]">Adicionar fotos</div>
+                            <div className="mt-0.5 text-xs text-[#8d7854]">Câmera e lacres da peça</div>
+                          </div>
+                          <ChevronRight className="ml-auto h-5 w-5 text-[#b89a58]" />
+                        </div>
+                      )}
                     </button>
                   </div>
 
@@ -1874,7 +2031,7 @@ export default function MunicaoDBInterfacePreview() {
                   <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[#d3c3a4] pt-5">
                     <button
                       type="button"
-                      onClick={() => { setPieceFormOpen(false); setWeaponType(null); setWeapons([]) }}
+                      onClick={() => { setPieceFormOpen(false); setWeaponType(null); setWeapons([]); setPhotosOpen(false); setLacreNumero(""); setLacreSaidaNumero(""); setPhotoUrls(new Map()); setViewerPhoto(null) }}
                       className="rounded-2xl border border-[#a8894c] bg-[#efe1b5] px-5 py-3 text-sm font-black tracking-[0.14em] text-[#4b3b21] transition hover:brightness-95"
                     >
                       CANCELAR
@@ -1893,104 +2050,165 @@ export default function MunicaoDBInterfacePreview() {
           )}
         </AnimatePresence>
 
-        {/* ── REP pendente ── */}
+        {/* ── Tela de fotos ── */}
         <AnimatePresence>
-          {examType !== null && repMinimized && (
+          {photosOpen && weaponType && (
             <motion.div
-              initial={{ y: 80, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 80, opacity: 0 }}
-              transition={{ type: "spring", damping: 22, stiffness: 200 }}
-              className="fixed bottom-6 left-1/2 z-40 w-[calc(100%-3rem)] max-w-sm -translate-x-1/2"
+              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 200 }}
+              className="fixed inset-0 z-[80] flex flex-col bg-[#f5efe3] text-[#26221b]"
             >
-              <div className="overflow-hidden rounded-3xl border border-[#f1d58d]/40 bg-[linear-gradient(160deg,#1e2f50_0%,#0f1e39_100%)] shadow-[0_16px_48px_rgba(0,0,0,.6)]">
-                {/* topo colorido */}
-                <div className="flex items-center gap-3 border-b border-[#f1d58d]/20 px-5 py-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f0d08a]/10">
-                    <CircleDot className="h-5 w-5 text-[#f0d08a]" />
-                  </div>
+              {/* Header */}
+              <div className="shrink-0 border-b border-[#cab88f] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPhotosOpen(false)}
+                    className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a]"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#ccb780]">REP não salvo</div>
-                    <div className="text-base font-black text-[#f0d08a]">{examType}</div>
+                    <div className="text-lg font-black text-[#f0d08a]">Fotos</div>
+                    <div className="truncate text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">{weaponType}</div>
                   </div>
-                  {savedPieces.length > 0 && (
-                    <div className="shrink-0 rounded-full bg-[#f0d08a]/15 px-2.5 py-1 text-[11px] font-black text-[#f0d08a]">
-                      {savedPieces.length} {savedPieces.length === 1 ? "peça" : "peças"}
+                  {photoUrls.size > 0 && (
+                    <div className="shrink-0 rounded-full bg-[#f0d08a]/15 px-3 py-1 text-[11px] font-black text-[#f0d08a]">
+                      {photoUrls.size} foto{photoUrls.size > 1 ? "s" : ""}
                     </div>
                   )}
                 </div>
-                {/* ações */}
-                <div className="flex gap-2 p-3">
-                  <button
-                    type="button"
-                    onClick={() => setRepMinimized(false)}
-                    className="flex-1 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] py-3.5 text-sm font-black tracking-[0.14em] text-[#1d2433] transition active:brightness-95"
-                  >
-                    CONTINUAR
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setExamType(null); setRepMinimized(false); setSavedPieces([]); setWeaponType(null); setWeapons([]) }}
-                    className="rounded-2xl border border-[#8e7340]/60 bg-[#0f1e39] px-5 py-3.5 text-sm font-bold text-[#ccb780] transition active:bg-[#1a2c4f]"
-                  >
-                    Descartar
-                  </button>
+              </div>
+
+              {/* Conteúdo rolável */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="space-y-8 p-4 pb-4">
+
+                  {/* Fotos da peça */}
+                  <div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="h-1.5 w-1.5 rounded-full bg-[#b89a58]" />
+                      <span className="text-[11px] font-black uppercase tracking-[0.22em] text-[#6b5838]">
+                        Fotos da peça
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(photoSlotsByType[weaponType] ?? []).map((slot) => (
+                        <PhotoSlot
+                          key={slot}
+                          slotKey={`piece-${slot}`}
+                          label={slot}
+                          photoUrl={photoUrls.get(`piece-${slot}`)}
+                          onCapture={handlePhotoCapture}
+                          onRemove={handlePhotoRemove}
+                          onView={setViewerPhoto}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Lacre e Embalagem */}
+                  <div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="h-1.5 w-1.5 rounded-full bg-[#b89a58]" />
+                      <span className="text-[11px] font-black uppercase tracking-[0.22em] text-[#6b5838]">
+                        Lacre e embalagem
+                      </span>
+                    </div>
+                    <div className="mb-4 space-y-3 rounded-2xl border border-[#d3c4a8] bg-white px-4 py-3 shadow-sm">
+                      <div>
+                        <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">
+                          Lacre de entrada
+                        </label>
+                        <input
+                          value={lacreNumero}
+                          onChange={e => setLacreNumero(e.target.value)}
+                          className="h-12 w-full rounded-xl border border-[#d3c4a8] bg-[#fbf8f2] px-4 text-[16px] font-bold text-[#50442f] outline-none focus:border-[#b89a58] focus:ring-2 focus:ring-[#b89a58]/10"
+                          placeholder="Nº lacre de entrada"
+                        />
+                      </div>
+                      <div className="border-t border-[#e8dfc8] pt-3">
+                        <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">
+                          Lacre de saída
+                        </label>
+                        <input
+                          value={lacreSaidaNumero}
+                          onChange={e => setLacreSaidaNumero(e.target.value)}
+                          className="h-12 w-full rounded-xl border border-[#d3c4a8] bg-[#fbf8f2] px-4 text-[16px] font-bold text-[#50442f] outline-none focus:border-[#b89a58] focus:ring-2 focus:ring-[#b89a58]/10"
+                          placeholder="Nº lacre de saída"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <PhotoSlot
+                        slotKey="lacre-Frente da embalagem recebida"
+                        label="Entrada (Frente)"
+                        photoUrl={photoUrls.get("lacre-Frente da embalagem recebida")}
+                        onCapture={handlePhotoCapture}
+                        onRemove={handlePhotoRemove}
+                        onView={setViewerPhoto}
+                      />
+                      <PhotoSlot
+                        slotKey="lacre-Verso da embalagem recebida"
+                        label="Entrada (Verso)"
+                        photoUrl={photoUrls.get("lacre-Verso da embalagem recebida")}
+                        onCapture={handlePhotoCapture}
+                        onRemove={handlePhotoRemove}
+                        onView={setViewerPhoto}
+                      />
+                      <PhotoSlot
+                        slotKey="lacre-Frente da embalagem despachada"
+                        label="Saída (Frente)"
+                        photoUrl={photoUrls.get("lacre-Frente da embalagem despachada")}
+                        onCapture={handlePhotoCapture}
+                        onRemove={handlePhotoRemove}
+                        onView={setViewerPhoto}
+                      />
+                      <PhotoSlot
+                        slotKey="lacre-Verso da embalagem despachada"
+                        label="Saída (Verso)"
+                        photoUrl={photoUrls.get("lacre-Verso da embalagem despachada")}
+                        onCapture={handlePhotoCapture}
+                        onRemove={handlePhotoRemove}
+                        onView={setViewerPhoto}
+                      />
+                    </div>
+                  </div>
+
                 </div>
+              </div>
+
+              {/* Footer fixo */}
+              <div className="shrink-0 border-t border-[#d3c4a8] bg-[#f5efe3] px-4 py-4">
+                <button
+                  type="button"
+                  onClick={() => setPhotosOpen(false)}
+                  className="w-full rounded-2xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] py-4 text-sm font-black tracking-[0.2em] text-[#f8e3b3] shadow-[0_8px_20px_rgba(66,50,24,.22)] active:brightness-95 active:scale-[0.99]"
+                >
+                  CONCLUIR REGISTRO FOTOGRÁFICO
+                </button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
+        {/* ── Visualizador de Fotos ── */}
         <AnimatePresence>
-          {weaponType && !pieceFormOpen && !examType && (
-            <motion.button
-              initial={{ y: 80, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 80, opacity: 0 }}
-              transition={{ type: "spring", damping: 22, stiffness: 200 }}
-              onClick={() => setExamType(examType)}
-              className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-3 shadow-[0_8px_28px_rgba(0,0,0,.4)] hover:brightness-110"
+          {viewerPhoto && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-md"
             >
-              <div className="rounded-xl border border-[#8e7340] bg-[#0f1e39] p-2 text-[#f0d08a]">
-                <Crosshair className="h-4 w-4" />
+              <div className="flex items-center justify-between p-4">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-white/50">Visualização</div>
+                <button onClick={() => setViewerPhoto(null)} className="rounded-full bg-white/10 p-2 text-white">
+                  <X className="h-6 w-6" />
+                </button>
               </div>
-              <div className="text-left">
-                <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#ccb780]">Exame em andamento</div>
-                <div className="text-sm font-black text-[#f0d08a]">{titleByType[weaponType]}</div>
+              <div className="flex flex-1 items-center justify-center p-4">
+                <img src={viewerPhoto} className="max-h-full max-w-full rounded-lg object-contain shadow-2xl" alt="Foto ampliada" />
               </div>
-            </motion.button>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {menuOpen && (
-            <>
-              <motion.button
-                className="fixed inset-0 z-40 bg-black/55 xl:hidden"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setMenuOpen(false)}
-              />
-              <motion.aside
-                initial={{ x: -340 }}
-                animate={{ x: 0 }}
-                exit={{ x: -340 }}
-                transition={{ type: "spring", damping: 24, stiffness: 220 }}
-                className="fixed left-0 top-0 z-50 h-screen w-screen max-w-[340px] overflow-y-auto border-r border-[#8e7340] bg-[linear-gradient(180deg,#0d1a31_0%,#11203c_58%,#0b1730_100%)] shadow-[0_20px_40px_rgba(0,0,0,.28)] xl:hidden"
-              >
-                <div className="flex items-center justify-between border-b border-[#8e7340]/70 bg-[#13233f] px-4 py-4">
-                  <div className="text-lg font-black text-[#f0d08a]">MunicaoDB</div>
-                  <button
-                    onClick={() => setMenuOpen(false)}
-                    className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a]"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-                {sidebarMobile}
-              </motion.aside>
-            </>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
