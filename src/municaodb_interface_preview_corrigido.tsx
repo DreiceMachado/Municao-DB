@@ -20,7 +20,9 @@ import {
   LayoutDashboard,
   LogOut,
   Mail,
+  MapPin,
   Menu,
+  Microscope,
   Pencil,
   Plus,
   Search,
@@ -136,6 +138,11 @@ type WeaponEntry = {
   origemProjetil: string
   origemProjetilRef: string
   regiaoColeta: string
+  deformacoesAcidentais: string
+  estadoProjetil: string
+  estadoCartucho: string
+  estadoEstojo: string
+  alturaProjetil: string
 }
 
 type RecordItem = {
@@ -692,6 +699,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
   const [materialPickerOpen, setMaterialPickerOpen] = useState(false)
   const [formatoPickerOpen, setFormatoPickerOpen] = useState(false)
   const [sentidoPickerOpen, setSentidoPickerOpen] = useState(false)
+  const [deformacoesPickerOpen, setDeformacoesPickerOpen] = useState(false)
 
   const [profileView, setProfileView] = useState<null | "main" | "changeEmail" | "changePassword">(null)
   const [profileEmail, setProfileEmail] = useState("")
@@ -841,7 +849,8 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
     gumeFuncional: true, aptaUso: true, laminaIntegra: true,
     caboDanificado: false, manchas: false, manchasObs: "",
     naFlags: [], tipoProd: "", serialEstado: "", quantidade: "", diametroMin: "", massa: "",
-    origemProjetil: "", origemProjetilRef: "", regiaoColeta: "",
+    origemProjetil: "", origemProjetilRef: "", regiaoColeta: "", deformacoesAcidentais: "", estadoProjetil: "", alturaProjetil: "",
+    estadoCartucho: "", estadoEstojo: "",
   })
 
   const addWeapon = (type: WeaponType) => {
@@ -1402,26 +1411,111 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                 </div>
 
                 <div className="space-y-6 p-5 md:p-6">
-                  {/* ── Ícone da peça ── */}
-                  <div className="flex items-center gap-4 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(135deg,#1b2947_0%,#12213d_100%)] px-5 py-4 shadow-[0_6px_22px_rgba(0,0,0,.28)]">
-                    <div className="flex shrink-0 items-center justify-center rounded-xl bg-[#0f1e39] p-3 text-[#f0d08a]">
-                      <PieceIcon type={weaponType} className="h-12 w-auto max-w-[80px]" />
+                  <div className="space-y-3">
+                    {/* ── Ícone da peça ── */}
+                    <div className="flex items-center gap-4 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(135deg,#1b2947_0%,#12213d_100%)] px-5 py-4 shadow-[0_6px_22px_rgba(0,0,0,.28)]">
+                      <div className="flex shrink-0 items-center justify-center rounded-xl bg-[#0f1e39] p-3 text-[#f0d08a]">
+                        <PieceIcon type={weaponType} className="h-12 w-auto max-w-[80px]" />
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#ccb780]">Tipo de peça</div>
+                        <div className="text-lg font-black uppercase tracking-[0.1em] text-[#f0d08a]">{weaponType}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#ccb780]">Tipo de peça</div>
-                      <div className="text-lg font-black uppercase tracking-[0.1em] text-[#f0d08a]">{weaponType}</div>
-                    </div>
+
+                    {/* Estado do Projétil — ÍNTEGRO / DEFLAGRADO */}
+                    {activeWeapon?.type === "PROJÉTIL" && (
+                      <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-4 shadow-sm">
+                        <div className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Estado do projétil</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(["ÍNTEGRO", "DEFLAGRADO"] as const).map((op) => {
+                            const isSelected = activeWeapon?.estadoProjetil === op;
+                            return (
+                              <button
+                                key={op}
+                                type="button"
+                                onClick={() => setWeaponDirect("estadoProjetil", isSelected ? "" : op)}
+                                className={cn(
+                                  "rounded-xl border-2 py-3 text-sm font-black tracking-[0.12em] transition active:scale-[0.98]",
+                                  isSelected
+                                    ? "border-[#7d6334] bg-[#7d6334] text-white shadow-md"
+                                    : "border-[#d3c4a8] bg-[#fbf8f2] text-[#6b5838] hover:bg-[#f5efe3]"
+                                )}
+                              >
+                                {op}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Estado do Cartucho — ÍNTEGRO / PERCUTIDO */}
+                    {activeWeapon?.type === "CARTUCHO" && (
+                      <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-4 shadow-sm">
+                        <div className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Estado do cartucho</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(["ÍNTEGRO", "PERCUTIDO"] as const).map((op) => {
+                            const isSelected = activeWeapon?.estadoCartucho === op;
+                            return (
+                              <button
+                                key={op}
+                                type="button"
+                                onClick={() => setWeaponDirect("estadoCartucho", isSelected ? "" : op)}
+                                className={cn(
+                                  "rounded-xl border-2 py-3 text-sm font-black tracking-[0.12em] transition active:scale-[0.98]",
+                                  isSelected
+                                    ? "border-[#7d6334] bg-[#7d6334] text-white shadow-md"
+                                    : "border-[#d3c4a8] bg-[#fbf8f2] text-[#6b5838] hover:bg-[#f5efe3]"
+                                )}
+                              >
+                                {op}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Estado do Estojo — ÍNTEGRO / PERCUTIDO */}
+                    {activeWeapon?.type === "ESTOJO" && (
+                      <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-4 shadow-sm">
+                        <div className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Estado do estojo</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(["ÍNTEGRO", "PERCUTIDO"] as const).map((op) => {
+                            const isSelected = activeWeapon?.estadoEstojo === op;
+                            return (
+                              <button
+                                key={op}
+                                type="button"
+                                onClick={() => setWeaponDirect("estadoEstojo", isSelected ? "" : op)}
+                                className={cn(
+                                  "rounded-xl border-2 py-3 text-sm font-black tracking-[0.12em] transition active:scale-[0.98]",
+                                  isSelected
+                                    ? "border-[#7d6334] bg-[#7d6334] text-white shadow-md"
+                                    : "border-[#d3c4a8] bg-[#fbf8f2] text-[#6b5838] hover:bg-[#f5efe3]"
+                                )}
+                              >
+                                {op}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* ── Campos base ── */}
                   <div className="space-y-5">
                     <div className="grid gap-5 md:grid-cols-2">
-                      <div>
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Marca</label>
-                        <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
-                          className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                          placeholder="Ex.: Taurus" />
-                      </div>
+                      {activeWeapon?.type !== "PROJÉTIL" && (
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Marca</label>
+                          <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
+                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                            placeholder="Ex.: Taurus" />
+                        </div>
+                      )}
                       {activeWeapon?.type !== "PROJÉTIL" && (
                         <div>
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Modelo</label>
@@ -1430,18 +1524,22 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             placeholder="Ex.: RT 627" />
                         </div>
                       )}
-                      <div>
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre</label>
-                        <input value={activeWeapon?.caliber ?? ""} onChange={handleWeaponField("caliber")}
-                          className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                          placeholder="Ex.: .38 SPL" />
-                      </div>
-                      <div>
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
-                        <input value={activeWeapon?.paisFabricacao ?? ""} onChange={handleWeaponField("paisFabricacao")}
-                          className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                          placeholder="Ex.: Brasil" />
-                      </div>
+                      {activeWeapon?.type !== "PROJÉTIL" && (
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre</label>
+                          <input value={activeWeapon?.caliber ?? ""} onChange={handleWeaponField("caliber")}
+                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                            placeholder="Ex.: .38 SPL" />
+                        </div>
+                      )}
+                      {activeWeapon?.type !== "PROJÉTIL" && (
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
+                          <input value={activeWeapon?.paisFabricacao ?? ""} onChange={handleWeaponField("paisFabricacao")}
+                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                            placeholder="Ex.: Brasil" />
+                        </div>
+                      )}
                     </div>
 
                     {/* Tipo de produção — apenas armas de fogo */}
@@ -1508,15 +1606,15 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       </div>
                     )}
 
-                    {/* Número de série simples — para peças que não são armas de fogo */}
-                    {!(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                    {/* Número de série simples — para peças que não são armas de fogo nem PROJÉTIL */}
+                    {!(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","PROJÉTIL"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                       <div>
                         <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                          {activeWeapon?.type === "PROJÉTIL" ? "Lote" : "Número de série / identificação"}
+                          Número de série / identificação
                         </label>
                         <input value={activeWeapon?.serial ?? ""} onChange={handleWeaponField("serial")}
                           className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                          placeholder={activeWeapon?.type === "PROJÉTIL" ? "Ex.: L2024-001" : "Informar identificação"} />
+                          placeholder="Informar identificação" />
                       </div>
                     )}
                   </div>
@@ -2163,52 +2261,58 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   {activeWeapon?.type === "PROJÉTIL" && (
                     <div className="space-y-4">
 
-                      {/* Origem */}
-                      <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-4 shadow-sm">
-                        <div className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Origem</div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {(["DELEGACIA", "LOCAL"] as const).map(op => (
+                    {/* Origem */}
+                    <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-3.5 shadow-sm">
+                      <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8d7854]">Origem do projétil</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {( [
+                          { id: "DELEGACIA", label: "Delegacia", Icon: Building2  },
+                          { id: "LOCAL",     label: "Local",     Icon: MapPin    },
+                          { id: "NECROPSIA", label: "Necropsia", Icon: Microscope },
+                        ] as const).map(({ id, label, Icon }) => {
+                          const active = activeWeapon?.origemProjetil === id
+                          return (
                             <button
-                              key={op}
+                              key={id}
                               type="button"
-                              onClick={() => setWeaponDirect("origemProjetil", activeWeapon?.origemProjetil === op ? "" : op)}
-                              className={`rounded-xl border-2 py-2.5 text-sm font-black tracking-[0.12em] transition ${
-                                activeWeapon?.origemProjetil === op
-                                  ? "border-[#7d6334] bg-[#7d6334] text-white"
-                                  : "border-[#d3c4a8] bg-[#fbf8f2] text-[#6b5838]"
-                              }`}
+                              onClick={() => setWeaponDirect("origemProjetil", active ? "" : id)}
+                              className={cn(
+                                "flex flex-col items-center justify-center gap-2 rounded-xl border-2 py-3 px-1 transition active:scale-95",
+                                active
+                                  ? "border-[#7d6334] bg-[#7d6334] text-white shadow-md"
+                                  : "border-[#d3c4a8] bg-[#fbf8f2] text-[#6b5838] hover:bg-[#f5efe3]"
+                              )}
                             >
-                              {op}
+                              <Icon className={cn("h-6 w-6", active ? "text-white" : "text-[#9e7f45]")} />
+                              <span className="text-[10px] font-black uppercase tracking-wider">{label}</span>
                             </button>
-                          ))}
-                        </div>
-                        {activeWeapon?.origemProjetil === "LOCAL" && (
-                          <div className="mt-3 space-y-3">
-                            <div>
-                              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">
-                                Referência do local
-                              </label>
-                              <input
-                                value={String(activeWeapon?.origemProjetilRef ?? "")}
-                                onChange={handleWeaponField("origemProjetilRef" as keyof Omit<WeaponEntry,"type">)}
-                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                placeholder="Ex.: REP 138.740/2025"
-                              />
-                            </div>
-                            <div>
-                              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">
-                                Região da coleta
-                              </label>
-                              <input
-                                value={String(activeWeapon?.regiaoColeta ?? "")}
-                                onChange={handleWeaponField("regiaoColeta" as keyof Omit<WeaponEntry,"type">)}
-                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                placeholder="Ex.: Interior do imóvel (#3)"
-                              />
-                            </div>
-                          </div>
-                        )}
+                          )
+                        })}
                       </div>
+
+                      {activeWeapon?.origemProjetil === "LOCAL" && (
+                        <div className="mt-3 space-y-3 border-t border-[#ede3ce] pt-3">
+                          <div>
+                            <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Referência do local</label>
+                            <input
+                              value={String(activeWeapon?.origemProjetilRef ?? "")}
+                              onChange={handleWeaponField("origemProjetilRef" as keyof Omit<WeaponEntry,"type">)}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                              placeholder="Ex.: REP 138.740/2025"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Região da coleta</label>
+                            <input
+                              value={String(activeWeapon?.regiaoColeta ?? "")}
+                              onChange={handleWeaponField("regiaoColeta" as keyof Omit<WeaponEntry,"type">)}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                              placeholder="Ex.: Interior do imóvel (#3)"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
                         {/* Material — seletor bottom sheet */}
@@ -2239,84 +2343,133 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                           </button>
                         </div>
-                        {/* Sentido das raias — seletor bottom sheet */}
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sentido das raias</label>
-                          <button
-                            type="button"
-                            onClick={() => setSentidoPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]"
-                          >
-                            <span className={`truncate text-[15px] ${activeWeapon?.sentidoEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                              {activeWeapon?.sentidoEstrias || "Selecionar…"}
-                            </span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        {/* N° de raias */}
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">N° de raias</label>
-                          <input value={String(activeWeapon?.numEstrias ?? "")} onChange={handleWeaponField("numEstrias")}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                            placeholder="Ex.: 6" />
-                        </div>
-                        <div className="mt-4 grid grid-cols-2 gap-3">
-                          {([
-                            ["diametro",    "Diâmetro máx.", "Ex.: 9,02 mm"],
-                            ["diametroMin", "Diâmetro mín.", "Ex.: 8,98 mm"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
-                            <div key={field}>
-                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
-                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                placeholder={ph} />
-                            </div>
-                          ))}
-                        </div>
-                        {(() => {
-                          const parseVal = (v: string) => parseFloat(String(v ?? "").replace(",", ".").replace(/[^\d.]/g, ""))
-                          const max = parseVal(activeWeapon?.diametro ?? "")
-                          const min = parseVal(activeWeapon?.diametroMin ?? "")
-                          if (isNaN(max) || isNaN(min)) return null
-                          const mediaNum = (max + min) / 2
-                          const media = mediaNum.toFixed(2).replace(".", ",")
-                          const familias: { min: number; max: number; nome: string; nominal: string }[] = [
-                            { min: 5.4,  max: 5.9,  nome: "Vinte e dois (.22)",           nominal: ".22 LR / .22 Short" },
-                            { min: 6.1,  max: 6.6,  nome: "Vinte e cinco (.25)",          nominal: ".25 ACP / 6,35mm Browning" },
-                            { min: 7.4,  max: 7.7,  nome: "Trinta e dois (.32)",          nominal: ".32 ACP / 7,65mm Browning" },
-                            { min: 7.7,  max: 7.95, nome: "Trinta e dois (.32)",          nominal: ".32 S&W Long" },
-                            { min: 8.4,  max: 9.3,  nome: "Nove milímetros (9 mm / .38)", nominal: "9mm Luger / .38TPC" },
-                            { min: 9.9,  max: 10.5, nome: "Quarenta (.40 / 10 mm)",       nominal: ".40 S&W / 10mm Auto" },
-                            { min: 11.0, max: 11.35, nome: "Quarenta e quatro (.44)",     nominal: ".44 Magnum / .44 S&W Special" },
-                            { min: 11.35, max: 11.7, nome: "Quarenta e cinco (.45)",      nominal: ".45 ACP / .45 Colt" },
-                          ]
-                          const familia = familias.find(f => mediaNum >= f.min && mediaNum <= f.max)
-                          return (
-                            <div className="mt-3 space-y-2">
-                              <div className="rounded-xl border border-[#b89a58]/40 bg-[#f0e8d4] px-4 py-3">
-                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Calibre real (média)</div>
-                                <div className="text-lg font-black text-[#1d2433]">{media} mm</div>
+                        {/* Raias — só para DEFLAGRADO */}
+                        {activeWeapon?.estadoProjetil !== "ÍNTEGRO" && (<>
+                          {/* Sentido das raias */}
+                          <div className="mb-4">
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sentido das raias</label>
+                            <button
+                              type="button"
+                              onClick={() => setSentidoPickerOpen(true)}
+                              className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]"
+                            >
+                              <span className={`truncate text-[15px] ${activeWeapon?.sentidoEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                                {activeWeapon?.sentidoEstrias || "Selecionar…"}
+                              </span>
+                              <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                            </button>
+                          </div>
+                          {/* N° de raias */}
+                          <div className="mb-4">
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">N° de raias</label>
+                            <input value={String(activeWeapon?.numEstrias ?? "")} onChange={handleWeaponField("numEstrias")}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                              placeholder="Ex.: 6" />
+                          </div>
+                          {/* Cavados/Ressaltos e Raiamento — calculados */}
+                          {(() => {
+                            const n = activeWeapon?.numEstrias?.trim()
+                            const sentido = activeWeapon?.sentidoEstrias?.trim()
+                            const orientacaoMap: Record<string, string> = {
+                              "Dextrorso": "dextrógiro",
+                              "Sinistrorso": "sinistrógiro",
+                              "Sem raias": "sem raiamento",
+                              "Indeterminado": "orientação indeterminada",
+                            }
+                            const orientacao = sentido ? (orientacaoMap[sentido] ?? sentido.toLowerCase()) : null
+                            if (!n && !sentido) return null
+                            return (
+                              <div className="mb-4 overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
+                                <div className="border-b border-[#ede3ce] px-4 py-3">
+                                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Raiamento</div>
+                                </div>
+                                <div className="divide-y divide-[#ede3ce]">
+                                  {n && (
+                                    <div className="flex items-center justify-between px-4 py-3">
+                                      <span className="text-[13px] font-semibold text-[#7a6540]">Cavados e Ressaltos</span>
+                                      <span className="text-[15px] font-black text-[#26221b]">{n} e {n}</span>
+                                    </div>
+                                  )}
+                                  {(n || orientacao) && (
+                                    <div className="flex items-center justify-between px-4 py-3">
+                                      <span className="text-[13px] font-semibold text-[#7a6540]">Raiamento e Orientação</span>
+                                      <span className="text-[15px] font-black text-right text-[#26221b]">
+                                        {[n ? `${n} raias` : null, orientacao].filter(Boolean).join(", ")}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              {familia && (
-                                <div className="rounded-xl border border-[#7d9b6a]/40 bg-[#eef4e8] px-4 py-3">
-                                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#5a7a48]">Família do calibre</div>
-                                  <div className="text-base font-black text-[#1d2433]">{familia.nome}</div>
+                            )
+                          })()}
+                          {/* Diâmetro máx / mín e calibre calculado — só DEFLAGRADO */}
+                          <div className="mt-4 grid grid-cols-2 gap-3">
+                            {([
+                              ["diametro",    "Diâmetro máx.", "Ex.: 9,02 mm"],
+                              ["diametroMin", "Diâmetro mín.", "Ex.: 8,98 mm"],
+                            ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                              <div key={field}>
+                                <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                                <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                  className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                  placeholder={ph} />
+                              </div>
+                            ))}
+                          </div>
+                          {(() => {
+                            const parseVal = (v: string) => parseFloat(String(v ?? "").replace(",", ".").replace(/[^\d.]/g, ""))
+                            const max = parseVal(activeWeapon?.diametro ?? "")
+                            const min = parseVal(activeWeapon?.diametroMin ?? "")
+                            if (isNaN(max) || isNaN(min)) return null
+                            const mediaNum = (max + min) / 2
+                            const media = mediaNum.toFixed(2).replace(".", ",")
+                            const familias: { min: number; max: number; nome: string; nominal: string }[] = [
+                              { min: 5.4,  max: 5.9,  nome: "Vinte e dois (.22)",           nominal: ".22 LR / .22 Short" },
+                              { min: 6.1,  max: 6.6,  nome: "Vinte e cinco (.25)",          nominal: ".25 ACP / 6,35mm Browning" },
+                              { min: 7.4,  max: 7.7,  nome: "Trinta e dois (.32)",          nominal: ".32 ACP / 7,65mm Browning" },
+                              { min: 7.7,  max: 7.95, nome: "Trinta e dois (.32)",          nominal: ".32 S&W Long" },
+                              { min: 8.4,  max: 9.3,  nome: "Nove milímetros (9 mm / .38)", nominal: "9mm Luger / .38TPC" },
+                              { min: 9.9,  max: 10.5, nome: "Quarenta (.40 / 10 mm)",       nominal: ".40 S&W / 10mm Auto" },
+                              { min: 11.0, max: 11.35, nome: "Quarenta e quatro (.44)",     nominal: ".44 Magnum / .44 S&W Special" },
+                              { min: 11.35, max: 11.7, nome: "Quarenta e cinco (.45)",      nominal: ".45 ACP / .45 Colt" },
+                            ]
+                            const familia = familias.find(f => mediaNum >= f.min && mediaNum <= f.max)
+                            return (
+                              <div className="mt-3 space-y-2">
+                                <div className="rounded-xl border border-[#b89a58]/40 bg-[#f0e8d4] px-4 py-3">
+                                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Calibre real (média)</div>
+                                  <div className="text-lg font-black text-[#1d2433]">{media} mm</div>
                                 </div>
-                              )}
-                              {familia && (
-                                <div className="rounded-xl border border-[#4a6fa5]/30 bg-[#eaf0f8] px-4 py-3">
-                                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#3a5a80]">Provável calibre nominal</div>
-                                  <div className="text-base font-black text-[#1d2433]">{familia.nominal}</div>
-                                </div>
-                              )}
-                              {!familia && (
-                                <div className="rounded-xl border border-[#b89a58]/25 bg-[#f5f0e8] px-4 py-2.5">
-                                  <div className="text-[11px] text-[#8d7854]">Família não identificada para {media} mm</div>
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })()}
+                                {familia && (
+                                  <div className="rounded-xl border border-[#7d9b6a]/40 bg-[#eef4e8] px-4 py-3">
+                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#5a7a48]">Família do calibre</div>
+                                    <div className="text-base font-black text-[#1d2433]">{familia.nome}</div>
+                                  </div>
+                                )}
+                                {familia && (
+                                  <div className="rounded-xl border border-[#4a6fa5]/30 bg-[#eaf0f8] px-4 py-3">
+                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#3a5a80]">Provável calibre nominal</div>
+                                    <div className="text-base font-black text-[#1d2433]">{familia.nominal}</div>
+                                  </div>
+                                )}
+                                {!familia && (
+                                  <div className="rounded-xl border border-[#b89a58]/25 bg-[#f5f0e8] px-4 py-2.5">
+                                    <div className="text-[11px] text-[#8d7854]">Família não identificada para {media} mm</div>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })()}
+                        </>)}
+                        {/* Calibre real direto — só para ÍNTEGRO */}
+                        {activeWeapon?.estadoProjetil === "ÍNTEGRO" && (
+                          <div className="mb-4">
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre real (mm)</label>
+                            <input value={String(activeWeapon?.diametro ?? "")} onChange={handleWeaponField("diametro")}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                              placeholder="Ex.: 9,02" />
+                          </div>
+                        )}
                         <div className="mt-4">
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Massa (g)</label>
                           <input
@@ -2338,6 +2491,18 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             )
                           })()}
                         </div>
+                        {/* Altura — só para DEFLAGRADO */}
+                        {activeWeapon?.estadoProjetil !== "ÍNTEGRO" && (
+                          <div className="mt-4">
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Altura (mm)</label>
+                            <input
+                              value={String(activeWeapon?.alturaProjetil ?? "")}
+                              onChange={handleWeaponField("alturaProjetil" as keyof Omit<WeaponEntry,"type">)}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                              placeholder="Ex.: 14,20"
+                            />
+                          </div>
+                        )}
                       </CollapsibleSection>
                       <CollapsibleCard title="Marcações balísticas">
                         <div className="grid gap-3 sm:grid-cols-2">
@@ -2353,6 +2518,19 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                               {label}
                             </label>
                           ))}
+                        </div>
+                        <div className="mt-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Deformações acidentais</label>
+                          <button
+                            type="button"
+                            onClick={() => setDeformacoesPickerOpen(true)}
+                            className="flex min-h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 py-3 text-left transition focus:border-[#9e7f45]"
+                          >
+                            <span className={`text-[14px] leading-snug ${activeWeapon?.deformacoesAcidentais ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.deformacoesAcidentais || "Selecionar deformações…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
                         </div>
                       </CollapsibleCard>
                       <CollapsibleCard title="Estado de conservação">
@@ -2853,6 +3031,78 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </span>
                         <span className={`text-[16px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{sentido}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Deformações acidentais picker ── */}
+        <AnimatePresence>
+          {deformacoesPickerOpen && (
+            <>
+              <motion.div
+                className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setDeformacoesPickerOpen(false)}
+              />
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              >
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Deformações acidentais</span>
+                    <button type="button" onClick={() => setDeformacoesPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {[
+                    "Ausente",
+                    "Leve",
+                    "Moderada",
+                    "Acentuada",
+                    "Severa",
+                    "Fragmentação parcial",
+                    "Fragmentação total",
+                    "Moderada com fragmentação parcial",
+                    "Acentuada com fragmentação parcial",
+                    "Achatamento leve",
+                    "Achatamento moderado",
+                    "Achatamento severo",
+                    "Encurvamento",
+                    "Esmagamento",
+                    "Expansão (HP)",
+                    "Expansão parcial",
+                    "Deformação por ricochete",
+                    "Deformação por impacto em superfície dura",
+                    "Deformação por passagem em material mole",
+                    "Indeterminada",
+                  ].map((def, idx, arr) => {
+                    const selecionados = (activeWeapon?.deformacoesAcidentais ?? "").split(",").map(s => s.trim()).filter(Boolean)
+                    const selected = selecionados.includes(def)
+                    return (
+                      <button
+                        key={def}
+                        type="button"
+                        onClick={() => {
+                          const next = selected ? selecionados.filter(d => d !== def) : [...selecionados, def]
+                          setWeaponDirect("deformacoesAcidentais", next.join(", "))
+                        }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}
+                      >
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <span className={`text-[15px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{def}</span>
                       </button>
                     )
                   })}
