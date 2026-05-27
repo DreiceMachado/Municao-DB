@@ -500,16 +500,15 @@ function PhotoSlot({
     }
   }
 
-  const ACCEPT = "image/jpeg,image/jpg,image/heic,image/heif,.heic,.heif"
-
-  const openCamera = () => { setShowPicker(false); setTimeout(() => cameraRef.current?.click(), 50) }
-  const openGallery = () => { setShowPicker(false); setTimeout(() => galleryRef.current?.click(), 50) }
+  const ACCEPT = "image/*,.heic,.heif"
+  const camId = `fc-cam-${slotKey}`
+  const galId = `fc-gal-${slotKey}`
 
   return (
     <div className="flex flex-col gap-1.5">
       <span className="px-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#6b5838]">{label}</span>
-      <input ref={cameraRef} type="file" accept={ACCEPT} capture="environment" onChange={handleFile} className="hidden" />
-      <input ref={galleryRef} type="file" accept={ACCEPT} onChange={handleFile} className="hidden" />
+      <input id={camId} ref={cameraRef} type="file" accept={ACCEPT} capture="environment" onChange={handleFile} className="sr-only" />
+      <input id={galId} ref={galleryRef} type="file" accept={ACCEPT} onChange={handleFile} className="sr-only" />
 
       {converting ? (
         <div className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-[#c8b47e] bg-[#fbf8f2]">
@@ -569,10 +568,10 @@ function PhotoSlot({
                   <div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione a origem</div>
                 </div>
                 <div className="space-y-3 p-4">
-                  <button
-                    type="button"
-                    onClick={openCamera}
-                    className="flex w-full items-center gap-4 rounded-2xl border-2 border-[#d3c4a8] bg-white px-5 py-4 text-left active:scale-[.97] active:bg-[#ece6da]"
+                  <label
+                    htmlFor={camId}
+                    onClick={() => setShowPicker(false)}
+                    className="flex w-full cursor-pointer items-center gap-4 rounded-2xl border-2 border-[#d3c4a8] bg-white px-5 py-4 text-left active:scale-[.97] active:bg-[#ece6da]"
                   >
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e8dfc8]">
                       <Camera className="h-6 w-6 text-[#8d7854]" />
@@ -582,11 +581,11 @@ function PhotoSlot({
                       <div className="text-xs text-[#8d7854]">Tirar foto agora</div>
                     </div>
                     <ChevronRight className="ml-auto h-5 w-5 shrink-0 text-[#b89a58]" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={openGallery}
-                    className="flex w-full items-center gap-4 rounded-2xl border-2 border-[#d3c4a8] bg-white px-5 py-4 text-left active:scale-[.97] active:bg-[#ece6da]"
+                  </label>
+                  <label
+                    htmlFor={galId}
+                    onClick={() => setShowPicker(false)}
+                    className="flex w-full cursor-pointer items-center gap-4 rounded-2xl border-2 border-[#d3c4a8] bg-white px-5 py-4 text-left active:scale-[.97] active:bg-[#ece6da]"
                   >
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e8dfc8]">
                       <ImageIcon className="h-6 w-6 text-[#8d7854]" />
@@ -596,7 +595,7 @@ function PhotoSlot({
                       <div className="text-xs text-[#8d7854]">Escolher da galeria</div>
                     </div>
                     <ChevronRight className="ml-auto h-5 w-5 shrink-0 text-[#b89a58]" />
-                  </button>
+                  </label>
                 </div>
                 <div className="px-4 pb-4">
                   <button
