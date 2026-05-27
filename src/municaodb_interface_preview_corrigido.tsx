@@ -133,6 +133,9 @@ type WeaponEntry = {
   quantidade: string
   diametroMin: string
   massa: string
+  origemProjetil: string
+  origemProjetilRef: string
+  regiaoColeta: string
 }
 
 type RecordItem = {
@@ -686,6 +689,9 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
   const [lacreSaidaNumero, setLacreSaidaNumero] = useState("")
   const [photoUrls, setPhotoUrls] = useState<Map<string, string>>(new Map())
   const [viewerPhoto, setViewerPhoto] = useState<string | null>(null)
+  const [materialPickerOpen, setMaterialPickerOpen] = useState(false)
+  const [formatoPickerOpen, setFormatoPickerOpen] = useState(false)
+  const [sentidoPickerOpen, setSentidoPickerOpen] = useState(false)
 
   const [profileView, setProfileView] = useState<null | "main" | "changeEmail" | "changePassword">(null)
   const [profileEmail, setProfileEmail] = useState("")
@@ -835,6 +841,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
     gumeFuncional: true, aptaUso: true, laminaIntegra: true,
     caboDanificado: false, manchas: false, manchasObs: "",
     naFlags: [], tipoProd: "", serialEstado: "", quantidade: "", diametroMin: "", massa: "",
+    origemProjetil: "", origemProjetilRef: "", regiaoColeta: "",
   })
 
   const addWeapon = (type: WeaponType) => {
@@ -1415,12 +1422,14 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                           placeholder="Ex.: Taurus" />
                       </div>
-                      <div>
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Modelo</label>
-                        <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
-                          className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                          placeholder="Ex.: RT 627" />
-                      </div>
+                      {activeWeapon?.type !== "PROJÉTIL" && (
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Modelo</label>
+                          <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
+                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                            placeholder="Ex.: RT 627" />
+                        </div>
+                      )}
                       <div>
                         <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre</label>
                         <input value={activeWeapon?.caliber ?? ""} onChange={handleWeaponField("caliber")}
@@ -2153,21 +2162,103 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   {/* ── PROJÉTIL ── */}
                   {activeWeapon?.type === "PROJÉTIL" && (
                     <div className="space-y-4">
-                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
-                        <div className="grid gap-4 md:grid-cols-2">
-                          {([
-                            ["material",       "Material",            "Ex.: chumbo, encamisado"],
-                            ["formato",        "Formato",             "Ex.: ogival, expansivo, wadcutter"],
-                            ["numEstrias",     "N° de raias",   "Ex.: 6"],
-                            ["sentidoEstrias", "Sentido das estrias", "Ex.: dextrorso, sinistrorso"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
-                            <div key={field}>
-                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
-                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                placeholder={ph} />
-                            </div>
+
+                      {/* Origem */}
+                      <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-4 shadow-sm">
+                        <div className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Origem</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(["DELEGACIA", "LOCAL"] as const).map(op => (
+                            <button
+                              key={op}
+                              type="button"
+                              onClick={() => setWeaponDirect("origemProjetil", activeWeapon?.origemProjetil === op ? "" : op)}
+                              className={`rounded-xl border-2 py-2.5 text-sm font-black tracking-[0.12em] transition ${
+                                activeWeapon?.origemProjetil === op
+                                  ? "border-[#7d6334] bg-[#7d6334] text-white"
+                                  : "border-[#d3c4a8] bg-[#fbf8f2] text-[#6b5838]"
+                              }`}
+                            >
+                              {op}
+                            </button>
                           ))}
+                        </div>
+                        {activeWeapon?.origemProjetil === "LOCAL" && (
+                          <div className="mt-3 space-y-3">
+                            <div>
+                              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">
+                                Referência do local
+                              </label>
+                              <input
+                                value={String(activeWeapon?.origemProjetilRef ?? "")}
+                                onChange={handleWeaponField("origemProjetilRef" as keyof Omit<WeaponEntry,"type">)}
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                placeholder="Ex.: REP 138.740/2025"
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">
+                                Região da coleta
+                              </label>
+                              <input
+                                value={String(activeWeapon?.regiaoColeta ?? "")}
+                                onChange={handleWeaponField("regiaoColeta" as keyof Omit<WeaponEntry,"type">)}
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                placeholder="Ex.: Interior do imóvel (#3)"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        {/* Material — seletor bottom sheet */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
+                          <button
+                            type="button"
+                            onClick={() => setMaterialPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]"
+                          >
+                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.material || "Selecionar material…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        {/* Formato — seletor bottom sheet */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Formato</label>
+                          <button
+                            type="button"
+                            onClick={() => setFormatoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]"
+                          >
+                            <span className={`truncate text-[15px] ${activeWeapon?.formato ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.formato || "Selecionar formato…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        {/* Sentido das raias — seletor bottom sheet */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sentido das raias</label>
+                          <button
+                            type="button"
+                            onClick={() => setSentidoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]"
+                          >
+                            <span className={`truncate text-[15px] ${activeWeapon?.sentidoEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.sentidoEstrias || "Selecionar…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        {/* N° de raias */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">N° de raias</label>
+                          <input value={String(activeWeapon?.numEstrias ?? "")} onChange={handleWeaponField("numEstrias")}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            placeholder="Ex.: 6" />
                         </div>
                         <div className="mt-4 grid grid-cols-2 gap-3">
                           {([
@@ -2189,14 +2280,15 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           if (isNaN(max) || isNaN(min)) return null
                           const mediaNum = (max + min) / 2
                           const media = mediaNum.toFixed(2).replace(".", ",")
-                          const familias: { min: number; max: number; nome: string }[] = [
-                            { min: 5.4,  max: 5.9,  nome: "Vinte e dois (.22)" },
-                            { min: 6.1,  max: 6.6,  nome: "Vinte e cinco (.25)" },
-                            { min: 7.4,  max: 7.85, nome: "Trinta e dois (.32)" },
-                            { min: 8.4,  max: 9.3,  nome: "Nove milímetros (9 mm / .38)" },
-                            { min: 9.9,  max: 10.5, nome: "Quarenta (.40 / 10 mm)" },
-                            { min: 11.0, max: 11.35, nome: "Quarenta e quatro (.44)" },
-                            { min: 11.35, max: 11.7, nome: "Quarenta e cinco (.45)" },
+                          const familias: { min: number; max: number; nome: string; nominal: string }[] = [
+                            { min: 5.4,  max: 5.9,  nome: "Vinte e dois (.22)",           nominal: ".22 LR / .22 Short" },
+                            { min: 6.1,  max: 6.6,  nome: "Vinte e cinco (.25)",          nominal: ".25 ACP / 6,35mm Browning" },
+                            { min: 7.4,  max: 7.7,  nome: "Trinta e dois (.32)",          nominal: ".32 ACP / 7,65mm Browning" },
+                            { min: 7.7,  max: 7.95, nome: "Trinta e dois (.32)",          nominal: ".32 S&W Long" },
+                            { min: 8.4,  max: 9.3,  nome: "Nove milímetros (9 mm / .38)", nominal: "9mm Luger / .38TPC" },
+                            { min: 9.9,  max: 10.5, nome: "Quarenta (.40 / 10 mm)",       nominal: ".40 S&W / 10mm Auto" },
+                            { min: 11.0, max: 11.35, nome: "Quarenta e quatro (.44)",     nominal: ".44 Magnum / .44 S&W Special" },
+                            { min: 11.35, max: 11.7, nome: "Quarenta e cinco (.45)",      nominal: ".45 ACP / .45 Colt" },
                           ]
                           const familia = familias.find(f => mediaNum >= f.min && mediaNum <= f.max)
                           return (
@@ -2209,6 +2301,12 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                                 <div className="rounded-xl border border-[#7d9b6a]/40 bg-[#eef4e8] px-4 py-3">
                                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#5a7a48]">Família do calibre</div>
                                   <div className="text-base font-black text-[#1d2433]">{familia.nome}</div>
+                                </div>
+                              )}
+                              {familia && (
+                                <div className="rounded-xl border border-[#4a6fa5]/30 bg-[#eaf0f8] px-4 py-3">
+                                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#3a5a80]">Provável calibre nominal</div>
+                                  <div className="text-base font-black text-[#1d2433]">{familia.nominal}</div>
                                 </div>
                               )}
                               {!familia && (
@@ -2570,6 +2668,197 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
               </div>
 
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Material picker ── */}
+        <AnimatePresence>
+          {materialPickerOpen && (
+            <>
+              <motion.div
+                className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setMaterialPickerOpen(false)}
+              />
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              >
+                {/* Handle + título */}
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Material do projétil</span>
+                    <button type="button" onClick={() => setMaterialPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                {/* Lista rolável */}
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {[
+                    "Chumbo",
+                    "Liga de chumbo",
+                    "Chumbo endurecido",
+                    "Encamisado (FMJ)",
+                    "Semiencamisado",
+                    "Ponta oca (HP)",
+                    "Encamisado de aço",
+                    "Cobre",
+                    "Latão",
+                    "Aço",
+                    "Aço inoxidável",
+                    "Alumínio",
+                    "Tungstênio",
+                    "Bismuto",
+                    "Polímero",
+                    "Niquelado",
+                  ].map((mat, idx, arr) => {
+                    const selected = (activeWeapon?.material ?? "").split(",").map(s => s.trim()).filter(Boolean).includes(mat)
+                    return (
+                      <button
+                        key={mat}
+                        type="button"
+                        onClick={() => {
+                          const current = (activeWeapon?.material ?? "").split(",").map(s => s.trim()).filter(Boolean)
+                          const next = selected ? current.filter(m => m !== mat) : [...current, mat]
+                          setWeaponDirect("material", next.join(", "))
+                        }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}
+                      >
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3 fill-white"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <span className={`text-[16px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{mat}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Formato picker ── */}
+        <AnimatePresence>
+          {formatoPickerOpen && (
+            <>
+              <motion.div
+                className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setFormatoPickerOpen(false)}
+              />
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              >
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Formato do projétil</span>
+                    <button type="button" onClick={() => setFormatoPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {[
+                    "Ogival",
+                    "Ogival truncado",
+                    "Ponta plana (FP)",
+                    "Arredondado (RN)",
+                    "Wadcutter (WC)",
+                    "Semi-wadcutter (SWC)",
+                    "Expansivo / Hollow Point (HP)",
+                    "Ponta de polímero",
+                    "Ponta de aço",
+                    "Spitzer",
+                    "Boat tail",
+                    "Flat base",
+                    "Garrafa (bottle neck)",
+                    "Deformado",
+                    "Fragmentado",
+                  ].map((fmt, idx, arr) => {
+                    const selected = activeWeapon?.formato === fmt
+                    return (
+                      <button
+                        key={fmt}
+                        type="button"
+                        onClick={() => {
+                          setWeaponDirect("formato", selected ? "" : fmt)
+                          setFormatoPickerOpen(false)
+                        }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}
+                      >
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <span className={`text-[16px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{fmt}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Sentido das raias picker ── */}
+        <AnimatePresence>
+          {sentidoPickerOpen && (
+            <>
+              <motion.div
+                className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setSentidoPickerOpen(false)}
+              />
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              >
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Sentido das raias</span>
+                    <button type="button" onClick={() => setSentidoPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {[
+                    "Dextrorso",
+                    "Sinistrorso",
+                    "Sem raias",
+                    "Indeterminado",
+                  ].map((sentido, idx, arr) => {
+                    const selected = activeWeapon?.sentidoEstrias === sentido
+                    return (
+                      <button
+                        key={sentido}
+                        type="button"
+                        onClick={() => {
+                          setWeaponDirect("sentidoEstrias", selected ? "" : sentido)
+                          setSentidoPickerOpen(false)
+                        }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}
+                      >
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <span className={`text-[16px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{sentido}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
 
