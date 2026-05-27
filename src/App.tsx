@@ -5,7 +5,7 @@ import Preview from './municaodb_interface_preview_corrigido'
 function App() {
   const [loggedIn, setLoggedIn] = useState(false)
   if (!loggedIn) return <Login onLogin={() => setLoggedIn(true)} />
-  return <Preview />
+  return <Preview onLogout={() => setLoggedIn(false)} />
 }
 
 export default App

@@ -11,13 +11,20 @@ import {
   ChevronRight,
   CircleDot,
   Database,
+  Eye,
+  EyeOff,
   FolderKanban,
   Crosshair,
   Image as ImageIcon,
+  KeyRound,
   LayoutDashboard,
+  LogOut,
+  Mail,
   Menu,
+  Pencil,
   Plus,
   Search,
+  Settings,
   Shield,
   Target,
   User2,
@@ -347,7 +354,7 @@ function PieceIcon({ type, className = "h-14 w-auto" }: { type: WeaponType; clas
   }
 }
 
-function SidebarContent() {
+function SidebarContent({ onOpenProfile }: { onOpenProfile: () => void }) {
   const item =
     "flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-[17px] font-medium transition"
   const icon = "h-5 w-5"
@@ -422,8 +429,21 @@ function SidebarContent() {
         </div>
       </div>
 
-      <div className="mt-auto border-t border-[#8e7340]/60 px-6 py-4 text-sm text-[#c8b27c]">
-        v3.0 • Beta
+      <div className="mt-auto border-t border-[#8e7340]/60">
+        <button
+          onClick={onOpenProfile}
+          className="flex w-full items-center gap-3 px-6 py-4 text-left transition hover:bg-[#d7b76f]/10 active:bg-[#d7b76f]/15"
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#f0d08a]/15">
+            <User2 className="h-5 w-5 text-[#f0d08a]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-bold text-[#f3e8c3]">Perfil</div>
+            <div className="text-[10px] text-[#b89a58] truncate">Configurações da conta</div>
+          </div>
+          <Settings className="h-4 w-4 shrink-0 text-[#7a8a9a]" />
+        </button>
+        <div className="px-6 pb-3 text-[10px] text-[#4a5a72]">v3.0 • Beta</div>
       </div>
     </div>
   )
@@ -628,7 +648,7 @@ const photoSlotsByType: Record<WeaponType, string[]> = {
   "FACA":         ["Lâmina – frente", "Lâmina – verso", "Cabo", "Ponta", "Gume", "Numeração"],
 }
 
-export default function MunicaoDBInterfacePreview() {
+export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [weaponType, setWeaponType] = useState<WeaponType | null>(null)
   const [showTypeSelector, setShowTypeSelector] = useState(false)
@@ -648,6 +668,8 @@ export default function MunicaoDBInterfacePreview() {
   const [activeWeaponIdx, setActiveWeaponIdx] = useState(0)
   const [showAddWeaponSelector, setShowAddWeaponSelector] = useState(false)
   const [savedPieces, setSavedPieces] = useState<WeaponEntry[]>([])
+  const [editingPieceIdx, setEditingPieceIdx] = useState<number | null>(null)
+  const [confirmDeletePieceIdx, setConfirmDeletePieceIdx] = useState<number | null>(null)
   const [pieceFormOpen, setPieceFormOpen] = useState(false)
   const [typePickerOpen, setTypePickerOpen] = useState(false)
   const [examType, setExamType] = useState<"EFICIÊNCIA" | "CONSTATAÇÃO" | null>(null)
@@ -658,6 +680,15 @@ export default function MunicaoDBInterfacePreview() {
   const [lacreSaidaNumero, setLacreSaidaNumero] = useState("")
   const [photoUrls, setPhotoUrls] = useState<Map<string, string>>(new Map())
   const [viewerPhoto, setViewerPhoto] = useState<string | null>(null)
+
+  const [profileView, setProfileView] = useState<null | "main" | "changeEmail" | "changePassword">(null)
+  const [profileEmail, setProfileEmail] = useState("")
+  const [profileEmailConfirm, setProfileEmailConfirm] = useState("")
+  const [profileCurPwd, setProfileCurPwd] = useState("")
+  const [profileNewPwd, setProfileNewPwd] = useState("")
+  const [profileNewPwdConfirm, setProfileNewPwdConfirm] = useState("")
+  const [profileShowPwd, setProfileShowPwd] = useState(false)
+  const [profileMsg, setProfileMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
 
   const handlePhotoCapture = (key: string, file: File) => {
     const reader = new FileReader()
@@ -676,9 +707,7 @@ export default function MunicaoDBInterfacePreview() {
 
   const activeWeapon = weapons[activeWeaponIdx] ?? null
 
-  const savePiece = () => {
-    if (!activeWeapon) return
-    setSavedPieces(prev => [...prev, { ...activeWeapon }])
+  const resetPieceForm = () => {
     setWeaponType(null)
     setWeapons([])
     setActiveWeaponIdx(0)
@@ -686,7 +715,28 @@ export default function MunicaoDBInterfacePreview() {
     setPhotosOpen(false)
     setLacreNumero("")
     setLacreSaidaNumero("")
-    setPhotoUrls(new Map()); setViewerPhoto(null)
+    setPhotoUrls(new Map())
+    setViewerPhoto(null)
+    setEditingPieceIdx(null)
+  }
+
+  const savePiece = () => {
+    if (!activeWeapon) return
+    if (editingPieceIdx !== null) {
+      setSavedPieces(prev => prev.map((p, i) => i === editingPieceIdx ? { ...activeWeapon } : p))
+    } else {
+      setSavedPieces(prev => [...prev, { ...activeWeapon }])
+    }
+    resetPieceForm()
+  }
+
+  const openEditPiece = (idx: number) => {
+    const piece = savedPieces[idx]
+    setEditingPieceIdx(idx)
+    setWeaponType(piece.type)
+    setWeapons([{ ...piece }])
+    setActiveWeaponIdx(0)
+    setPieceFormOpen(true)
   }
 
   const removeSavedPiece = (idx: number) => {
@@ -773,13 +823,13 @@ export default function MunicaoDBInterfacePreview() {
 
   const sidebarDesktop = (
     <aside className="hidden w-[300px] shrink-0 border-r border-[#8e7340] bg-[linear-gradient(180deg,#0d1a31_0%,#11203c_58%,#0b1730_100%)] xl:block">
-      <SidebarContent />
+      <SidebarContent onOpenProfile={() => setProfileView("main")} />
     </aside>
   )
 
   const sidebarMobile = (
   <div className="min-h-screen bg-[linear-gradient(180deg,#0d1a31_0%,#11203c_58%,#0b1730_100%)]">
-    <SidebarContent />
+    <SidebarContent onOpenProfile={() => setProfileView("main")} />
   </div>
   )
 
@@ -1082,7 +1132,7 @@ export default function MunicaoDBInterfacePreview() {
                     </button>
                   </div>
                   <div className="flex-1 overflow-y-auto">
-                    <SidebarContent />
+                    <SidebarContent onOpenProfile={() => { setMenuOpen(false); setProfileView("main") }} />
                   </div>
                 </div>
               </motion.aside>
@@ -1155,7 +1205,7 @@ export default function MunicaoDBInterfacePreview() {
                       </div>
                       <div className="space-y-4">
                         {savedPieces.map((p, i) => (
-                          <div key={i} className="flex items-center gap-4 rounded-[24px] border border-[#c8b47e] bg-[#fbf8f3] px-5 py-4 shadow-sm">
+                          <div key={i} className="flex items-center gap-3 rounded-[24px] border border-[#c8b47e] bg-[#fbf8f3] px-4 py-3 shadow-sm">
                             <div className="flex shrink-0 items-center justify-center rounded-xl bg-[#12213d] p-2 text-[#f0d08a]">
                               <PieceIcon type={p.type} className="h-5 w-auto max-w-[36px]" />
                             </div>
@@ -1164,8 +1214,20 @@ export default function MunicaoDBInterfacePreview() {
                               <div className="truncate text-sm font-bold text-[#26221b]">{p.model || <span className="italic text-[#a89268]">modelo não informado</span>}</div>
                               <div className="text-xs text-[#6b5838]">Nº {p.serial || "—"}{p.caliber ? ` • ${p.caliber}` : ""}</div>
                             </div>
-                            <button type="button" onClick={() => removeSavedPiece(i)}
-                              className="shrink-0 rounded-lg border border-[#7a3535] bg-[#2a1515] p-1.5 text-[#f08a8a] hover:bg-[#3a1a1a]">
+                            <button
+                              type="button"
+                              onClick={() => openEditPiece(i)}
+                              className="shrink-0 rounded-lg border border-[#8e7340] bg-[#1b2947] p-1.5 text-[#f0d08a] hover:bg-[#243659]"
+                              title="Editar peça"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeletePieceIdx(i)}
+                              className="shrink-0 rounded-lg border border-[#7a3535] bg-[#2a1515] p-1.5 text-[#f08a8a] hover:bg-[#3a1a1a]"
+                              title="Remover peça"
+                            >
                               <X className="h-3.5 w-3.5" />
                             </button>
                           </div>
@@ -1286,19 +1348,21 @@ export default function MunicaoDBInterfacePreview() {
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
-                        onClick={() => { setPieceFormOpen(false); setWeaponType(null); setWeapons([]); setPhotosOpen(false); setLacreNumero(""); setLacreSaidaNumero(""); setPhotoUrls(new Map()); setViewerPhoto(null) }}
+                        onClick={() => { resetPieceForm() }}
                         className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] hover:bg-[#1a2c4f]"
                       >
                         <ChevronLeft className="h-5 w-5" />
                       </button>
                       <div>
                         <div className="text-xl font-black text-[#f0d08a]">{weaponType}</div>
-                        <div className="text-xs uppercase tracking-[0.22em] text-[#ccb780]">Dados da peça</div>
+                        <div className="text-xs uppercase tracking-[0.22em] text-[#ccb780]">
+                          {editingPieceIdx !== null ? `Editando peça ${editingPieceIdx + 1}` : "Dados da peça"}
+                        </div>
                       </div>
                     </div>
                     <button
                       type="button"
-                      onClick={() => { setPieceFormOpen(false); setWeaponType(null); setWeapons([]); setPhotosOpen(false); setLacreNumero(""); setLacreSaidaNumero(""); setPhotoUrls(new Map()); setViewerPhoto(null) }}
+                      onClick={() => { resetPieceForm() }}
                       className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] hover:bg-[#1a2c4f]"
                     >
                       <X className="h-5 w-5" />
@@ -2130,7 +2194,7 @@ export default function MunicaoDBInterfacePreview() {
                   <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[#d3c3a4] pt-5">
                     <button
                       type="button"
-                      onClick={() => { setPieceFormOpen(false); setWeaponType(null); setWeapons([]); setPhotosOpen(false); setLacreNumero(""); setLacreSaidaNumero(""); setPhotoUrls(new Map()); setViewerPhoto(null) }}
+                      onClick={() => { resetPieceForm() }}
                       className="rounded-2xl border border-[#a8894c] bg-[#efe1b5] px-5 py-3 text-sm font-black tracking-[0.14em] text-[#4b3b21] transition hover:brightness-95"
                     >
                       CANCELAR
@@ -2140,7 +2204,7 @@ export default function MunicaoDBInterfacePreview() {
                       onClick={savePiece}
                       className="rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-7 py-3 text-sm font-black tracking-[0.16em] text-[#f0d08a] shadow-[0_12px_24px_rgba(0,0,0,.28)] transition hover:brightness-110"
                     >
-                      SALVAR PEÇA
+                      {editingPieceIdx !== null ? "ATUALIZAR PEÇA" : "SALVAR PEÇA"}
                     </button>
                   </div>
                 </div>
@@ -2287,6 +2351,283 @@ export default function MunicaoDBInterfacePreview() {
                   CONCLUIR REGISTRO FOTOGRÁFICO
                 </button>
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Confirmar exclusão de peça ── */}
+        <AnimatePresence>
+          {confirmDeletePieceIdx !== null && (
+            <>
+              <motion.div
+                className="fixed inset-0 z-[140] bg-black/60 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setConfirmDeletePieceIdx(null)}
+              />
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[150] px-4 pb-8"
+                initial={{ y: "100%", opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: "100%", opacity: 0 }}
+                transition={{ type: "spring", damping: 28, stiffness: 320 }}
+              >
+                <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.45)]">
+                  {/* Cabeçalho */}
+                  <div className="bg-[linear-gradient(180deg,#3a1515_0%,#2a0f0f_100%)] px-6 py-5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f08a8a]/15">
+                        <X className="h-5 w-5 text-[#f08a8a]" />
+                      </div>
+                      <div>
+                        <div className="text-base font-black text-[#f08a8a]">Excluir peça</div>
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-[#c47a7a]">Esta ação não pode ser desfeita</div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Info da peça */}
+                  {confirmDeletePieceIdx !== null && savedPieces[confirmDeletePieceIdx] && (
+                    <div className="flex items-center gap-3 border-b border-[#e8dfc8] px-6 py-4">
+                      <div className="flex shrink-0 items-center justify-center rounded-xl bg-[#12213d] p-2 text-[#f0d08a]">
+                        <PieceIcon type={savedPieces[confirmDeletePieceIdx].type} className="h-5 w-auto max-w-[36px]" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#6b5838]">
+                          {savedPieces[confirmDeletePieceIdx].type}
+                        </div>
+                        <div className="truncate text-sm font-bold text-[#26221b]">
+                          {savedPieces[confirmDeletePieceIdx].model || <span className="italic text-[#a89268]">modelo não informado</span>}
+                        </div>
+                        <div className="text-xs text-[#6b5838]">
+                          Nº {savedPieces[confirmDeletePieceIdx].serial || "—"}
+                          {savedPieces[confirmDeletePieceIdx].caliber ? ` • ${savedPieces[confirmDeletePieceIdx].caliber}` : ""}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {/* Botões */}
+                  <div className="space-y-3 p-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        removeSavedPiece(confirmDeletePieceIdx!)
+                        setConfirmDeletePieceIdx(null)
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-[#7a3535] bg-[linear-gradient(180deg,#6b2020_0%,#4a1515_100%)] py-4 text-sm font-black tracking-[0.18em] text-[#ffcccc] shadow-[0_8px_20px_rgba(120,30,30,.35)] active:brightness-95"
+                    >
+                      <X className="h-4 w-4" />
+                      SIM, EXCLUIR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeletePieceIdx(null)}
+                      className="w-full rounded-2xl border border-[#d3c4a8] bg-[#ece6da] py-4 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838] active:brightness-95"
+                    >
+                      CANCELAR
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Perfil / Configurações ── */}
+        <AnimatePresence>
+          {profileView && (
+            <motion.div
+              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 200 }}
+              className="fixed inset-0 z-[130] flex flex-col bg-[#f5efe3] text-[#26221b]"
+            >
+              {/* Header */}
+              <div className="shrink-0 border-b border-[#cab88f] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => profileView === "main" ? setProfileView(null) : setProfileView("main")}
+                    className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a]"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <div className="text-lg font-black text-[#f0d08a]">
+                    {profileView === "main" ? "Perfil" : profileView === "changeEmail" ? "Alterar E-mail" : "Alterar Senha"}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── View principal ── */}
+              {profileView === "main" && (
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {/* Avatar + info */}
+                  <div className="rounded-3xl border border-[#d3c4a8] bg-white p-6 text-center shadow-sm">
+                    <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] ring-4 ring-[#f0d08a]/20">
+                      <span className="text-2xl font-black text-[#f0d08a]">PC</span>
+                    </div>
+                    <div className="text-base font-black text-[#1d2433]">Perito Responsável</div>
+                    <div className="mt-0.5 text-sm text-[#8d7854]">perito@policiacientifica.pr.gov.br</div>
+                    <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#e8dfc8] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-[#6b5838]">
+                      <Shield className="h-3 w-3" />
+                      Polícia Científica do Paraná
+                    </div>
+                  </div>
+
+                  {/* Ações da conta */}
+                  <div className="overflow-hidden rounded-3xl border border-[#d3c4a8] bg-white shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => { setProfileMsg(null); setProfileView("changeEmail") }}
+                      className="flex w-full items-center gap-4 border-b border-[#e8dfc8] px-5 py-4 text-left active:bg-[#f5efe3]"
+                    >
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#e8dfc8]">
+                        <Mail className="h-5 w-5 text-[#8d7854]" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-bold text-[#1d2433]">Alterar e-mail</div>
+                        <div className="text-xs text-[#8d7854]">Mude seu endereço de acesso</div>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-[#b89a58]" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setProfileMsg(null); setProfileView("changePassword") }}
+                      className="flex w-full items-center gap-4 px-5 py-4 text-left active:bg-[#f5efe3]"
+                    >
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#e8dfc8]">
+                        <KeyRound className="h-5 w-5 text-[#8d7854]" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-bold text-[#1d2433]">Alterar senha</div>
+                        <div className="text-xs text-[#8d7854]">Atualize sua senha de acesso</div>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-[#b89a58]" />
+                    </button>
+                  </div>
+
+                  {/* Sair */}
+                  <button
+                    type="button"
+                    onClick={() => { setProfileView(null); onLogout() }}
+                    className="flex w-full items-center justify-center gap-2 rounded-3xl border-2 border-[#e0b0b0] bg-[#fdf0f0] py-4 text-sm font-black tracking-[0.15em] text-[#b03030] active:brightness-95"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    SAIR DA CONTA
+                  </button>
+                </div>
+              )}
+
+              {/* ── Alterar e-mail ── */}
+              {profileView === "changeEmail" && (
+                <div className="flex-1 overflow-y-auto p-4">
+                  <div className="space-y-4 rounded-3xl border border-[#d3c4a8] bg-white p-6 shadow-sm">
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Novo e-mail</label>
+                      <input
+                        type="email"
+                        value={profileEmail}
+                        onChange={e => setProfileEmail(e.target.value)}
+                        placeholder="novo@email.com"
+                        className="h-12 w-full rounded-xl border border-[#d3c4a8] bg-[#fbf8f2] px-4 text-[16px] text-[#50442f] outline-none focus:border-[#b89a58] focus:ring-2 focus:ring-[#b89a58]/15"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Confirmar e-mail</label>
+                      <input
+                        type="email"
+                        value={profileEmailConfirm}
+                        onChange={e => setProfileEmailConfirm(e.target.value)}
+                        placeholder="novo@email.com"
+                        className="h-12 w-full rounded-xl border border-[#d3c4a8] bg-[#fbf8f2] px-4 text-[16px] text-[#50442f] outline-none focus:border-[#b89a58] focus:ring-2 focus:ring-[#b89a58]/15"
+                      />
+                    </div>
+                    {profileMsg && (
+                      <div className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${profileMsg.type === "ok" ? "border border-green-200 bg-green-50 text-green-700" : "border border-[#f0b8b8] bg-[#fdf0f0] text-[#b03030]"}`}>
+                        {profileMsg.text}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!profileEmail || profileEmail !== profileEmailConfirm) {
+                          setProfileMsg({ type: "err", text: "Os e-mails não coincidem." })
+                          return
+                        }
+                        setProfileMsg({ type: "ok", text: "E-mail atualizado com sucesso." })
+                        setProfileEmail(""); setProfileEmailConfirm("")
+                      }}
+                      className="w-full rounded-2xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-4 text-sm font-black tracking-[0.2em] text-[#f8e3b3] shadow-[0_8px_20px_rgba(66,50,24,.22)] active:brightness-95"
+                    >
+                      SALVAR E-MAIL
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Alterar senha ── */}
+              {profileView === "changePassword" && (
+                <div className="flex-1 overflow-y-auto p-4">
+                  <div className="space-y-4 rounded-3xl border border-[#d3c4a8] bg-white p-6 shadow-sm">
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Senha atual</label>
+                      <div className="relative">
+                        <input
+                          type={profileShowPwd ? "text" : "password"}
+                          value={profileCurPwd}
+                          onChange={e => setProfileCurPwd(e.target.value)}
+                          placeholder="••••••••"
+                          className="h-12 w-full rounded-xl border border-[#d3c4a8] bg-[#fbf8f2] px-4 pr-12 text-[16px] text-[#50442f] outline-none focus:border-[#b89a58] focus:ring-2 focus:ring-[#b89a58]/15"
+                        />
+                        <button type="button" onClick={() => setProfileShowPwd(v => !v)}
+                          className="absolute inset-y-0 right-0 flex items-center px-3 text-[#b89a58]">
+                          {profileShowPwd ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Nova senha</label>
+                      <input
+                        type="password"
+                        value={profileNewPwd}
+                        onChange={e => setProfileNewPwd(e.target.value)}
+                        placeholder="••••••••"
+                        className="h-12 w-full rounded-xl border border-[#d3c4a8] bg-[#fbf8f2] px-4 text-[16px] text-[#50442f] outline-none focus:border-[#b89a58] focus:ring-2 focus:ring-[#b89a58]/15"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Confirmar nova senha</label>
+                      <input
+                        type="password"
+                        value={profileNewPwdConfirm}
+                        onChange={e => setProfileNewPwdConfirm(e.target.value)}
+                        placeholder="••••••••"
+                        className="h-12 w-full rounded-xl border border-[#d3c4a8] bg-[#fbf8f2] px-4 text-[16px] text-[#50442f] outline-none focus:border-[#b89a58] focus:ring-2 focus:ring-[#b89a58]/15"
+                      />
+                    </div>
+                    {profileMsg && (
+                      <div className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${profileMsg.type === "ok" ? "border border-green-200 bg-green-50 text-green-700" : "border border-[#f0b8b8] bg-[#fdf0f0] text-[#b03030]"}`}>
+                        {profileMsg.text}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!profileCurPwd || !profileNewPwd || profileNewPwd !== profileNewPwdConfirm) {
+                          setProfileMsg({ type: "err", text: "Verifique os campos e confirme a nova senha." })
+                          return
+                        }
+                        if (profileNewPwd.length < 6) {
+                          setProfileMsg({ type: "err", text: "A nova senha deve ter ao menos 6 caracteres." })
+                          return
+                        }
+                        setProfileMsg({ type: "ok", text: "Senha atualizada com sucesso." })
+                        setProfileCurPwd(""); setProfileNewPwd(""); setProfileNewPwdConfirm("")
+                      }}
+                      className="w-full rounded-2xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-4 text-sm font-black tracking-[0.2em] text-[#f8e3b3] shadow-[0_8px_20px_rgba(66,50,24,.22)] active:brightness-95"
+                    >
+                      SALVAR SENHA
+                    </button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

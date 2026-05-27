@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Shield, Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, Lock, Mail } from "lucide-react"
 
 interface LoginProps {
   onLogin: () => void
@@ -20,90 +20,120 @@ export function Login({ onLogin }: LoginProps) {
     }
     setErro("")
     setLoading(true)
-    await new Promise(r => setTimeout(r, 800))
+    await new Promise(r => setTimeout(r, 900))
     setLoading(false)
     onLogin()
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f5efe3]">
-      {/* Cabeçalho */}
-      <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 pb-10 pt-16 text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#f0d08a]/15 ring-2 ring-[#f0d08a]/30">
-          <Shield className="h-8 w-8 text-[#f0d08a]" />
-        </div>
-        <h1 className="text-2xl font-black tracking-[0.12em] text-[#f0d08a]">MunicaoDB</h1>
-        <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-[#ccb780]">
-          Sistema de Registro Balístico
-        </p>
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#0b1526]">
+
+      {/* Ornamentos de fundo */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-[#f0d08a]/5 blur-3xl" />
+        <div className="absolute -bottom-40 -right-20 h-[500px] w-[500px] rounded-full bg-[#1b2947]/80 blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 h-px w-full -translate-x-1/2 -translate-y-1/2 bg-[#f0d08a]/5" />
       </div>
 
-      {/* Card */}
-      <div className="mx-auto w-full max-w-md flex-1 px-4 -mt-6">
-        <div className="rounded-3xl border border-[#d3c4a8] bg-white p-6 shadow-[0_8px_32px_rgba(0,0,0,.10)]">
-          <h2 className="mb-6 text-lg font-black text-[#1d2433]">Acesse sua conta</h2>
+      {/* Conteúdo */}
+      <div className="relative z-10 flex w-full max-w-sm flex-col items-center px-6">
 
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        {/* Logo */}
+        <div className="mb-8 flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="absolute inset-0 rounded-3xl bg-[#f0d08a]/20 blur-xl" />
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-3xl border border-[#f0d08a]/25 bg-[#f0d08a]/10">
+              <img
+                src="/logo-pc-pr.png"
+                alt="PC-PR"
+                className="h-12 w-12 object-contain"
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none" }}
+              />
+              {/* Fallback: brasão textual */}
+              <span className="absolute text-[28px] font-black text-[#f0d08a]" style={{ fontFamily: "serif" }}>⚖</span>
+            </div>
+          </div>
+          <div className="text-center">
+            <h1 className="text-[22px] font-black tracking-[0.16em] text-[#f0d08a]">MunicaoDB</h1>
+            <p className="mt-0.5 text-[9px] uppercase tracking-[0.28em] text-[#7a8faf]">
+              Polícia Científica do Paraná
+            </p>
+          </div>
+        </div>
+
+        {/* Card do formulário */}
+        <div className="w-full rounded-3xl border border-white/8 bg-white/5 p-6 backdrop-blur-md">
+          <p className="mb-5 text-[11px] font-bold uppercase tracking-[0.2em] text-[#7a8faf]">
+            Acesso restrito
+          </p>
+
+          <form onSubmit={handleSubmit} className="space-y-3" noValidate>
             {/* E-mail */}
-            <div>
-              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">
-                E-mail
-              </label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7a8faf]" />
               <input
                 type="email"
                 autoComplete="email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="seu@email.com"
-                className="h-12 w-full rounded-xl border border-[#d3c4a8] bg-[#fbf8f2] px-4 text-[16px] text-[#50442f] outline-none transition focus:border-[#b89a58] focus:ring-2 focus:ring-[#b89a58]/15"
+                onChange={e => { setEmail(e.target.value); setErro("") }}
+                placeholder="E-mail institucional"
+                className="h-13 w-full rounded-2xl border border-white/10 bg-white/7 py-3.5 pl-11 pr-4 text-[15px] text-white placeholder:text-[#4a5a78] outline-none transition focus:border-[#f0d08a]/40 focus:bg-white/10 focus:ring-1 focus:ring-[#f0d08a]/20"
               />
             </div>
 
             {/* Senha */}
-            <div>
-              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">
-                Senha
-              </label>
-              <div className="relative">
-                <input
-                  type={showSenha ? "text" : "password"}
-                  autoComplete="current-password"
-                  value={senha}
-                  onChange={e => setSenha(e.target.value)}
-                  placeholder="••••••••"
-                  className="h-12 w-full rounded-xl border border-[#d3c4a8] bg-[#fbf8f2] px-4 pr-12 text-[16px] text-[#50442f] outline-none transition focus:border-[#b89a58] focus:ring-2 focus:ring-[#b89a58]/15"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowSenha(v => !v)}
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-[#b89a58]"
-                >
-                  {showSenha ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
-              </div>
+            <div className="relative">
+              <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7a8faf]" />
+              <input
+                type={showSenha ? "text" : "password"}
+                autoComplete="current-password"
+                value={senha}
+                onChange={e => { setSenha(e.target.value); setErro("") }}
+                placeholder="Senha"
+                className="h-13 w-full rounded-2xl border border-white/10 bg-white/7 py-3.5 pl-11 pr-12 text-[15px] text-white placeholder:text-[#4a5a78] outline-none transition focus:border-[#f0d08a]/40 focus:bg-white/10 focus:ring-1 focus:ring-[#f0d08a]/20"
+              />
+              <button
+                type="button"
+                onClick={() => setShowSenha(v => !v)}
+                className="absolute inset-y-0 right-0 flex items-center px-4 text-[#4a5a78] transition active:text-[#f0d08a]"
+              >
+                {showSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
 
             {/* Erro */}
             {erro && (
-              <p className="rounded-xl border border-[#f0b8b8] bg-[#fdf0f0] px-4 py-2.5 text-sm font-semibold text-[#b03030]">
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-[13px] font-semibold text-red-300">
                 {erro}
-              </p>
+              </div>
             )}
 
-            {/* Botão */}
+            {/* Botão entrar */}
             <button
               type="submit"
               disabled={loading}
-              className="mt-2 w-full rounded-2xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-4 text-sm font-black tracking-[0.2em] text-[#f8e3b3] shadow-[0_8px_20px_rgba(66,50,24,.22)] transition active:brightness-95 active:scale-[0.99] disabled:opacity-60"
+              className="relative mt-1 w-full overflow-hidden rounded-2xl py-4 text-sm font-black tracking-[0.22em] text-[#12213d] shadow-[0_8px_32px_rgba(240,208,138,.15)] transition active:scale-[0.98] disabled:opacity-60"
+              style={{ background: "linear-gradient(135deg, #f0d08a 0%, #d4a832 50%, #f0d08a 100%)" }}
             >
-              {loading ? "AGUARDE…" : "ENTRAR"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                  AGUARDE…
+                </span>
+              ) : "ENTRAR"}
             </button>
           </form>
         </div>
 
-        <p className="mt-6 text-center text-[10px] uppercase tracking-[0.18em] text-[#a89474]">
-          Polícia Científica do Paraná
-        </p>
+        {/* Rodapé */}
+        <div className="mt-8 flex items-center gap-3">
+          <div className="h-px flex-1 bg-white/8" />
+          <span className="text-[9px] uppercase tracking-[0.2em] text-[#3a4a62]">Sistema Interno</span>
+          <div className="h-px flex-1 bg-white/8" />
+        </div>
       </div>
     </div>
   )
