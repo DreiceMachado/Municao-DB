@@ -127,6 +127,12 @@ type WeaponEntry = {
   caboDanificado: boolean
   manchas: boolean
   manchasObs: string
+  naFlags: string[]
+  tipoProd: string
+  serialEstado: string
+  quantidade: string
+  diametroMin: string
+  massa: string
 }
 
 type RecordItem = {
@@ -790,6 +796,20 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
       )
     }
 
+  const setWeaponDirect = (field: keyof Omit<WeaponEntry, "type">, value: string | boolean) => {
+    setWeapons(prev => prev.map((w, i) => i === activeWeaponIdx ? { ...w, [field]: value } : w))
+  }
+
+  const handleWeaponNaToggle = (field: string) => {
+    setWeapons(prev => prev.map((w, i) => {
+      if (i !== activeWeaponIdx) return w
+      const naFlags = w.naFlags.includes(field)
+        ? w.naFlags.filter(f => f !== field)
+        : [...w.naFlags, field]
+      return { ...w, naFlags }
+    }))
+  }
+
   const makeWeaponEntry = (type: WeaponType): WeaponEntry => ({
     type,
     brand: "", model: "", caliber: "", serial: "", paisFabricacao: "",
@@ -814,6 +834,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
     tipoLamina: "", compLamina: "", tipoGume: "",
     gumeFuncional: true, aptaUso: true, laminaIntegra: true,
     caboDanificado: false, manchas: false, manchasObs: "",
+    naFlags: [], tipoProd: "", serialEstado: "", quantidade: "", diametroMin: "", massa: "",
   })
 
   const addWeapon = (type: WeaponType) => {
@@ -1205,30 +1226,33 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       </div>
                       <div className="space-y-4">
                         {savedPieces.map((p, i) => (
-                          <div key={i} className="flex items-center gap-3 rounded-[24px] border border-[#c8b47e] bg-[#fbf8f3] px-4 py-3 shadow-sm">
-                            <div className="flex shrink-0 items-center justify-center rounded-xl bg-[#12213d] p-2 text-[#f0d08a]">
-                              <PieceIcon type={p.type} className="h-5 w-auto max-w-[36px]" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#6b5838]">{p.type}</div>
-                              <div className="truncate text-sm font-bold text-[#26221b]">{p.model || <span className="italic text-[#a89268]">modelo não informado</span>}</div>
-                              <div className="text-xs text-[#6b5838]">Nº {p.serial || "—"}{p.caliber ? ` • ${p.caliber}` : ""}</div>
-                            </div>
+                          <div key={i} className="flex items-stretch gap-2 rounded-[24px] border border-[#c8b47e] bg-[#fbf8f3] shadow-sm overflow-hidden">
+                            {/* Card clicável para editar */}
                             <button
                               type="button"
                               onClick={() => openEditPiece(i)}
-                              className="shrink-0 rounded-lg border border-[#8e7340] bg-[#1b2947] p-1.5 text-[#f0d08a] hover:bg-[#243659]"
-                              title="Editar peça"
+                              className="flex flex-1 items-center gap-3 px-4 py-3.5 text-left active:bg-[#f0e8d4]"
                             >
-                              <Pencil className="h-3.5 w-3.5" />
+                              <div className="flex shrink-0 items-center justify-center rounded-xl bg-[#12213d] p-2 text-[#f0d08a]">
+                                <PieceIcon type={p.type} className="h-5 w-auto max-w-[36px]" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#6b5838]">{p.type}</div>
+                                <div className="truncate text-sm font-bold text-[#26221b]">{p.model || <span className="italic text-[#a89268]">modelo não informado</span>}</div>
+                                <div className="text-xs text-[#6b5838]">Nº {p.serial || "—"}{p.caliber ? ` • ${p.caliber}` : ""}</div>
+                              </div>
+                              <Pencil className="h-4 w-4 shrink-0 text-[#b89a58]" />
                             </button>
+                            {/* Divisor */}
+                            <div className="w-px bg-[#e8dfc8] self-stretch" />
+                            {/* Botão excluir maior */}
                             <button
                               type="button"
                               onClick={() => setConfirmDeletePieceIdx(i)}
-                              className="shrink-0 rounded-lg border border-[#7a3535] bg-[#2a1515] p-1.5 text-[#f08a8a] hover:bg-[#3a1a1a]"
+                              className="flex shrink-0 items-center justify-center px-5 text-[#c05050] active:bg-[#fdf0f0]"
                               title="Remover peça"
                             >
-                              <X className="h-3.5 w-3.5" />
+                              <X className="h-5 w-5" />
                             </button>
                           </div>
                         ))}
@@ -1383,37 +1407,109 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   </div>
 
                   {/* ── Campos base ── */}
-                  <div className="grid gap-5 md:grid-cols-2">
-                    <div>
-                      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Marca</label>
-                      <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
-                        className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                        placeholder="Ex.: Taurus" />
+                  <div className="space-y-5">
+                    <div className="grid gap-5 md:grid-cols-2">
+                      <div>
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Marca</label>
+                        <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
+                          className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                          placeholder="Ex.: Taurus" />
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Modelo</label>
+                        <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
+                          className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                          placeholder="Ex.: RT 627" />
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre</label>
+                        <input value={activeWeapon?.caliber ?? ""} onChange={handleWeaponField("caliber")}
+                          className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                          placeholder="Ex.: .38 SPL" />
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
+                        <input value={activeWeapon?.paisFabricacao ?? ""} onChange={handleWeaponField("paisFabricacao")}
+                          className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                          placeholder="Ex.: Brasil" />
+                      </div>
                     </div>
-                    <div>
-                      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Modelo</label>
-                      <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
-                        className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                        placeholder="Ex.: RT 627" />
-                    </div>
-                    <div>
-                      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de série</label>
-                      <input value={activeWeapon?.serial ?? ""} onChange={handleWeaponField("serial")}
-                        className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                        placeholder="Informar identificação" />
-                    </div>
-                    <div>
-                      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre</label>
-                      <input value={activeWeapon?.caliber ?? ""} onChange={handleWeaponField("caliber")}
-                        className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                        placeholder="Ex.: .38 SPL" />
-                    </div>
-                    <div>
-                      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
-                      <input value={activeWeapon?.paisFabricacao ?? ""} onChange={handleWeaponField("paisFabricacao")}
-                        className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                        placeholder="Ex.: Brasil" />
-                    </div>
+
+                    {/* Tipo de produção — apenas armas de fogo */}
+                    {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                      <div className="rounded-2xl border border-[#d3c4a8] bg-white p-4 shadow-sm">
+                        <label className="mb-3 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de produção</label>
+                        <div className="flex gap-2">
+                          {(["INDUSTRIAL", "ARTESANAL"]).map(tipo => (
+                            <button
+                              key={tipo}
+                              type="button"
+                              onClick={() => { setWeaponDirect("tipoProd", tipo); if (tipo === "ARTESANAL") setWeaponDirect("serialEstado", "") }}
+                              className={`flex-1 rounded-xl border-2 py-3 text-sm font-black tracking-[0.12em] transition active:scale-[.97] ${
+                                activeWeapon?.tipoProd === tipo
+                                  ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                                  : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                              }`}
+                            >
+                              {tipo}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Bloco de número de série — só para INDUSTRIAL */}
+                        {activeWeapon?.tipoProd === "INDUSTRIAL" && (
+                          <div className="mt-4 border-t border-[#e8dfc8] pt-4">
+                            <label className="mb-3 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de série — estado</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {(["LEGÍVEL", "PARCIAL", "SUPRIMIDO", "NÃO APARENTE"]).map(est => (
+                                <button
+                                  key={est}
+                                  type="button"
+                                  onClick={() => setWeaponDirect("serialEstado", est)}
+                                  className={`rounded-xl border-2 py-2.5 text-xs font-black tracking-[0.1em] transition active:scale-[.97] ${
+                                    activeWeapon?.serialEstado === est
+                                      ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a]"
+                                      : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                                  }`}
+                                >
+                                  {est}
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Input do número — só para LEGÍVEL ou PARCIAL */}
+                            {(activeWeapon?.serialEstado === "LEGÍVEL" || activeWeapon?.serialEstado === "PARCIAL") && (
+                              <div className="mt-3">
+                                <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                                  Número de série
+                                  {activeWeapon?.serialEstado === "PARCIAL" && (
+                                    <span className="ml-2 text-[10px] font-semibold normal-case tracking-normal text-[#b89a58]">(registrar parte visível)</span>
+                                  )}
+                                </label>
+                                <input
+                                  value={activeWeapon?.serial ?? ""}
+                                  onChange={handleWeaponField("serial")}
+                                  className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                                  placeholder="Ex.: ABC-123456"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Número de série simples — para peças que não são armas de fogo */}
+                    {!(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                      <div>
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                          {activeWeapon?.type === "PROJÉTIL" ? "Lote" : "Número de série / identificação"}
+                        </label>
+                        <input value={activeWeapon?.serial ?? ""} onChange={handleWeaponField("serial")}
+                          className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                          placeholder={activeWeapon?.type === "PROJÉTIL" ? "Ex.: L2024-001" : "Informar identificação"} />
+                      </div>
+                    )}
                   </div>
 
                   {/* ── REVÓLVER ── */}
@@ -1453,13 +1549,23 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             ["caoFuncional",     "Cão funcional"],
                             ["gatilhoFuncional", "Gatilho funcional"],
                             ["seguranca",        "Sistema de segurança"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
+                            const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            return (
+                              <div key={key} className="rounded-xl border border-[#e8dfc8] bg-[#fdfaf4] px-3 py-2.5">
+                                <label className={`flex items-center gap-3 text-[14px] font-medium ${isNa ? "opacity-40 line-through" : "text-[#393025]"}`}>
+                                  <input type="checkbox" checked={!isNa && Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                    disabled={isNa} className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334] disabled:opacity-30" />
+                                  {label}
+                                </label>
+                                <label className="mt-1.5 flex cursor-pointer items-center gap-2 pl-7 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b89a58]">
+                                  <input type="checkbox" checked={isNa} onChange={() => handleWeaponNaToggle(key)}
+                                    className="h-3 w-3 rounded border-[#c8b47e] accent-[#b89a58]" />
+                                  Não se aplica
+                                </label>
+                              </div>
+                            )
+                          })}
                         </div>
                       </CollapsibleCard>
 
@@ -1538,13 +1644,23 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             ["gatilhoFuncional",   "Gatilho funcional"],
                             ["seguranca",          "Trava de segurança funcional"],
                             ["alimentacaoFuncional","Alimentação funcional"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
+                            const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            return (
+                              <div key={key} className="rounded-xl border border-[#e8dfc8] bg-[#fdfaf4] px-3 py-2.5">
+                                <label className={`flex items-center gap-3 text-[14px] font-medium ${isNa ? "opacity-40 line-through" : "text-[#393025]"}`}>
+                                  <input type="checkbox" checked={!isNa && Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                    disabled={isNa} className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334] disabled:opacity-30" />
+                                  {label}
+                                </label>
+                                <label className="mt-1.5 flex cursor-pointer items-center gap-2 pl-7 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b89a58]">
+                                  <input type="checkbox" checked={isNa} onChange={() => handleWeaponNaToggle(key)}
+                                    className="h-3 w-3 rounded border-[#c8b47e] accent-[#b89a58]" />
+                                  Não se aplica
+                                </label>
+                              </div>
+                            )
+                          })}
                         </div>
                       </CollapsibleCard>
 
@@ -1627,13 +1743,23 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             ["seguranca",           "Trava de segurança funcional"],
                             ["retencaoFerrolho",    "Retenção do ferrolho funcional"],
                             ["alimentacaoFuncional","Alimentação funcional"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
+                            const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            return (
+                              <div key={key} className="rounded-xl border border-[#e8dfc8] bg-[#fdfaf4] px-3 py-2.5">
+                                <label className={`flex items-center gap-3 text-[14px] font-medium ${isNa ? "opacity-40 line-through" : "text-[#393025]"}`}>
+                                  <input type="checkbox" checked={!isNa && Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                    disabled={isNa} className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334] disabled:opacity-30" />
+                                  {label}
+                                </label>
+                                <label className="mt-1.5 flex cursor-pointer items-center gap-2 pl-7 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b89a58]">
+                                  <input type="checkbox" checked={isNa} onChange={() => handleWeaponNaToggle(key)}
+                                    className="h-3 w-3 rounded border-[#c8b47e] accent-[#b89a58]" />
+                                  Não se aplica
+                                </label>
+                              </div>
+                            )
+                          })}
                         </div>
                       </CollapsibleCard>
 
@@ -1712,13 +1838,23 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             ["seguranca",           "Trava de segurança funcional"],
                             ["sistemaRepeticao",    "Sistema de repetição funcional"],
                             ["alimentacaoFuncional","Alimentação funcional"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
+                            const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            return (
+                              <div key={key} className="rounded-xl border border-[#e8dfc8] bg-[#fdfaf4] px-3 py-2.5">
+                                <label className={`flex items-center gap-3 text-[14px] font-medium ${isNa ? "opacity-40 line-through" : "text-[#393025]"}`}>
+                                  <input type="checkbox" checked={!isNa && Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                    disabled={isNa} className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334] disabled:opacity-30" />
+                                  {label}
+                                </label>
+                                <label className="mt-1.5 flex cursor-pointer items-center gap-2 pl-7 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b89a58]">
+                                  <input type="checkbox" checked={isNa} onChange={() => handleWeaponNaToggle(key)}
+                                    className="h-3 w-3 rounded border-[#c8b47e] accent-[#b89a58]" />
+                                  Não se aplica
+                                </label>
+                              </div>
+                            )
+                          })}
                         </div>
                       </CollapsibleCard>
                       <CollapsibleCard title="Estado de conservação">
@@ -1798,13 +1934,23 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             ["seletoDisparo",       "Seletor de disparo funcional"],
                             ["modoSemiAuto",        "Modo semi-automático funcional"],
                             ["modoAutoFuncional",   "Modo automático funcional"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
+                            const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            return (
+                              <div key={key} className="rounded-xl border border-[#e8dfc8] bg-[#fdfaf4] px-3 py-2.5">
+                                <label className={`flex items-center gap-3 text-[14px] font-medium ${isNa ? "opacity-40 line-through" : "text-[#393025]"}`}>
+                                  <input type="checkbox" checked={!isNa && Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                    disabled={isNa} className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334] disabled:opacity-30" />
+                                  {label}
+                                </label>
+                                <label className="mt-1.5 flex cursor-pointer items-center gap-2 pl-7 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b89a58]">
+                                  <input type="checkbox" checked={isNa} onChange={() => handleWeaponNaToggle(key)}
+                                    className="h-3 w-3 rounded border-[#c8b47e] accent-[#b89a58]" />
+                                  Não se aplica
+                                </label>
+                              </div>
+                            )
+                          })}
                         </div>
                       </CollapsibleCard>
                       <CollapsibleCard title="Estado de conservação">
@@ -1885,13 +2031,23 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             ["seletoDisparo",       "Seletor de disparo funcional"],
                             ["modoAutoFuncional",   "Modo automático funcional"],
                             ["culatelFuncional",    "Culatel funcional"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
+                            const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            return (
+                              <div key={key} className="rounded-xl border border-[#e8dfc8] bg-[#fdfaf4] px-3 py-2.5">
+                                <label className={`flex items-center gap-3 text-[14px] font-medium ${isNa ? "opacity-40 line-through" : "text-[#393025]"}`}>
+                                  <input type="checkbox" checked={!isNa && Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                    disabled={isNa} className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334] disabled:opacity-30" />
+                                  {label}
+                                </label>
+                                <label className="mt-1.5 flex cursor-pointer items-center gap-2 pl-7 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b89a58]">
+                                  <input type="checkbox" checked={isNa} onChange={() => handleWeaponNaToggle(key)}
+                                    className="h-3 w-3 rounded border-[#c8b47e] accent-[#b89a58]" />
+                                  Não se aplica
+                                </label>
+                              </div>
+                            )
+                          })}
                         </div>
                       </CollapsibleCard>
                       <CollapsibleCard title="Estado de conservação">
@@ -1943,9 +2099,10 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
+                            ["quantidade",         "Quantidade",        "Ex.: 3"],
                             ["material",           "Material",          "Ex.: latão, aço"],
                             ["formato",            "Formato",           "Ex.: semi-rebordo, rebordo"],
-                            ["numEstrias",         "Número de estrias", "Ex.: 6"],
+                            ["numEstrias",         "N° de raias", "Ex.: 6"],
                             ["sentidoEstrias",     "Sentido das estrias","Ex.: dextrorso, sinistrorso"],
                             ["inscricaoFabricante","Inscrição / headstamp","Ex.: CBC .38"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
@@ -2001,9 +2158,8 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           {([
                             ["material",       "Material",            "Ex.: chumbo, encamisado"],
                             ["formato",        "Formato",             "Ex.: ogival, expansivo, wadcutter"],
-                            ["numEstrias",     "Número de estrias",   "Ex.: 6"],
+                            ["numEstrias",     "N° de raias",   "Ex.: 6"],
                             ["sentidoEstrias", "Sentido das estrias", "Ex.: dextrorso, sinistrorso"],
-                            ["diametro",       "Diâmetro",            "Ex.: 9,02 mm"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -2012,6 +2168,77 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                                 placeholder={ph} />
                             </div>
                           ))}
+                        </div>
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                          {([
+                            ["diametro",    "Diâmetro máx.", "Ex.: 9,02 mm"],
+                            ["diametroMin", "Diâmetro mín.", "Ex.: 8,98 mm"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                            <div key={field}>
+                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                placeholder={ph} />
+                            </div>
+                          ))}
+                        </div>
+                        {(() => {
+                          const parseVal = (v: string) => parseFloat(String(v ?? "").replace(",", ".").replace(/[^\d.]/g, ""))
+                          const max = parseVal(activeWeapon?.diametro ?? "")
+                          const min = parseVal(activeWeapon?.diametroMin ?? "")
+                          if (isNaN(max) || isNaN(min)) return null
+                          const mediaNum = (max + min) / 2
+                          const media = mediaNum.toFixed(2).replace(".", ",")
+                          const familias: { min: number; max: number; nome: string }[] = [
+                            { min: 5.4,  max: 5.9,  nome: "Vinte e dois (.22)" },
+                            { min: 6.1,  max: 6.6,  nome: "Vinte e cinco (.25)" },
+                            { min: 7.4,  max: 7.85, nome: "Trinta e dois (.32)" },
+                            { min: 8.4,  max: 9.3,  nome: "Nove milímetros (9 mm / .38)" },
+                            { min: 9.9,  max: 10.5, nome: "Quarenta (.40 / 10 mm)" },
+                            { min: 11.0, max: 11.35, nome: "Quarenta e quatro (.44)" },
+                            { min: 11.35, max: 11.7, nome: "Quarenta e cinco (.45)" },
+                          ]
+                          const familia = familias.find(f => mediaNum >= f.min && mediaNum <= f.max)
+                          return (
+                            <div className="mt-3 space-y-2">
+                              <div className="rounded-xl border border-[#b89a58]/40 bg-[#f0e8d4] px-4 py-3">
+                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Calibre real (média)</div>
+                                <div className="text-lg font-black text-[#1d2433]">{media} mm</div>
+                              </div>
+                              {familia && (
+                                <div className="rounded-xl border border-[#7d9b6a]/40 bg-[#eef4e8] px-4 py-3">
+                                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#5a7a48]">Família do calibre</div>
+                                  <div className="text-base font-black text-[#1d2433]">{familia.nome}</div>
+                                </div>
+                              )}
+                              {!familia && (
+                                <div className="rounded-xl border border-[#b89a58]/25 bg-[#f5f0e8] px-4 py-2.5">
+                                  <div className="text-[11px] text-[#8d7854]">Família não identificada para {media} mm</div>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })()}
+                        <div className="mt-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Massa (g)</label>
+                          <input
+                            value={String(activeWeapon?.massa ?? "")}
+                            onChange={handleWeaponField("massa" as keyof Omit<WeaponEntry,"type">)}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            placeholder="Ex.: 7,162"
+                          />
+                          {(() => {
+                            const g = parseFloat(String(activeWeapon?.massa ?? "").replace(",", ".").replace(/[^\d.]/g, ""))
+                            if (isNaN(g) || g <= 0) return null
+                            const gr = (g * 15.4324).toFixed(2).replace(".", ",")
+                            const gFmt = g.toFixed(3).replace(".", ",")
+                            return (
+                              <div className="mt-2 rounded-xl border border-[#b89a58]/40 bg-[#f0e8d4] px-4 py-3">
+                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Massa (g / gr)</div>
+                                <div className="text-lg font-black text-[#1d2433]">{gFmt} g &nbsp;/&nbsp; {gr} gr</div>
+                              </div>
+                            )
+                          })()}
                         </div>
                       </CollapsibleSection>
                       <CollapsibleCard title="Marcações balísticas">
@@ -2053,8 +2280,9 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
-                            ["material",  "Material",           "Ex.: latão, aço"],
-                            ["compTotal", "Comprimento total",  "Ex.: 29,7 mm"],
+                            ["quantidade", "Quantidade",        "Ex.: 12"],
+                            ["material",   "Material",          "Ex.: latão, aço"],
+                            ["compTotal",  "Comprimento total", "Ex.: 29,7 mm"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -2191,18 +2419,18 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   </div>
 
                   {/* ── Footer ── */}
-                  <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[#d3c3a4] pt-5">
+                  <div className="grid grid-cols-2 gap-3 border-t border-[#d3c3a4] pt-5">
                     <button
                       type="button"
                       onClick={() => { resetPieceForm() }}
-                      className="rounded-2xl border border-[#a8894c] bg-[#efe1b5] px-5 py-3 text-sm font-black tracking-[0.14em] text-[#4b3b21] transition hover:brightness-95"
+                      className="rounded-2xl border border-[#a8894c] bg-[#efe1b5] py-3 text-sm font-black tracking-[0.14em] text-[#4b3b21] transition hover:brightness-95"
                     >
                       CANCELAR
                     </button>
                     <button
                       type="button"
                       onClick={savePiece}
-                      className="rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-7 py-3 text-sm font-black tracking-[0.16em] text-[#f0d08a] shadow-[0_12px_24px_rgba(0,0,0,.28)] transition hover:brightness-110"
+                      className="rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-3 text-sm font-black tracking-[0.16em] text-[#f0d08a] shadow-[0_12px_24px_rgba(0,0,0,.28)] transition hover:brightness-110"
                     >
                       {editingPieceIdx !== null ? "ATUALIZAR PEÇA" : "SALVAR PEÇA"}
                     </button>
@@ -2341,16 +2569,6 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                 </div>
               </div>
 
-              {/* Footer fixo */}
-              <div className="shrink-0 border-t border-[#d3c4a8] bg-[#f5efe3] px-4 py-4">
-                <button
-                  type="button"
-                  onClick={() => setPhotosOpen(false)}
-                  className="w-full rounded-2xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] py-4 text-sm font-black tracking-[0.2em] text-[#f8e3b3] shadow-[0_8px_20px_rgba(66,50,24,.22)] active:brightness-95 active:scale-[0.99]"
-                >
-                  CONCLUIR REGISTRO FOTOGRÁFICO
-                </button>
-              </div>
             </motion.div>
           )}
         </AnimatePresence>
