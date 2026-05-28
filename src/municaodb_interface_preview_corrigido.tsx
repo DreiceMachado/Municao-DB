@@ -97,6 +97,11 @@ type WeaponEntry = {
   compTotal: string
   capacidadeCarregador: string
   numCanos: string
+  // Armas de fogo
+  sistemaAcionamento: string
+  tamanhoCamara: string
+  tipoRaiamento: string
+  materialQuadro: string
   // FUZIL / METRALHADORA
   modoFogo: string
   seletoDisparo: boolean
@@ -703,6 +708,10 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
   const [tipoLaminaPickerOpen, setTipoLaminaPickerOpen] = useState(false)
   const [tipoGumePickerOpen, setTipoGumePickerOpen] = useState(false)
   const [acabamentoPickerOpen, setAcabamentoPickerOpen] = useState(false)
+  const [sistemaAcionamentoPickerOpen, setSistemaAcionamentoPickerOpen] = useState(false)
+  const [tipoRaiamentoPickerOpen, setTipoRaiamentoPickerOpen] = useState(false)
+  const [materialCoronhaPickerOpen, setMaterialCoronhaPickerOpen] = useState(false)
+  const [materialQuadroPickerOpen, setMaterialQuadroPickerOpen] = useState(false)
 
   const [profileView, setProfileView] = useState<null | "main" | "changeEmail" | "changePassword">(null)
   const [profileEmail, setProfileEmail] = useState("")
@@ -851,6 +860,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
     tipoLamina: "", compLamina: "", tipoGume: "",
     gumeFuncional: true, aptaUso: true, laminaIntegra: true,
     caboDanificado: false, manchas: false, manchasObs: "",
+    sistemaAcionamento: "", tamanhoCamara: "", tipoRaiamento: "", materialQuadro: "",
     naFlags: [], tipoProd: "", serialEstado: "", quantidade: "", diametroMin: "", massa: "",
     origemProjetil: "", origemProjetilRef: "", regiaoColeta: "", deformacoesAcidentais: "", estadoProjetil: "", alturaProjetil: "",
     estadoCartucho: "", estadoEstojo: "",
@@ -1226,14 +1236,6 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm" />
                         </div>
                       </div>
-                      <div>
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Data do exame</label>
-                        <div className="relative">
-                          <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                          <input value={form.date} onChange={handleField("date")}
-                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm" />
-                        </div>
-                      </div>
                     </div>
                   </div>
 
@@ -1588,40 +1590,45 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   {/* ── Campos base ── */}
                   {activeWeapon?.type !== "PROJÉTIL" && <div className="space-y-5">
                     <div className="grid gap-5 md:grid-cols-2">
-                      {activeWeapon?.type !== "PROJÉTIL" && activeWeapon?.type !== "FACA" && (
+                      {activeWeapon?.type !== "FACA" && (
                         <div>
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            {activeWeapon?.type === "ESTOJO" ? "Identificação" : activeWeapon?.type === "CARTUCHO" ? "Fabricante" : "Marca"}
+                            {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "Tipo de armamento" : "Modelo"}
+                          </label>
+                          <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
+                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                            placeholder={(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "Ex.: Revólver de defesa, Pistola compacta…" : "Ex.: RT 627"} />
+                        </div>
+                      )}
+                      {activeWeapon?.type !== "FACA" && (
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            {activeWeapon?.type === "ESTOJO" ? "Identificação" : "Fabricante"}
                           </label>
                           <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                            placeholder={(activeWeapon?.type === "ESTOJO" || activeWeapon?.type === "CARTUCHO") ? "Ex.: CBC, Sellier & Bellot…" : "Ex.: Taurus"} />
+                            placeholder={activeWeapon?.type === "ESTOJO" ? "Ex.: CBC, Sellier & Bellot…" : activeWeapon?.type === "CARTUCHO" ? "Ex.: CBC, Sellier & Bellot…" : "Ex.: Taurus, Glock, Colt…"} />
                         </div>
                       )}
-                      {activeWeapon?.type !== "PROJÉTIL" && activeWeapon?.type !== "FACA" && (
-                        <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Modelo</label>
-                          <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
-                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                            placeholder="Ex.: RT 627" />
-                        </div>
-                      )}
-                      {activeWeapon?.type !== "PROJÉTIL" && activeWeapon?.type !== "FACA" && (
+                      {activeWeapon?.type !== "FACA" && (
                         <div>
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre</label>
                           <input value={activeWeapon?.caliber ?? ""} onChange={handleWeaponField("caliber")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                            placeholder="Ex.: .38 SPL" />
+                            placeholder={
+                              activeWeapon?.type === "ESPINGARDA" ? "Ex.: 12 Ga, 20 Ga…" :
+                              (["CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "Ex.: 5,56 mm, 7,62 mm…" :
+                              (["ESTOJO","CARTUCHO"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "Ex.: 9 mm Luger, .38 SPL…" :
+                              "Ex.: .38 SPL, 9 mm…"
+                            } />
                         </div>
                       )}
-                      {activeWeapon?.type !== "PROJÉTIL" && (
-                        <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
-                          <input value={activeWeapon?.paisFabricacao ?? ""} onChange={handleWeaponField("paisFabricacao")}
-                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                            placeholder="Ex.: Brasil" />
-                        </div>
-                      )}
+                      <div>
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
+                        <input value={activeWeapon?.paisFabricacao ?? ""} onChange={handleWeaponField("paisFabricacao")}
+                          className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                          placeholder="Ex.: Brasil" />
+                      </div>
                     </div>
 
                     {/* Tipo de produção — apenas armas de fogo */}
@@ -1679,7 +1686,15 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                                   value={activeWeapon?.serial ?? ""}
                                   onChange={handleWeaponField("serial")}
                                   className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                                  placeholder="Ex.: ABC-123456"
+                                  placeholder={
+                                    activeWeapon?.type === "REVÓLVER" ? "Ex.: TE123456" :
+                                    activeWeapon?.type === "PISTOLA" ? "Ex.: T1G23456" :
+                                    activeWeapon?.type === "ESPINGARDA" ? "Ex.: SG-123456" :
+                                    activeWeapon?.type === "CARABINA" ? "Ex.: CB123456" :
+                                    activeWeapon?.type === "FUZIL" ? "Ex.: FZ123456" :
+                                    activeWeapon?.type === "METRALHADORA" ? "Ex.: MT123456" :
+                                    "Ex.: ABC-123456"
+                                  }
                                 />
                               </div>
                             )}
@@ -1704,12 +1719,54 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   {/* ── REVÓLVER ── */}
                   {activeWeapon?.type === "REVÓLVER" && (<>
                     <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                      {/* Material — picker */}
+                      <div className="mb-4">
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
+                        <button type="button" onClick={() => setMaterialPickerOpen(true)}
+                          className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                          <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                            {activeWeapon?.material || "Selecionar material…"}
+                          </span>
+                          <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                        </button>
+                      </div>
+                      {/* Acabamento — picker */}
+                      <div className="mb-4">
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Acabamento</label>
+                        <button type="button" onClick={() => setAcabamentoPickerOpen(true)}
+                          className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                          <span className={`truncate text-[15px] ${activeWeapon?.acabamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                            {activeWeapon?.acabamento || "Selecionar acabamento…"}
+                          </span>
+                          <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                        </button>
+                      </div>
+                      {/* Sistema de acionamento — picker */}
+                      <div className="mb-4">
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento</label>
+                        <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
+                          className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                          <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                            {activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}
+                          </span>
+                          <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                        </button>
+                      </div>
+                      {/* Tipo de raiamento — picker */}
+                      <div className="mb-4">
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano</label>
+                        <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
+                          className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                          <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                            {activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}
+                          </span>
+                          <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                        </button>
+                      </div>
                       <div className="grid gap-4 md:grid-cols-2">
                         {([
-                          ["material",   "Material",             "Ex.: aço, inox"],
-                          ["acabamento", "Acabamento",           "Ex.: oxidado, niquelado"],
-                          ["compCano",   "Comprimento do cano",  "Ex.: 4 pol."],
-                          ["numCamaras", "Número de câmaras",    "Ex.: 6"],
+                          ["compCano",   "Comprimento do cano", "Ex.: 4 pol."],
+                          ["numCamaras", "Número de câmaras",   "Ex.: 6"],
                         ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                           <div key={field}>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -1729,7 +1786,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
 
                     <div className="space-y-4">
                       <CollapsibleCard title="Mecanismo de funcionamento">
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
                           {([
                             ["acaoSimples",      "Ação simples funcional"],
                             ["acaoDupla",        "Ação dupla funcional"],
@@ -1740,18 +1797,30 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             ["seguranca",        "Sistema de segurança"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            const isSim = !isNa && Boolean(activeWeapon?.[key] ?? true)
+                            const isNao = !isNa && !Boolean(activeWeapon?.[key] ?? true)
                             return (
-                              <div key={key} className="rounded-xl border border-[#e8dfc8] bg-[#fdfaf4] px-3 py-2.5">
-                                <label className={`flex items-center gap-3 text-[14px] font-medium ${isNa ? "opacity-40 line-through" : "text-[#393025]"}`}>
-                                  <input type="checkbox" checked={!isNa && Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
-                                    disabled={isNa} className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334] disabled:opacity-30" />
+                              <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
+                                <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>
                                   {label}
-                                </label>
-                                <label className="mt-1.5 flex cursor-pointer items-center gap-2 pl-7 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b89a58]">
-                                  <input type="checkbox" checked={isNa} onChange={() => handleWeaponNaToggle(key)}
-                                    className="h-3 w-3 rounded border-[#c8b47e] accent-[#b89a58]" />
-                                  Não se aplica
-                                </label>
+                                </span>
+                                <div className="flex shrink-0 gap-1.5">
+                                  <button type="button" disabled={isNa}
+                                    onClick={() => setWeaponDirect(key, true)}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
+                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                    )}>SIM</button>
+                                  <button type="button" disabled={isNa}
+                                    onClick={() => setWeaponDirect(key, false)}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
+                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                    )}>NÃO</button>
+                                  <button type="button"
+                                    onClick={() => handleWeaponNaToggle(key)}
+                                    className={cn("h-10 min-w-[44px] rounded-xl px-2 text-[10px] font-black uppercase tracking-wide transition active:scale-95",
+                                      isNa ? "bg-[#b89a58] text-white shadow-sm" : "border border-[#e8dfc8] bg-white text-[#c8a96e]"
+                                    )}>N/A</button>
+                                </div>
                               </div>
                             )
                           })}
@@ -1805,13 +1874,44 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   {activeWeapon?.type === "CARABINA" && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
+                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.material || "Selecionar material…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Acabamento</label>
+                          <button type="button" onClick={() => setAcabamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.acabamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.acabamento || "Selecionar acabamento…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento</label>
+                          <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano</label>
+                          <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
-                            ["material",   "Material",            "Ex.: aço, madeira"],
-                            ["acabamento", "Acabamento",          "Ex.: oxidado, brunido"],
-                            ["compCano",   "Comprimento do cano", "Ex.: 510 mm"],
-                            ["compTotal",  "Comprimento total",   "Ex.: 940 mm"],
-                            ["tipoMira",   "Tipo de mira",        "Ex.: aberta, telescópica"],
+                            ["compCano",             "Comprimento do cano",  "Ex.: 510 mm"],
+                            ["compTotal",            "Comprimento total",    "Ex.: 940 mm"],
+                            ["capacidadeCarregador", "Capacidade (munições)","Ex.: Sete"],
+                            ["tipoMira",             "Tipo de mira",         "Ex.: aberta, telescópica"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -1823,7 +1923,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                         </div>
                       </CollapsibleSection>
                       <CollapsibleCard title="Mecanismo de funcionamento">
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
                           {([
                             ["sistemaRepeticao",   "Sistema de repetição funcional"],
                             ["ferrolhoFuncional",  "Ferrolho funcional"],
@@ -1835,18 +1935,30 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             ["alimentacaoFuncional","Alimentação funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            const isSim = !isNa && Boolean(activeWeapon?.[key] ?? true)
+                            const isNao = !isNa && !Boolean(activeWeapon?.[key] ?? true)
                             return (
-                              <div key={key} className="rounded-xl border border-[#e8dfc8] bg-[#fdfaf4] px-3 py-2.5">
-                                <label className={`flex items-center gap-3 text-[14px] font-medium ${isNa ? "opacity-40 line-through" : "text-[#393025]"}`}>
-                                  <input type="checkbox" checked={!isNa && Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
-                                    disabled={isNa} className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334] disabled:opacity-30" />
+                              <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
+                                <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>
                                   {label}
-                                </label>
-                                <label className="mt-1.5 flex cursor-pointer items-center gap-2 pl-7 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b89a58]">
-                                  <input type="checkbox" checked={isNa} onChange={() => handleWeaponNaToggle(key)}
-                                    className="h-3 w-3 rounded border-[#c8b47e] accent-[#b89a58]" />
-                                  Não se aplica
-                                </label>
+                                </span>
+                                <div className="flex shrink-0 gap-1.5">
+                                  <button type="button" disabled={isNa}
+                                    onClick={() => setWeaponDirect(key, true)}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
+                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                    )}>SIM</button>
+                                  <button type="button" disabled={isNa}
+                                    onClick={() => setWeaponDirect(key, false)}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
+                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                    )}>NÃO</button>
+                                  <button type="button"
+                                    onClick={() => handleWeaponNaToggle(key)}
+                                    className={cn("h-10 min-w-[44px] rounded-xl px-2 text-[10px] font-black uppercase tracking-wide transition active:scale-95",
+                                      isNa ? "bg-[#b89a58] text-white shadow-sm" : "border border-[#e8dfc8] bg-white text-[#c8a96e]"
+                                    )}>N/A</button>
+                                </div>
                               </div>
                             )
                           })}
@@ -1901,10 +2013,40 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   {activeWeapon?.type === "PISTOLA" && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
+                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.material || "Selecionar material…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Acabamento</label>
+                          <button type="button" onClick={() => setAcabamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.acabamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.acabamento || "Selecionar acabamento…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento</label>
+                          <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano</label>
+                          <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
-                            ["material",             "Material",                "Ex.: aço, polímero"],
-                            ["acabamento",           "Acabamento",              "Ex.: oxidado, niquelado"],
                             ["compCano",             "Comprimento do cano",     "Ex.: 100 mm"],
                             ["compTotal",            "Comprimento total",       "Ex.: 180 mm"],
                             ["tipoMira",             "Tipo de mira",            "Ex.: ajustável, ponto branco"],
@@ -1920,7 +2062,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                         </div>
                       </CollapsibleSection>
                       <CollapsibleCard title="Mecanismo de funcionamento">
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
                           {([
                             ["carregadorPresente",  "Carregador presente"],
                             ["carregadorFuncional", "Carregador funcional"],
@@ -1934,18 +2076,30 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             ["alimentacaoFuncional","Alimentação funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            const isSim = !isNa && Boolean(activeWeapon?.[key] ?? true)
+                            const isNao = !isNa && !Boolean(activeWeapon?.[key] ?? true)
                             return (
-                              <div key={key} className="rounded-xl border border-[#e8dfc8] bg-[#fdfaf4] px-3 py-2.5">
-                                <label className={`flex items-center gap-3 text-[14px] font-medium ${isNa ? "opacity-40 line-through" : "text-[#393025]"}`}>
-                                  <input type="checkbox" checked={!isNa && Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
-                                    disabled={isNa} className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334] disabled:opacity-30" />
+                              <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
+                                <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>
                                   {label}
-                                </label>
-                                <label className="mt-1.5 flex cursor-pointer items-center gap-2 pl-7 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b89a58]">
-                                  <input type="checkbox" checked={isNa} onChange={() => handleWeaponNaToggle(key)}
-                                    className="h-3 w-3 rounded border-[#c8b47e] accent-[#b89a58]" />
-                                  Não se aplica
-                                </label>
+                                </span>
+                                <div className="flex shrink-0 gap-1.5">
+                                  <button type="button" disabled={isNa}
+                                    onClick={() => setWeaponDirect(key, true)}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
+                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                    )}>SIM</button>
+                                  <button type="button" disabled={isNa}
+                                    onClick={() => setWeaponDirect(key, false)}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
+                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                    )}>NÃO</button>
+                                  <button type="button"
+                                    onClick={() => handleWeaponNaToggle(key)}
+                                    className={cn("h-10 min-w-[44px] rounded-xl px-2 text-[10px] font-black uppercase tracking-wide transition active:scale-95",
+                                      isNa ? "bg-[#b89a58] text-white shadow-sm" : "border border-[#e8dfc8] bg-white text-[#c8a96e]"
+                                    )}>N/A</button>
+                                </div>
                               </div>
                             )
                           })}
@@ -2000,14 +2154,46 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   {activeWeapon?.type === "ESPINGARDA" && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
+                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.material || "Selecionar material…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Acabamento</label>
+                          <button type="button" onClick={() => setAcabamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.acabamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.acabamento || "Selecionar acabamento…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento</label>
+                          <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano</label>
+                          <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
-                            ["material",   "Material",            "Ex.: aço, madeira"],
-                            ["acabamento", "Acabamento",          "Ex.: oxidado, pavonado"],
-                            ["compCano",   "Comprimento do cano", "Ex.: 510 mm"],
-                            ["compTotal",  "Comprimento total",   "Ex.: 940 mm"],
-                            ["numCanos",   "Número de canos",     "Ex.: 1, 2"],
-                            ["tipoMira",   "Tipo de mira",        "Ex.: bead, aberta"],
+                            ["compCano",             "Comprimento do cano",  "Ex.: 510 mm"],
+                            ["compTotal",            "Comprimento total",    "Ex.: 940 mm"],
+                            ["numCanos",             "Número de canos",      "Ex.: 1, 2"],
+                            ["tamanhoCamara",        "Tamanho da câmara",    "Ex.: 2 ¾ polegadas"],
+                            ["capacidadeCarregador", "Capacidade (munições)","Ex.: Sete"],
+                            ["tipoMira",             "Tipo de mira",         "Ex.: bead, aberta"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -2019,7 +2205,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                         </div>
                       </CollapsibleSection>
                       <CollapsibleCard title="Mecanismo de funcionamento">
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
                           {([
                             ["gatilhoFuncional",    "Gatilho funcional"],
                             ["caoFuncional",        "Cão funcional"],
@@ -2029,18 +2215,30 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             ["alimentacaoFuncional","Alimentação funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            const isSim = !isNa && Boolean(activeWeapon?.[key] ?? true)
+                            const isNao = !isNa && !Boolean(activeWeapon?.[key] ?? true)
                             return (
-                              <div key={key} className="rounded-xl border border-[#e8dfc8] bg-[#fdfaf4] px-3 py-2.5">
-                                <label className={`flex items-center gap-3 text-[14px] font-medium ${isNa ? "opacity-40 line-through" : "text-[#393025]"}`}>
-                                  <input type="checkbox" checked={!isNa && Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
-                                    disabled={isNa} className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334] disabled:opacity-30" />
+                              <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
+                                <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>
                                   {label}
-                                </label>
-                                <label className="mt-1.5 flex cursor-pointer items-center gap-2 pl-7 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b89a58]">
-                                  <input type="checkbox" checked={isNa} onChange={() => handleWeaponNaToggle(key)}
-                                    className="h-3 w-3 rounded border-[#c8b47e] accent-[#b89a58]" />
-                                  Não se aplica
-                                </label>
+                                </span>
+                                <div className="flex shrink-0 gap-1.5">
+                                  <button type="button" disabled={isNa}
+                                    onClick={() => setWeaponDirect(key, true)}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
+                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                    )}>SIM</button>
+                                  <button type="button" disabled={isNa}
+                                    onClick={() => setWeaponDirect(key, false)}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
+                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                    )}>NÃO</button>
+                                  <button type="button"
+                                    onClick={() => handleWeaponNaToggle(key)}
+                                    className={cn("h-10 min-w-[44px] rounded-xl px-2 text-[10px] font-black uppercase tracking-wide transition active:scale-95",
+                                      isNa ? "bg-[#b89a58] text-white shadow-sm" : "border border-[#e8dfc8] bg-white text-[#c8a96e]"
+                                    )}>N/A</button>
+                                </div>
                               </div>
                             )
                           })}
@@ -2092,14 +2290,52 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   {activeWeapon?.type === "FUZIL" && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
+                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.material || "Selecionar material…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento</label>
+                          <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano</label>
+                          <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material da coronha</label>
+                          <button type="button" onClick={() => setMaterialCoronhaPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.acabamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.acabamento || "Selecionar material…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material do quadro</label>
+                          <button type="button" onClick={() => setMaterialQuadroPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.materialQuadro ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialQuadro || "Selecionar material…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
-                            ["material",   "Material",            "Ex.: aço, polímero"],
-                            ["acabamento", "Acabamento",          "Ex.: oxidado, fosfatado"],
-                            ["compCano",   "Comprimento do cano", "Ex.: 410 mm"],
-                            ["compTotal",  "Comprimento total",   "Ex.: 860 mm"],
-                            ["tipoMira",   "Tipo de mira",        "Ex.: aberta, óptica, red dot"],
-                            ["modoFogo",   "Modo de fogo",        "Ex.: semi, auto, rajada"],
+                            ["compCano",             "Comprimento do cano",   "Ex.: 410 mm"],
+                            ["compTotal",            "Comprimento total",     "Ex.: 860 mm"],
+                            ["capacidadeCarregador", "Capacidade (munições)", "Ex.: Trinta"],
+                            ["tipoMira",             "Tipo de mira",          "Ex.: aberta, óptica, red dot"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -2111,7 +2347,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                         </div>
                       </CollapsibleSection>
                       <CollapsibleCard title="Mecanismo de funcionamento">
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
                           {([
                             ["ferrolhoFuncional",   "Ferrolho funcional"],
                             ["percussorFuncional",  "Percussor funcional"],
@@ -2125,18 +2361,30 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             ["modoAutoFuncional",   "Modo automático funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            const isSim = !isNa && Boolean(activeWeapon?.[key] ?? true)
+                            const isNao = !isNa && !Boolean(activeWeapon?.[key] ?? true)
                             return (
-                              <div key={key} className="rounded-xl border border-[#e8dfc8] bg-[#fdfaf4] px-3 py-2.5">
-                                <label className={`flex items-center gap-3 text-[14px] font-medium ${isNa ? "opacity-40 line-through" : "text-[#393025]"}`}>
-                                  <input type="checkbox" checked={!isNa && Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
-                                    disabled={isNa} className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334] disabled:opacity-30" />
+                              <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
+                                <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>
                                   {label}
-                                </label>
-                                <label className="mt-1.5 flex cursor-pointer items-center gap-2 pl-7 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b89a58]">
-                                  <input type="checkbox" checked={isNa} onChange={() => handleWeaponNaToggle(key)}
-                                    className="h-3 w-3 rounded border-[#c8b47e] accent-[#b89a58]" />
-                                  Não se aplica
-                                </label>
+                                </span>
+                                <div className="flex shrink-0 gap-1.5">
+                                  <button type="button" disabled={isNa}
+                                    onClick={() => setWeaponDirect(key, true)}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
+                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                    )}>SIM</button>
+                                  <button type="button" disabled={isNa}
+                                    onClick={() => setWeaponDirect(key, false)}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
+                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                    )}>NÃO</button>
+                                  <button type="button"
+                                    onClick={() => handleWeaponNaToggle(key)}
+                                    className={cn("h-10 min-w-[44px] rounded-xl px-2 text-[10px] font-black uppercase tracking-wide transition active:scale-95",
+                                      isNa ? "bg-[#b89a58] text-white shadow-sm" : "border border-[#e8dfc8] bg-white text-[#c8a96e]"
+                                    )}>N/A</button>
+                                </div>
                               </div>
                             )
                           })}
@@ -2189,14 +2437,45 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   {activeWeapon?.type === "METRALHADORA" && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
+                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.material || "Selecionar material…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Acabamento</label>
+                          <button type="button" onClick={() => setAcabamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.acabamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.acabamento || "Selecionar acabamento…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento</label>
+                          <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano</label>
+                          <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
-                            ["material",   "Material",            "Ex.: aço, polímero"],
-                            ["acabamento", "Acabamento",          "Ex.: fosfatado, oxidado"],
-                            ["compCano",   "Comprimento do cano", "Ex.: 260 mm"],
-                            ["compTotal",  "Comprimento total",   "Ex.: 690 mm"],
-                            ["tipoMira",   "Tipo de mira",        "Ex.: aberta, óptica"],
-                            ["modoFogo",   "Modo de fogo",        "Ex.: semi, auto"],
+                            ["compCano",             "Comprimento do cano",  "Ex.: 260 mm"],
+                            ["compTotal",            "Comprimento total",    "Ex.: 690 mm"],
+                            ["capacidadeCarregador", "Capacidade (munições)","Ex.: Cem"],
+                            ["tipoMira",             "Tipo de mira",         "Ex.: aberta, óptica"],
+                            ["modoFogo",             "Modo de fogo",         "Ex.: semi, auto"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -2208,7 +2487,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                         </div>
                       </CollapsibleSection>
                       <CollapsibleCard title="Mecanismo de funcionamento">
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
                           {([
                             ["ferrolhoFuncional",   "Ferrolho funcional"],
                             ["percussorFuncional",  "Percussor funcional"],
@@ -2222,18 +2501,30 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             ["culatelFuncional",    "Culatel funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            const isSim = !isNa && Boolean(activeWeapon?.[key] ?? true)
+                            const isNao = !isNa && !Boolean(activeWeapon?.[key] ?? true)
                             return (
-                              <div key={key} className="rounded-xl border border-[#e8dfc8] bg-[#fdfaf4] px-3 py-2.5">
-                                <label className={`flex items-center gap-3 text-[14px] font-medium ${isNa ? "opacity-40 line-through" : "text-[#393025]"}`}>
-                                  <input type="checkbox" checked={!isNa && Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
-                                    disabled={isNa} className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334] disabled:opacity-30" />
+                              <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
+                                <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>
                                   {label}
-                                </label>
-                                <label className="mt-1.5 flex cursor-pointer items-center gap-2 pl-7 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b89a58]">
-                                  <input type="checkbox" checked={isNa} onChange={() => handleWeaponNaToggle(key)}
-                                    className="h-3 w-3 rounded border-[#c8b47e] accent-[#b89a58]" />
-                                  Não se aplica
-                                </label>
+                                </span>
+                                <div className="flex shrink-0 gap-1.5">
+                                  <button type="button" disabled={isNa}
+                                    onClick={() => setWeaponDirect(key, true)}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
+                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                    )}>SIM</button>
+                                  <button type="button" disabled={isNa}
+                                    onClick={() => setWeaponDirect(key, false)}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
+                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                    )}>NÃO</button>
+                                  <button type="button"
+                                    onClick={() => handleWeaponNaToggle(key)}
+                                    className={cn("h-10 min-w-[44px] rounded-xl px-2 text-[10px] font-black uppercase tracking-wide transition active:scale-95",
+                                      isNa ? "bg-[#b89a58] text-white shadow-sm" : "border border-[#e8dfc8] bg-white text-[#c8a96e]"
+                                    )}>N/A</button>
+                                </div>
                               </div>
                             )
                           })}
@@ -3008,7 +3299,11 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
                   <div className="flex items-center justify-between">
                     <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">
-                      {activeWeapon?.type === "ESTOJO" ? "Material do estojo" : activeWeapon?.type === "CARTUCHO" ? "Material do cartucho" : activeWeapon?.type === "FACA" ? "Material da lâmina" : "Material do projétil"}
+                      {activeWeapon?.type === "ESTOJO" ? "Material do estojo"
+                        : activeWeapon?.type === "CARTUCHO" ? "Material do cartucho"
+                        : activeWeapon?.type === "FACA" ? "Material da lâmina"
+                        : (["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "Material da arma"
+                        : "Material do projétil"}
                     </span>
                     <button type="button" onClick={() => setMaterialPickerOpen(false)}
                       className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]">
@@ -3036,6 +3331,17 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                     "Liga metálica",
                     "Cerâmica",
                     "Ferro",
+                    "Indeterminado",
+                  ] : (["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? [
+                    "Aço",
+                    "Aço inoxidável",
+                    "Alumínio",
+                    "Liga de alumínio",
+                    "Titânio",
+                    "Latão",
+                    "Polímero",
+                    "Madeira",
+                    "Inox escovado",
                     "Indeterminado",
                   ] : [
                     "Chumbo",
@@ -3380,6 +3686,195 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
 
         {/* ── Acabamento picker ── */}
         <AnimatePresence>
+          {tipoRaiamentoPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setTipoRaiamentoPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Tipo de raiamento do cano</span>
+                    <button type="button" onClick={() => setTipoRaiamentoPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {[
+                    "Alma lisa (sem raiamento)",
+                    "Dextrógiro",
+                    "Raiamento convencional",
+                    "Raiamento poligonal",
+                    "Raiamento de campo e alvéolo",
+                    "Microgroove (múltiplos raios)",
+                    "Raiamento quadrado",
+                    "Indeterminado",
+                  ].map((opt, idx, arr) => {
+                    const selected = activeWeapon?.tipoRaiamento === opt
+                    return (
+                      <button key={opt} type="button"
+                        onClick={() => { setWeaponDirect("tipoRaiamento", selected ? "" : opt); setTipoRaiamentoPickerOpen(false) }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <span className={`text-[16px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+
+          {sistemaAcionamentoPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setSistemaAcionamentoPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Sistema de acionamento</span>
+                    <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {(activeWeapon?.type === "REVÓLVER" ? [
+                    "Ação simples (SA)",
+                    "Ação dupla (DA)",
+                    "Ação dupla exclusiva (DAO)",
+                  ] : activeWeapon?.type === "PISTOLA" ? [
+                    "Ação simples (SA)",
+                    "Ação dupla / ação simples (DA/SA)",
+                    "Ação dupla exclusiva (DAO)",
+                    "Striker-fired (percussor armado)",
+                    "DA com desamartilhador",
+                    "DA com trava de serrilha",
+                  ] : activeWeapon?.type === "ESPINGARDA" ? [
+                    "Ferrolho deslizante / pump-action",
+                    "Semi-automático (autocarregável)",
+                    "Ferrolho giratório (bolt-action)",
+                    "Alavanca (lever-action)",
+                    "Canos tombantes (break-action)",
+                    "Duplo gatilho",
+                    "Gatilho seletivo",
+                  ] : activeWeapon?.type === "CARABINA" ? [
+                    "Ferrolho giratório (bolt-action)",
+                    "Alavanca (lever-action)",
+                    "Ferrolho deslizante / pump-action",
+                    "Semi-automático (autocarregável)",
+                    "Tiro a tiro (single-shot)",
+                  ] : activeWeapon?.type === "FUZIL" ? [
+                    "Semi-automático",
+                    "Automático",
+                    "Semi/automático seletivo",
+                    "Rajada de 3 tiros",
+                    "Ferrolho giratório (bolt-action)",
+                    "Tiro a tiro (single-shot)",
+                  ] : activeWeapon?.type === "METRALHADORA" ? [
+                    "Automático (open bolt)",
+                    "Automático (closed bolt)",
+                    "Semi/automático seletivo",
+                    "Rajada de 3 tiros",
+                    "Automático contínuo",
+                  ] : [
+                    "Indeterminado",
+                  ]).map((opt, idx, arr) => {
+                    const selected = activeWeapon?.sistemaAcionamento === opt
+                    return (
+                      <button key={opt} type="button"
+                        onClick={() => { setWeaponDirect("sistemaAcionamento", selected ? "" : opt); setSistemaAcionamentoPickerOpen(false) }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <span className={`text-[16px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+
+          {materialCoronhaPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setMaterialCoronhaPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Material da coronha</span>
+                    <button type="button" onClick={() => setMaterialCoronhaPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {["Polímero sintético","Madeira (mogno)","Madeira (faia)","Madeira laminada","Fibra de vidro","Fibra de carbono","Metal (dobrável)","Plástico reforçado","Indeterminado"].map((opt, idx, arr) => {
+                    const selected = activeWeapon?.acabamento === opt
+                    return (
+                      <button key={opt} type="button"
+                        onClick={() => { setWeaponDirect("acabamento", selected ? "" : opt); setMaterialCoronhaPickerOpen(false) }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <span className={`text-[16px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+
+          {materialQuadroPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setMaterialQuadroPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Material do quadro</span>
+                    <button type="button" onClick={() => setMaterialQuadroPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {["Aço oxidado","Aço inoxidável","Aço fosfatado","Alumínio forjado","Liga de alumínio","Polímero reforçado","Titânio","Aço niquelado","Indeterminado"].map((opt, idx, arr) => {
+                    const selected = activeWeapon?.materialQuadro === opt
+                    return (
+                      <button key={opt} type="button"
+                        onClick={() => { setWeaponDirect("materialQuadro", selected ? "" : opt); setMaterialQuadroPickerOpen(false) }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <span className={`text-[16px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+
           {acabamentoPickerOpen && (
             <>
               <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
@@ -3397,7 +3892,21 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-4 pb-8">
-                  {["Polido / espelhado", "Brunido / escurecido", "Fosco", "Revestimento preto", "Titânio", "DLC (Diamond-Like Carbon)", "Pintado", "Envernizado", "Oxidado", "Indeterminado"].map((opt, idx, arr) => {
+                  {((["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? [
+                    "Oxidado / pavonado",
+                    "Niquelado",
+                    "Cromado",
+                    "Brunido",
+                    "Polido / espelhado",
+                    "Fosfatado",
+                    "DLC (Diamond-Like Carbon)",
+                    "Revestimento Teflon",
+                    "Casehardenado",
+                    "Inox escovado",
+                    "Indeterminado",
+                  ] : [
+                    "Polido / espelhado", "Brunido / escurecido", "Fosco", "Revestimento preto", "Titânio", "DLC (Diamond-Like Carbon)", "Pintado", "Envernizado", "Oxidado", "Indeterminado",
+                  ]).map((opt, idx, arr) => {
                     const selected = activeWeapon?.acabamento === opt
                     return (
                       <button key={opt} type="button"
