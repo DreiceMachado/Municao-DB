@@ -35,7 +35,7 @@ import {
 
 type WeaponType =
   | "REVÓLVER" | "PISTOLA" | "ESPINGARDA" | "CARABINA" | "FUZIL" | "METRALHADORA"
-  | "ESTOJO" | "PROJÉTIL" | "CARTUCHO" | "FACA"
+  | "ESTOJO" | "PROJÉTIL" | "CARTUCHO" | "FACA" | "PÓLVORA" | "ESPOLETA"
 
 type WeaponEntry = {
   type: WeaponType
@@ -148,6 +148,11 @@ type WeaponEntry = {
   estadoCartucho: string
   estadoEstojo: string
   alturaProjetil: string
+  // PÓLVORA
+  tipoPolvora: string
+  cor: string
+  // ESPOLETA
+  tipoEspoleta: string
 }
 
 type RecordItem = {
@@ -667,6 +672,8 @@ const photoSlotsByType: Record<WeaponType, string[]> = {
   "PROJÉTIL":     ["Vista lateral", "Base do projétil", "Ápice", "Estrias"],
   "CARTUCHO":     ["Vista lateral", "Base – headstamp", "Vista do projétil", "Vista geral"],
   "FACA":         ["Lâmina – frente", "Lâmina – verso", "Cabo", "Ponta", "Gume", "Numeração"],
+  "PÓLVORA":      ["Vista geral", "Embalagem – frente", "Embalagem – verso", "Detalhe da granulometria"],
+  "ESPOLETA":     ["Vista frontal", "Vista lateral", "Base da espoleta", "Marcação de percussor"],
 }
 
 export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () => void }) {
@@ -712,6 +719,8 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
   const [tipoRaiamentoPickerOpen, setTipoRaiamentoPickerOpen] = useState(false)
   const [materialCoronhaPickerOpen, setMaterialCoronhaPickerOpen] = useState(false)
   const [materialQuadroPickerOpen, setMaterialQuadroPickerOpen] = useState(false)
+  const [tipoPolvoraPickerOpen, setTipoPolvoraPickerOpen] = useState(false)
+  const [tipoEspoletaPickerOpen, setTipoEspoletaPickerOpen] = useState(false)
 
   const [profileView, setProfileView] = useState<null | "main" | "changeEmail" | "changePassword">(null)
   const [profileEmail, setProfileEmail] = useState("")
@@ -798,6 +807,8 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
     "PROJÉTIL":     "Exame de Projétil",
     "CARTUCHO":     "Exame de Cartucho",
     "FACA":         "Exame de Faca",
+    "PÓLVORA":      "Exame de Pólvora",
+    "ESPOLETA":     "Exame de Espoleta",
   }
 
   const handleField =
@@ -864,6 +875,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
     naFlags: [], tipoProd: "", serialEstado: "", quantidade: "", diametroMin: "", massa: "",
     origemProjetil: "", origemProjetilRef: "", regiaoColeta: "", deformacoesAcidentais: "", estadoProjetil: "", alturaProjetil: "",
     estadoCartucho: "", estadoEstojo: "",
+    tipoPolvora: "", cor: "", tipoEspoleta: "",
   })
 
   const addWeapon = (type: WeaponType) => {
@@ -1287,7 +1299,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       Tipo de peça
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ESTOJO","PROJÉTIL","CARTUCHO","FACA"] as WeaponType[]).map((type) => (
+                      {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ESTOJO","PROJÉTIL","CARTUCHO","FACA","PÓLVORA","ESPOLETA"] as WeaponType[]).map((type) => (
                         <button key={type} type="button"
                           onClick={() => {
                             setWeaponType(type)
@@ -1523,14 +1535,16 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                         "CARABINA":    "Origem da carabina",
                         "FUZIL":       "Origem do fuzil",
                         "METRALHADORA":"Origem da metralhadora",
+                        "PÓLVORA":     "Origem da pólvora",
+                        "ESPOLETA":    "Origem da espoleta",
                       }
                       const label = origemLabel[activeWeapon?.type as WeaponType] ?? "Origem"
                       return (
                         <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-4 shadow-sm">
                           <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8d7854]">{label}</div>
-                          <div className={`grid gap-2 ${(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "grid-cols-2" : "grid-cols-3"}`}>
+                          <div className={`grid gap-2 ${(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","PÓLVORA","ESPOLETA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "grid-cols-2" : "grid-cols-3"}`}>
                             {(
-                              (["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
+                              (["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","PÓLVORA","ESPOLETA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
                                 ? [
                                     { id: "DELEGACIA", label: "Delegacia", Icon: Building2 },
                                     { id: "LOCAL",     label: "Local",     Icon: MapPin    },
@@ -1588,7 +1602,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   </div>
 
                   {/* ── Campos base ── */}
-                  {activeWeapon?.type !== "PROJÉTIL" && <div className="space-y-5">
+                  {!(["PROJÉTIL","PÓLVORA","ESPOLETA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && <div className="space-y-5">
                     <div className="grid gap-5 md:grid-cols-2">
                       {activeWeapon?.type !== "FACA" && (
                         <div>
@@ -1623,12 +1637,14 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             } />
                         </div>
                       )}
-                      <div>
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
-                        <input value={activeWeapon?.paisFabricacao ?? ""} onChange={handleWeaponField("paisFabricacao")}
-                          className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                          placeholder="Ex.: Brasil" />
-                      </div>
+                      {activeWeapon?.type !== "FACA" && (
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
+                          <input value={activeWeapon?.paisFabricacao ?? ""} onChange={handleWeaponField("paisFabricacao")}
+                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                            placeholder="Ex.: Brasil" />
+                        </div>
+                      )}
                     </div>
 
                     {/* Tipo de produção — apenas armas de fogo */}
@@ -2920,6 +2936,159 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                     </div>
                   )}
 
+                  {/* ── PÓLVORA ── */}
+                  {activeWeapon?.type === "PÓLVORA" && (
+                    <div className="space-y-4">
+
+                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        {/* Tipo de pólvora */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de pólvora</label>
+                          <button type="button" onClick={() => setTipoPolvoraPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.tipoPolvora ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.tipoPolvora || "Selecionar tipo…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        {/* Estado físico */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Estado físico / granulometria</label>
+                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.material || "Selecionar estado físico…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        {/* Cor */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Cor</label>
+                          <input value={activeWeapon?.cor ?? ""} onChange={handleWeaponField("cor" as keyof Omit<WeaponEntry,"type">)}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            placeholder="Ex.: Cinza, Preta, Branca, Amarela…" />
+                        </div>
+                        {/* Massa e Quantidade */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Massa (g)</label>
+                            <input value={String(activeWeapon?.massa ?? "")} onChange={handleWeaponField("massa" as keyof Omit<WeaponEntry,"type">)}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                              placeholder="Ex.: 2,500" />
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Quantidade</label>
+                            <input value={String(activeWeapon?.quantidade ?? "")} onChange={handleWeaponField("quantidade")}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                              placeholder="Ex.: 1 frasco" />
+                          </div>
+                        </div>
+                      </CollapsibleSection>
+
+                      <CollapsibleCard title="Estado de conservação">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["oxidacaoPresente", "Oxidação / umidade presente"],
+                            ["manchas",          "Contaminação ou manchas"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                        {Boolean(activeWeapon?.manchas) && (
+                          <div className="mt-3">
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Observações</label>
+                            <input value={activeWeapon?.manchasObs ?? ""} onChange={handleWeaponField("manchasObs")}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                              placeholder="Descreva as contaminações…" />
+                          </div>
+                        )}
+                      </CollapsibleCard>
+                    </div>
+                  )}
+
+                  {/* ── ESPOLETA ── */}
+                  {activeWeapon?.type === "ESPOLETA" && (
+                    <div className="space-y-4">
+                      <div className="grid gap-5 md:grid-cols-2">
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Fabricante</label>
+                          <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
+                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                            placeholder="Ex.: CBC, CCI, Federal, Remington…" />
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
+                          <input value={activeWeapon?.paisFabricacao ?? ""} onChange={handleWeaponField("paisFabricacao")}
+                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                            placeholder="Ex.: Brasil" />
+                        </div>
+                      </div>
+
+                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        {/* Tipo de espoleta */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de espoleta</label>
+                          <button type="button" onClick={() => setTipoEspoletaPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.tipoEspoleta ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.tipoEspoleta || "Selecionar tipo…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        {/* Material */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
+                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.material || "Selecionar material…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        {/* Calibre e Quantidade */}
+                        <div className="space-y-3">
+                          <div>
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre compatível</label>
+                            <input value={activeWeapon?.caliber ?? ""} onChange={handleWeaponField("caliber")}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                              placeholder="Ex.: 9 mm, .38 SPL…" />
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Quantidade</label>
+                            <input value={String(activeWeapon?.quantidade ?? "")} onChange={handleWeaponField("quantidade")}
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                              placeholder="Ex.: 5" />
+                          </div>
+                        </div>
+                      </CollapsibleSection>
+
+                      <CollapsibleCard title="Marcações e estado">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["completo",           "Espoleta íntegra"],
+                            ["marcacaoPercussor",  "Marcação de percussor"],
+                            ["deformacaoPresente", "Deformação presente"],
+                            ["oxidacaoPresente",   "Oxidação presente"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                    </div>
+                  )}
+
                   {/* ── CARTUCHO ── */}
                   {activeWeapon?.type === "CARTUCHO" && (
                     <div className="space-y-4">
@@ -3182,6 +3351,19 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
               <div className="flex-1 overflow-y-auto">
                 <div className="space-y-8 p-4 pb-4">
 
+                  {/* Lacre de entrada */}
+                  <div>
+                    <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">
+                      Lacre de entrada
+                    </label>
+                    <input
+                      value={lacreNumero}
+                      onChange={e => setLacreNumero(e.target.value)}
+                      className="h-12 w-full rounded-2xl border border-[#d3c4a8] bg-white px-4 text-[16px] font-bold text-[#50442f] outline-none focus:border-[#b89a58] focus:ring-2 focus:ring-[#b89a58]/10"
+                      placeholder="Nº lacre de entrada"
+                    />
+                  </div>
+
                   {/* Fotos da peça */}
                   <div>
                     <div className="mb-3 flex items-center gap-2">
@@ -3210,32 +3392,8 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                     <div className="mb-3 flex items-center gap-2">
                       <div className="h-1.5 w-1.5 rounded-full bg-[#b89a58]" />
                       <span className="text-[15px] font-black uppercase tracking-[0.22em] text-[#6b5838]">
-                        Lacre e embalagem
+                        Embalagem
                       </span>
-                    </div>
-                    <div className="mb-4 space-y-3 rounded-2xl border border-[#d3c4a8] bg-white px-4 py-3 shadow-sm">
-                      <div>
-                        <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">
-                          Lacre de entrada
-                        </label>
-                        <input
-                          value={lacreNumero}
-                          onChange={e => setLacreNumero(e.target.value)}
-                          className="h-12 w-full rounded-xl border border-[#d3c4a8] bg-[#fbf8f2] px-4 text-[16px] font-bold text-[#50442f] outline-none focus:border-[#b89a58] focus:ring-2 focus:ring-[#b89a58]/10"
-                          placeholder="Nº lacre de entrada"
-                        />
-                      </div>
-                      <div className="border-t border-[#e8dfc8] pt-3">
-                        <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">
-                          Lacre de saída
-                        </label>
-                        <input
-                          value={lacreSaidaNumero}
-                          onChange={e => setLacreSaidaNumero(e.target.value)}
-                          className="h-12 w-full rounded-xl border border-[#d3c4a8] bg-[#fbf8f2] px-4 text-[16px] font-bold text-[#50442f] outline-none focus:border-[#b89a58] focus:ring-2 focus:ring-[#b89a58]/10"
-                          placeholder="Nº lacre de saída"
-                        />
-                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <PhotoSlot
@@ -3271,6 +3429,19 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                         onView={setViewerPhoto}
                       />
                     </div>
+                  </div>
+
+                  {/* Lacre de saída */}
+                  <div>
+                    <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">
+                      Lacre de saída
+                    </label>
+                    <input
+                      value={lacreSaidaNumero}
+                      onChange={e => setLacreSaidaNumero(e.target.value)}
+                      className="h-12 w-full rounded-2xl border border-[#d3c4a8] bg-white px-4 text-[16px] font-bold text-[#50442f] outline-none focus:border-[#b89a58] focus:ring-2 focus:ring-[#b89a58]/10"
+                      placeholder="Nº lacre de saída"
+                    />
                   </div>
 
                 </div>
@@ -3313,7 +3484,22 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                 </div>
                 {/* Lista rolável */}
                 <div className="flex-1 overflow-y-auto px-4 pb-8">
-                  {(activeWeapon?.type === "ESTOJO" || activeWeapon?.type === "CARTUCHO" ? [
+                  {(activeWeapon?.type === "PÓLVORA" ? [
+                    "Granulada",
+                    "Em pó fino",
+                    "Em flocos",
+                    "Esférica",
+                    "Extrudada",
+                    "Compactada",
+                    "Indeterminado",
+                  ] : activeWeapon?.type === "ESPOLETA" ? [
+                    "Latão",
+                    "Aço",
+                    "Alumínio",
+                    "Cobre",
+                    "Niquelado",
+                    "Indeterminado",
+                  ] : activeWeapon?.type === "ESTOJO" || activeWeapon?.type === "CARTUCHO" ? [
                     "Latão",
                     "Aço",
                     "Aço inoxidável",
@@ -3916,6 +4102,94 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </span>
                         <span className={`text-[16px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+
+          {/* ── Tipo de pólvora picker ── */}
+          {tipoPolvoraPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setTipoPolvoraPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Tipo de pólvora</span>
+                    <button type="button" onClick={() => setTipoPolvoraPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {[
+                    "Pólvora negra (black powder)",
+                    "Pólvora sem fumaça — base simples (nitrocelulose)",
+                    "Pólvora sem fumaça — base dupla (nitrocelulose + nitroglicerina)",
+                    "Pólvora sem fumaça — base tripla",
+                    "Propelente esférico (ball powder)",
+                    "Propelente extrudado",
+                    "Propelente de chumbinho (pistão de ar)",
+                    "Indeterminado",
+                  ].map((opt, idx, arr) => {
+                    const selected = activeWeapon?.tipoPolvora === opt
+                    return (
+                      <button key={opt} type="button"
+                        onClick={() => { setWeaponDirect("tipoPolvora", selected ? "" : opt); setTipoPolvoraPickerOpen(false) }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <span className={`text-[15px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+
+          {/* ── Tipo de espoleta picker ── */}
+          {tipoEspoletaPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setTipoEspoletaPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Tipo de espoleta</span>
+                    <button type="button" onClick={() => setTipoEspoletaPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {[
+                    "Boxer (percussão central — 1 orifício)",
+                    "Berdan (percussão central — 2 orifícios)",
+                    "Rimfire (percussão periférica / anel)",
+                    "Percussão anular",
+                    "Espoleta elétrica",
+                    "Indeterminado",
+                  ].map((opt, idx, arr) => {
+                    const selected = activeWeapon?.tipoEspoleta === opt
+                    return (
+                      <button key={opt} type="button"
+                        onClick={() => { setWeaponDirect("tipoEspoleta", selected ? "" : opt); setTipoEspoletaPickerOpen(false) }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <span className={`text-[15px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</span>
                       </button>
                     )
                   })}
