@@ -1259,34 +1259,45 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       </div>
                       <div className="space-y-4">
                         {savedPieces.map((p, i) => (
-                          <div key={i} className="flex items-stretch gap-2 rounded-[24px] border border-[#c8b47e] bg-[#fbf8f3] shadow-sm overflow-hidden">
-                            {/* Card clicável para editar */}
-                            <button
-                              type="button"
-                              onClick={() => openEditPiece(i)}
-                              className="flex flex-1 items-center gap-3 px-4 py-3.5 text-left active:bg-[#f0e8d4]"
-                            >
-                              <div className="flex shrink-0 items-center justify-center rounded-xl bg-[#12213d] p-2 text-[#f0d08a]">
-                                <PieceIcon type={p.type} className="h-5 w-auto max-w-[36px]" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#6b5838]">{p.type}</div>
-                                <div className="truncate text-sm font-bold text-[#26221b]">{p.model || <span className="italic text-[#a89268]">modelo não informado</span>}</div>
-                                <div className="text-xs text-[#6b5838]">Nº {p.serial || "—"}{p.caliber ? ` • ${p.caliber}` : ""}</div>
-                              </div>
-                              <Pencil className="h-4 w-4 shrink-0 text-[#b89a58]" />
-                            </button>
-                            {/* Divisor */}
-                            <div className="w-px bg-[#e8dfc8] self-stretch" />
-                            {/* Botão excluir maior */}
-                            <button
-                              type="button"
-                              onClick={() => setConfirmDeletePieceIdx(i)}
-                              className="flex shrink-0 items-center justify-center px-5 text-[#c05050] active:bg-[#fdf0f0]"
-                              title="Remover peça"
-                            >
-                              <X className="h-5 w-5" />
-                            </button>
+                          <div key={i} className="overflow-hidden rounded-2xl border border-[#c8b47e] bg-white shadow-sm">
+                            <div className="flex items-stretch">
+                              {/* Card clicável para editar */}
+                              <button
+                                type="button"
+                                onClick={() => openEditPiece(i)}
+                                className="flex flex-1 items-center gap-3 px-4 py-4 text-left transition active:bg-[#f5efe3]"
+                              >
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-sm">
+                                  <PieceIcon type={p.type} className="h-5 w-auto max-w-[28px]" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#b89a58]">{p.type}</div>
+                                  <div className="truncate text-[14px] font-black text-[#26221b]">
+                                    {p.brand || <span className="font-medium italic text-[#b8a070]">Identificação não informada</span>}
+                                  </div>
+                                  <div className="truncate text-[12px] font-medium text-[#6b5838]">
+                                    {p.model || <span className="italic text-[#c4ac82]">Modelo não informado</span>}
+                                  </div>
+                                </div>
+                                <Pencil className="h-4 w-4 shrink-0 text-[#c8a96e]" />
+                              </button>
+                              {/* Divisor */}
+                              <div className="my-3 w-px shrink-0 bg-[#e8dfc8]" />
+                              {/* Botão excluir */}
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeletePieceIdx(i)}
+                                className="flex w-14 shrink-0 items-center justify-center text-[#c87070] transition active:bg-[#fdf0f0]"
+                                title="Remover peça"
+                              >
+                                <X className="h-5 w-5" />
+                              </button>
+                            </div>
+                            {/* Rodapé com número de série */}
+                            <div className="border-t border-[#f0e8d8] bg-[#fdfaf5] px-4 py-2">
+                              <span className="text-[11px] font-semibold text-[#9e8255]">Nº série: </span>
+                              <span className="text-[11px] font-black text-[#50442f]">{p.serial || <span className="font-medium italic text-[#c4ac82]">não informado</span>}</span>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1295,24 +1306,70 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
 
                   {/* Tipo de peça */}
                   <div>
-                    <div className="mb-6 border-b border-[#d3c3a4] pb-3 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
+                    <div className="mb-5 border-b border-[#d3c3a4] pb-3 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
                       Tipo de peça
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ESTOJO","PROJÉTIL","CARTUCHO","FACA","PÓLVORA","ESPOLETA"] as WeaponType[]).map((type) => (
-                        <button key={type} type="button"
-                          onClick={() => {
-                            setWeaponType(type)
-                            setWeapons([makeWeaponEntry(type)])
-                            setActiveWeaponIdx(0)
-                            setPieceFormOpen(true)
-                          }}
-                          className="rounded-2xl border-2 border-[#d3c4a8] bg-white py-5 text-center text-[10px] font-black uppercase tracking-[0.15em] text-[#50442f] shadow-sm transition active:scale-[.96] active:bg-[#ece6da]"
-                        >
-                          {type}
-                        </button>
-                      ))}
+
+                    {/* Armas de fogo */}
+                    <div className="mb-5">
+                      <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.22em] text-[#8d7854]">Armas de fogo</div>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).map((type) => (
+                          <button key={type} type="button"
+                            onClick={() => {
+                              setWeaponType(type)
+                              setWeapons([makeWeaponEntry(type)])
+                              setActiveWeaponIdx(0)
+                              setPieceFormOpen(true)
+                            }}
+                            className="flex min-h-[72px] items-center justify-center rounded-2xl border-2 border-[#d3c4a8] bg-white px-3 py-4 text-center text-[13px] font-black uppercase tracking-[0.12em] text-[#50442f] shadow-sm transition active:scale-[.96] active:bg-[#ece6da]"
+                          >
+                            {type}
+                          </button>
+                        ))}
+                      </div>
                     </div>
+
+                    {/* Munição e componentes */}
+                    <div className="mb-5">
+                      <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.22em] text-[#8d7854]">Munição e componentes</div>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {(["PROJÉTIL","CARTUCHO","ESTOJO","ESPOLETA","PÓLVORA"] as WeaponType[]).map((type) => (
+                          <button key={type} type="button"
+                            onClick={() => {
+                              setWeaponType(type)
+                              setWeapons([makeWeaponEntry(type)])
+                              setActiveWeaponIdx(0)
+                              setPieceFormOpen(true)
+                            }}
+                            className="flex min-h-[72px] items-center justify-center rounded-2xl border-2 border-[#d3c4a8] bg-white px-3 py-4 text-center text-[13px] font-black uppercase tracking-[0.12em] text-[#50442f] shadow-sm transition active:scale-[.96] active:bg-[#ece6da]"
+                          >
+                            {type}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Arma branca */}
+                    <div>
+                      <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.22em] text-[#8d7854]">Arma branca</div>
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {(["FACA"] as WeaponType[]).map((type) => (
+                          <button key={type} type="button"
+                            onClick={() => {
+                              setWeaponType(type)
+                              setWeapons([makeWeaponEntry(type)])
+                              setActiveWeaponIdx(0)
+                              setPieceFormOpen(true)
+                            }}
+                            className="flex min-h-[72px] items-center justify-center rounded-2xl border-2 border-[#d3c4a8] bg-white px-3 py-4 text-center text-[13px] font-black uppercase tracking-[0.12em] text-[#50442f] shadow-sm transition active:scale-[.96] active:bg-[#ece6da]"
+                          >
+                            {type}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                   </div>
 
                   {/* Observações */}
@@ -1607,11 +1664,15 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       {activeWeapon?.type !== "FACA" && (
                         <div>
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "Tipo de armamento" : "Modelo"}
+                            {activeWeapon?.type === "CARTUCHO" ? "Tipo" : "Modelo"}
                           </label>
                           <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                            placeholder={(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "Ex.: Revólver de defesa, Pistola compacta…" : "Ex.: RT 627"} />
+                            placeholder={
+                              (["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "Ex.: GP100, M1911, AR-15…" :
+                              activeWeapon?.type === "CARTUCHO" ? "Ex.: FMJ, HP, Slug…" :
+                              "Ex.: RT 627"
+                            } />
                         </div>
                       )}
                       {activeWeapon?.type !== "FACA" && (
