@@ -721,6 +721,14 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
   const [materialQuadroPickerOpen, setMaterialQuadroPickerOpen] = useState(false)
   const [tipoPolvoraPickerOpen, setTipoPolvoraPickerOpen] = useState(false)
   const [tipoEspoletaPickerOpen, setTipoEspoletaPickerOpen] = useState(false)
+  const [fieldHelper, setFieldHelper] = useState<{ title: string; text: string } | null>(null)
+  const HelpBtn = ({ title, text }: { title: string; text: string }) => (
+    <button
+      type="button"
+      onClick={() => setFieldHelper({ title, text })}
+      className="ml-1.5 inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border border-[#c8a96e] bg-[#fdf6e8] text-[10px] font-black text-[#9e7f45] transition active:bg-[#f0d08a]"
+    >?</button>
+  )
 
   const [profileView, setProfileView] = useState<null | "main" | "changeEmail" | "changePassword">(null)
   const [profileEmail, setProfileEmail] = useState("")
@@ -1257,7 +1265,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       <div className="mb-5 border-b border-[#d3c3a4] pb-3 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
                         Peças do exame
                       </div>
-                      <div className="space-y-4">
+                      <div className="space-y-2">
                         {savedPieces.map((p, i) => (
                           <div key={i} className="overflow-hidden rounded-2xl border border-[#c8b47e] bg-white shadow-sm">
                             <div className="flex items-stretch">
@@ -1275,9 +1283,9 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                                   <div className="truncate text-[14px] font-black text-[#26221b]">
                                     {p.brand || <span className="font-medium italic text-[#b8a070]">Identificação não informada</span>}
                                   </div>
-                                  <div className="truncate text-[12px] font-medium text-[#6b5838]">
-                                    {p.model || <span className="italic text-[#c4ac82]">Modelo não informado</span>}
-                                  </div>
+                                  {p.model && (
+                                    <div className="truncate text-[12px] font-medium text-[#6b5838]">{p.model}</div>
+                                  )}
                                 </div>
                                 <Pencil className="h-4 w-4 shrink-0 text-[#c8a96e]" />
                               </button>
@@ -1663,8 +1671,12 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                     <div className="grid gap-5 md:grid-cols-2">
                       {activeWeapon?.type !== "FACA" && (
                         <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             {activeWeapon?.type === "CARTUCHO" ? "Tipo" : "Modelo"}
+                            <HelpBtn title={activeWeapon?.type === "CARTUCHO" ? "Tipo" : "Modelo"} text={
+                              activeWeapon?.type === "CARTUCHO" ? "Tipo construtivo da munição. Ex.: FMJ (encamisado), HP (ponta oca), Slug (projétil único para espingarda)." :
+                              "Designação comercial ou nomenclatura do armamento. Ex.: GP100, M1911, AR-15."
+                            } />
                           </label>
                           <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
@@ -1677,8 +1689,12 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       )}
                       {activeWeapon?.type !== "FACA" && (
                         <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             {activeWeapon?.type === "ESTOJO" ? "Identificação" : "Fabricante"}
+                            <HelpBtn title={activeWeapon?.type === "ESTOJO" ? "Identificação" : "Fabricante"} text={
+                              activeWeapon?.type === "ESTOJO" ? "Marca gravada no headstamp (base do estojo). Ex.: CBC, RP, FC." :
+                              "Empresa responsável pela fabricação. Ex.: Taurus, Glock, CBC, Remington."
+                            } />
                           </label>
                           <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
@@ -1687,7 +1703,10 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       )}
                       {activeWeapon?.type !== "FACA" && (
                         <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre</label>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Calibre
+                            <HelpBtn title="Calibre" text="Designação nominal da munição compatível com a arma ou peça. Ex.: .38 SPL, 9 mm Luger, 12 Ga. Para projéteis deflagrados, utilize o campo de diâmetro medido." />
+                          </label>
                           <input value={activeWeapon?.caliber ?? ""} onChange={handleWeaponField("caliber")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                             placeholder={
@@ -1700,7 +1719,10 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       )}
                       {activeWeapon?.type !== "FACA" && (
                         <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            País de fabricação
+                            <HelpBtn title="País de fabricação" text="País onde a peça foi fabricada, conforme indicação do fabricante ou marcação na arma. Ex.: Brasil, EUA, Alemanha." />
+                          </label>
                           <input value={activeWeapon?.paisFabricacao ?? ""} onChange={handleWeaponField("paisFabricacao")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                             placeholder="Ex.: Brasil" />
@@ -1732,7 +1754,10 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                         {/* Bloco de número de série — só para INDUSTRIAL */}
                         {activeWeapon?.tipoProd === "INDUSTRIAL" && (
                           <div className="mt-4 border-t border-[#e8dfc8] pt-4">
-                            <label className="mb-3 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de série — estado</label>
+                            <label className="mb-3 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                              Número de série — estado
+                              <HelpBtn title="Número de série" text="Indica a condição em que o número de série se encontra na arma. LEGÍVEL: completamente visível. PARCIAL: parte dos algarismos visível. SUPRIMIDO: intencionalmente removido ou apagado. NÃO APARENTE: não localizado no exame visual." />
+                            </label>
                             <div className="grid grid-cols-2 gap-2">
                               {(["LEGÍVEL", "PARCIAL", "SUPRIMIDO", "NÃO APARENTE"]).map(est => (
                                 <button
@@ -1820,7 +1845,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       </div>
                       {/* Sistema de acionamento — picker */}
                       <div className="mb-4">
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento</label>
+                        <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
                         <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
                           className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                           <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
@@ -1831,7 +1856,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       </div>
                       {/* Tipo de raiamento — picker */}
                       <div className="mb-4">
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano</label>
+                        <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano<HelpBtn title="Tipo de raiamento" text="Característica interna do cano. Alma lisa: sem raias, comum em espingardas. Raiamento convencional: raias helicoidais que estabilizam o projétil. Poligonal: perfil poligonal em vez de raias tradicionais, comum em Glocks." /></label>
                         <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
                           className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                           <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
@@ -1968,7 +1993,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           </button>
                         </div>
                         <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento</label>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
                           <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}</span>
@@ -1976,7 +2001,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           </button>
                         </div>
                         <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano</label>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano<HelpBtn title="Tipo de raiamento" text="Característica interna do cano. Alma lisa: sem raias, comum em espingardas. Raiamento convencional: raias helicoidais que estabilizam o projétil. Poligonal: perfil poligonal em vez de raias tradicionais, comum em Glocks." /></label>
                           <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}</span>
@@ -2107,7 +2132,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           </button>
                         </div>
                         <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento</label>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
                           <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}</span>
@@ -2115,7 +2140,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           </button>
                         </div>
                         <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano</label>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano<HelpBtn title="Tipo de raiamento" text="Característica interna do cano. Alma lisa: sem raias, comum em espingardas. Raiamento convencional: raias helicoidais que estabilizam o projétil. Poligonal: perfil poligonal em vez de raias tradicionais, comum em Glocks." /></label>
                           <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}</span>
@@ -2248,7 +2273,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           </button>
                         </div>
                         <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento</label>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
                           <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}</span>
@@ -2256,7 +2281,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           </button>
                         </div>
                         <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano</label>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano<HelpBtn title="Tipo de raiamento" text="Característica interna do cano. Alma lisa: sem raias, comum em espingardas. Raiamento convencional: raias helicoidais que estabilizam o projétil. Poligonal: perfil poligonal em vez de raias tradicionais, comum em Glocks." /></label>
                           <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}</span>
@@ -2376,7 +2401,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           </button>
                         </div>
                         <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento</label>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
                           <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}</span>
@@ -2384,7 +2409,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           </button>
                         </div>
                         <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano</label>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano<HelpBtn title="Tipo de raiamento" text="Característica interna do cano. Alma lisa: sem raias, comum em espingardas. Raiamento convencional: raias helicoidais que estabilizam o projétil. Poligonal: perfil poligonal em vez de raias tradicionais, comum em Glocks." /></label>
                           <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}</span>
@@ -2531,7 +2556,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           </button>
                         </div>
                         <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento</label>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
                           <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}</span>
@@ -2539,7 +2564,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           </button>
                         </div>
                         <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano</label>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento do cano<HelpBtn title="Tipo de raiamento" text="Característica interna do cano. Alma lisa: sem raias, comum em espingardas. Raiamento convencional: raias helicoidais que estabilizam o projétil. Poligonal: perfil poligonal em vez de raias tradicionais, comum em Glocks." /></label>
                           <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}</span>
@@ -3004,7 +3029,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
                         {/* Tipo de pólvora */}
                         <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de pólvora</label>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de pólvora<HelpBtn title="Tipo de pólvora" text="Pólvora negra: mistura de carvão, enxofre e nitrato — mais antiga, produz fumaça densa. Sem fumaça base simples: nitrocelulose, usada em munições modernas. Base dupla: nitrocelulose + nitroglicerina, maior energia. Propelente esférico: grânulos esféricos de queima uniforme." /></label>
                           <button type="button" onClick={() => setTipoPolvoraPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.tipoPolvora ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
@@ -3094,7 +3119,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
                         {/* Tipo de espoleta */}
                         <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de espoleta</label>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de espoleta<HelpBtn title="Tipo de espoleta" text="Boxer: espoleta central com 1 orifício de chama — padrão americano, permite recarga. Berdan: central com 2 orifícios — padrão europeu, dificulta recarga. Rimfire: espoleta distribuída no anel periférico do estojo, comum em calibres .22." /></label>
                           <button type="button" onClick={() => setTipoEspoletaPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.tipoEspoleta ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
@@ -4254,6 +4279,38 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       </button>
                     )
                   })}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Helper de campo ── */}
+        <AnimatePresence>
+          {fieldHelper && (
+            <>
+              <motion.div
+                className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setFieldHelper(null)}
+              />
+              <motion.div
+                className="fixed inset-x-4 top-1/2 z-[210] -translate-y-1/2 overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-2xl"
+                initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }}
+                transition={{ type: "spring", damping: 26, stiffness: 300 }}
+              >
+                <div className="flex items-center justify-between border-b border-[#ede3ce] bg-[#fdfaf4] px-5 py-3.5">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#12213d] text-[11px] font-black text-[#f0d08a]">?</div>
+                    <span className="text-[13px] font-black uppercase tracking-[0.16em] text-[#50442f]">{fieldHelper.title}</span>
+                  </div>
+                  <button type="button" onClick={() => setFieldHelper(null)}
+                    className="rounded-lg border border-[#d3c4a8] bg-[#f5efe3] p-1 text-[#8d7854]">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="px-5 py-4">
+                  <p className="text-[14px] leading-relaxed text-[#393025]">{fieldHelper.text}</p>
                 </div>
               </motion.div>
             </>
