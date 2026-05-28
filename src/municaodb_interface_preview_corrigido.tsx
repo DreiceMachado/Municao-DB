@@ -700,6 +700,9 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
   const [formatoPickerOpen, setFormatoPickerOpen] = useState(false)
   const [sentidoPickerOpen, setSentidoPickerOpen] = useState(false)
   const [deformacoesPickerOpen, setDeformacoesPickerOpen] = useState(false)
+  const [tipoLaminaPickerOpen, setTipoLaminaPickerOpen] = useState(false)
+  const [tipoGumePickerOpen, setTipoGumePickerOpen] = useState(false)
+  const [acabamentoPickerOpen, setAcabamentoPickerOpen] = useState(false)
 
   const [profileView, setProfileView] = useState<null | "main" | "changeEmail" | "changePassword">(null)
   const [profileEmail, setProfileEmail] = useState("")
@@ -1423,7 +1426,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       </div>
                     </div>
 
-                    {/* Estado do Projétil — ÍNTEGRO / DEFLAGRADO */}
+                    {/* Estado do Projétil */}
                     {activeWeapon?.type === "PROJÉTIL" && (
                       <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-4 shadow-sm">
                         <div className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Estado do projétil</div>
@@ -1449,6 +1452,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                         </div>
                       </div>
                     )}
+
 
                     {/* Estado do Cartucho — ÍNTEGRO / PERCUTIDO */}
                     {activeWeapon?.type === "CARTUCHO" && (
@@ -1503,20 +1507,98 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                         </div>
                       </div>
                     )}
+
+                    {/* Origem — universal para todos os tipos */}
+                    {(() => {
+                      const origemLabel: Record<WeaponType, string> = {
+                        "PROJÉTIL":    "Origem do projétil",
+                        "CARTUCHO":    "Origem do cartucho",
+                        "ESTOJO":      "Origem do estojo",
+                        "FACA":        "Origem da faca",
+                        "REVÓLVER":    "Origem do revólver",
+                        "PISTOLA":     "Origem da pistola",
+                        "ESPINGARDA":  "Origem da espingarda",
+                        "CARABINA":    "Origem da carabina",
+                        "FUZIL":       "Origem do fuzil",
+                        "METRALHADORA":"Origem da metralhadora",
+                      }
+                      const label = origemLabel[activeWeapon?.type as WeaponType] ?? "Origem"
+                      return (
+                        <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-4 shadow-sm">
+                          <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8d7854]">{label}</div>
+                          <div className={`grid gap-2 ${(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "grid-cols-2" : "grid-cols-3"}`}>
+                            {(
+                              (["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
+                                ? [
+                                    { id: "DELEGACIA", label: "Delegacia", Icon: Building2 },
+                                    { id: "LOCAL",     label: "Local",     Icon: MapPin    },
+                                  ]
+                                : [
+                                    { id: "DELEGACIA", label: "Delegacia", Icon: Building2  },
+                                    { id: "LOCAL",     label: "Local",     Icon: MapPin     },
+                                    { id: "NECROPSIA", label: "Necropsia", Icon: Microscope },
+                                  ]
+                            ).map(({ id, label, Icon }) => {
+                              const active = activeWeapon?.origemProjetil === id
+                              return (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  onClick={() => setWeaponDirect("origemProjetil", active ? "" : id)}
+                                  className={cn(
+                                    "flex flex-col items-center justify-center gap-2 rounded-xl border-2 py-3 px-1 transition active:scale-95",
+                                    active
+                                      ? "border-[#7d6334] bg-[#7d6334] text-white shadow-md"
+                                      : "border-[#d3c4a8] bg-[#fbf8f2] text-[#6b5838] hover:bg-[#f5efe3]"
+                                  )}
+                                >
+                                  <Icon className={cn("h-6 w-6", active ? "text-white" : "text-[#9e7f45]")} />
+                                  <span className="text-[10px] font-black uppercase tracking-wider">{label}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                          {activeWeapon?.origemProjetil === "LOCAL" && (
+                            <div className="mt-3 space-y-3 border-t border-[#ede3ce] pt-3">
+                              <div>
+                                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Referência do local</label>
+                                <input
+                                  value={String(activeWeapon?.origemProjetilRef ?? "")}
+                                  onChange={handleWeaponField("origemProjetilRef" as keyof Omit<WeaponEntry,"type">)}
+                                  className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                                  placeholder="Ex.: REP 138.740/2025"
+                                />
+                              </div>
+                              <div>
+                                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Região da coleta</label>
+                                <input
+                                  value={String(activeWeapon?.regiaoColeta ?? "")}
+                                  onChange={handleWeaponField("regiaoColeta" as keyof Omit<WeaponEntry,"type">)}
+                                  className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                                  placeholder="Ex.: Interior do imóvel (#3)"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </div>
 
                   {/* ── Campos base ── */}
-                  <div className="space-y-5">
+                  {activeWeapon?.type !== "PROJÉTIL" && <div className="space-y-5">
                     <div className="grid gap-5 md:grid-cols-2">
-                      {activeWeapon?.type !== "PROJÉTIL" && (
+                      {activeWeapon?.type !== "PROJÉTIL" && activeWeapon?.type !== "FACA" && (
                         <div>
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Marca</label>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            {activeWeapon?.type === "ESTOJO" ? "Identificação" : activeWeapon?.type === "CARTUCHO" ? "Fabricante" : "Marca"}
+                          </label>
                           <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                            placeholder="Ex.: Taurus" />
+                            placeholder={(activeWeapon?.type === "ESTOJO" || activeWeapon?.type === "CARTUCHO") ? "Ex.: CBC, Sellier & Bellot…" : "Ex.: Taurus"} />
                         </div>
                       )}
-                      {activeWeapon?.type !== "PROJÉTIL" && (
+                      {activeWeapon?.type !== "PROJÉTIL" && activeWeapon?.type !== "FACA" && (
                         <div>
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Modelo</label>
                           <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
@@ -1524,7 +1606,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             placeholder="Ex.: RT 627" />
                         </div>
                       )}
-                      {activeWeapon?.type !== "PROJÉTIL" && (
+                      {activeWeapon?.type !== "PROJÉTIL" && activeWeapon?.type !== "FACA" && (
                         <div>
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre</label>
                           <input value={activeWeapon?.caliber ?? ""} onChange={handleWeaponField("caliber")}
@@ -1607,7 +1689,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                     )}
 
                     {/* Número de série simples — para peças que não são armas de fogo nem PROJÉTIL */}
-                    {!(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","PROJÉTIL"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                    {!(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","PROJÉTIL","ESTOJO","CARTUCHO","FACA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                       <div>
                         <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                           Número de série / identificação
@@ -1617,7 +1699,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           placeholder="Informar identificação" />
                       </div>
                     )}
-                  </div>
+                  </div>}
 
                   {/* ── REVÓLVER ── */}
                   {activeWeapon?.type === "REVÓLVER" && (<>
@@ -2204,14 +2286,39 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   {activeWeapon?.type === "ESTOJO" && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        {/* Material — picker */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
+                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.material || "Selecionar material…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        {/* Formato / tipo de rebordo — picker */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de rebordo</label>
+                          <button type="button" onClick={() => setFormatoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.formato ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.formato || "Selecionar tipo…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        {/* Fabricante */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Fabricante</label>
+                          <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            placeholder="Ex.: CBC, Sellier & Bellot…" />
+                        </div>
+                        {/* Outros campos */}
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
-                            ["quantidade",         "Quantidade",        "Ex.: 3"],
-                            ["material",           "Material",          "Ex.: latão, aço"],
-                            ["formato",            "Formato",           "Ex.: semi-rebordo, rebordo"],
-                            ["numEstrias",         "N° de raias", "Ex.: 6"],
-                            ["sentidoEstrias",     "Sentido das estrias","Ex.: dextrorso, sinistrorso"],
-                            ["inscricaoFabricante","Inscrição / headstamp","Ex.: CBC .38"],
+                            ...(activeWeapon?.estadoEstojo === "ÍNTEGRO" ? [["quantidade", "Quantidade", "Ex.: 3"]] : []),
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -2253,6 +2360,16 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             </label>
                           ))}
                         </div>
+                        <div className="mt-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Deformações acidentais</label>
+                          <button type="button" onClick={() => setDeformacoesPickerOpen(true)}
+                            className="flex min-h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 py-3 text-left transition focus:border-[#9e7f45]">
+                            <span className={`text-[14px] leading-snug ${activeWeapon?.deformacoesAcidentais ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.deformacoesAcidentais || "Selecionar deformações…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
                       </CollapsibleCard>
                     </div>
                   )}
@@ -2261,58 +2378,20 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   {activeWeapon?.type === "PROJÉTIL" && (
                     <div className="space-y-4">
 
-                    {/* Origem */}
-                    <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-3.5 shadow-sm">
-                      <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8d7854]">Origem do projétil</div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {( [
-                          { id: "DELEGACIA", label: "Delegacia", Icon: Building2  },
-                          { id: "LOCAL",     label: "Local",     Icon: MapPin    },
-                          { id: "NECROPSIA", label: "Necropsia", Icon: Microscope },
-                        ] as const).map(({ id, label, Icon }) => {
-                          const active = activeWeapon?.origemProjetil === id
-                          return (
-                            <button
-                              key={id}
-                              type="button"
-                              onClick={() => setWeaponDirect("origemProjetil", active ? "" : id)}
-                              className={cn(
-                                "flex flex-col items-center justify-center gap-2 rounded-xl border-2 py-3 px-1 transition active:scale-95",
-                                active
-                                  ? "border-[#7d6334] bg-[#7d6334] text-white shadow-md"
-                                  : "border-[#d3c4a8] bg-[#fbf8f2] text-[#6b5838] hover:bg-[#f5efe3]"
-                              )}
-                            >
-                              <Icon className={cn("h-6 w-6", active ? "text-white" : "text-[#9e7f45]")} />
-                              <span className="text-[10px] font-black uppercase tracking-wider">{label}</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-
-                      {activeWeapon?.origemProjetil === "LOCAL" && (
-                        <div className="mt-3 space-y-3 border-t border-[#ede3ce] pt-3">
-                          <div>
-                            <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Referência do local</label>
-                            <input
-                              value={String(activeWeapon?.origemProjetilRef ?? "")}
-                              onChange={handleWeaponField("origemProjetilRef" as keyof Omit<WeaponEntry,"type">)}
-                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                              placeholder="Ex.: REP 138.740/2025"
-                            />
-                          </div>
-                          <div>
-                            <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Região da coleta</label>
-                            <input
-                              value={String(activeWeapon?.regiaoColeta ?? "")}
-                              onChange={handleWeaponField("regiaoColeta" as keyof Omit<WeaponEntry,"type">)}
-                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                              placeholder="Ex.: Interior do imóvel (#3)"
-                            />
-                          </div>
+                      <div className="grid gap-5 md:grid-cols-2">
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Identificação</label>
+                          <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
+                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                            placeholder="Ex.: CBC, Remington…" />
                         </div>
-                      )}
-                    </div>
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Fabricante</label>
+                          <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
+                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                            placeholder="Ex.: CBC, Sellier & Bellot…" />
+                        </div>
+                      </div>
 
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
                         {/* Material — seletor bottom sheet */}
@@ -2554,10 +2633,20 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   {activeWeapon?.type === "CARTUCHO" && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        {/* Material — picker */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
+                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.material || "Selecionar material…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
-                            ["quantidade", "Quantidade",        "Ex.: 12"],
-                            ["material",   "Material",          "Ex.: latão, aço"],
+                            ...(activeWeapon?.estadoCartucho === "ÍNTEGRO" ? [["quantidade", "Quantidade", "Ex.: 12"]] : []),
                             ["compTotal",  "Comprimento total", "Ex.: 29,7 mm"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
@@ -2584,6 +2673,16 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                             </label>
                           ))}
                         </div>
+                        <div className="mt-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Deformações acidentais</label>
+                          <button type="button" onClick={() => setDeformacoesPickerOpen(true)}
+                            className="flex min-h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 py-3 text-left transition focus:border-[#9e7f45]">
+                            <span className={`text-[14px] leading-snug ${activeWeapon?.deformacoesAcidentais ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.deformacoesAcidentais || "Selecionar deformações…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
                       </CollapsibleCard>
                     </div>
                   )}
@@ -2592,14 +2691,55 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   {activeWeapon?.type === "FACA" && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        {/* Material da lâmina */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material da lâmina</label>
+                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.material || "Selecionar material…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        {/* Tipo de lâmina */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de lâmina</label>
+                          <button type="button" onClick={() => setTipoLaminaPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.tipoLamina ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.tipoLamina || "Selecionar tipo…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        {/* Tipo de gume */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de gume</label>
+                          <button type="button" onClick={() => setTipoGumePickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.tipoGume ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.tipoGume || "Selecionar tipo…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        {/* Acabamento */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Acabamento</label>
+                          <button type="button" onClick={() => setAcabamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.acabamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.acabamento || "Selecionar acabamento…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        {/* Comprimentos */}
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
-                            ["material",   "Material da lâmina", "Ex.: aço inox, aço carbono"],
-                            ["tipoLamina", "Tipo de lâmina",     "Ex.: lisa, serrilhada, mista"],
-                            ["compLamina", "Comprimento da lâmina","Ex.: 120 mm"],
-                            ["compTotal",  "Comprimento total",  "Ex.: 240 mm"],
-                            ["tipoGume",   "Tipo de gume",       "Ex.: simples, duplo"],
-                            ["acabamento", "Acabamento",         "Ex.: polido, brunido"],
+                            ["compLamina", "Comprimento da lâmina", "Ex.: 120 mm"],
+                            ["compTotal",  "Comprimento total",     "Ex.: 240 mm"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -2867,7 +3007,9 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                 <div className="shrink-0 px-5 pb-3 pt-4">
                   <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
                   <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Material do projétil</span>
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">
+                      {activeWeapon?.type === "ESTOJO" ? "Material do estojo" : activeWeapon?.type === "CARTUCHO" ? "Material do cartucho" : activeWeapon?.type === "FACA" ? "Material da lâmina" : "Material do projétil"}
+                    </span>
                     <button type="button" onClick={() => setMaterialPickerOpen(false)}
                       className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]">
                       <X className="h-4 w-4" />
@@ -2876,7 +3018,26 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                 </div>
                 {/* Lista rolável */}
                 <div className="flex-1 overflow-y-auto px-4 pb-8">
-                  {[
+                  {(activeWeapon?.type === "ESTOJO" || activeWeapon?.type === "CARTUCHO" ? [
+                    "Latão",
+                    "Aço",
+                    "Aço inoxidável",
+                    "Alumínio",
+                    "Cobre",
+                    "Bimetálico (aço/latão)",
+                    "Niquelado",
+                    "Polímero / plástico",
+                  ] : activeWeapon?.type === "FACA" ? [
+                    "Aço inoxidável",
+                    "Aço carbono",
+                    "Aço inox cirúrgico",
+                    "Aço damasco",
+                    "Aço revestido (titânio / DLC)",
+                    "Liga metálica",
+                    "Cerâmica",
+                    "Ferro",
+                    "Indeterminado",
+                  ] : [
                     "Chumbo",
                     "Liga de chumbo",
                     "Chumbo endurecido",
@@ -2893,7 +3054,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                     "Bismuto",
                     "Polímero",
                     "Niquelado",
-                  ].map((mat, idx, arr) => {
+                  ]).map((mat, idx, arr) => {
                     const selected = (activeWeapon?.material ?? "").split(",").map(s => s.trim()).filter(Boolean).includes(mat)
                     return (
                       <button
@@ -2936,7 +3097,9 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                 <div className="shrink-0 px-5 pb-3 pt-4">
                   <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
                   <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Formato do projétil</span>
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">
+                      {activeWeapon?.type === "ESTOJO" ? "Tipo de rebordo" : "Formato do projétil"}
+                    </span>
                     <button type="button" onClick={() => setFormatoPickerOpen(false)}
                       className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]">
                       <X className="h-4 w-4" />
@@ -2944,7 +3107,16 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-4 pb-8">
-                  {[
+                  {(activeWeapon?.type === "ESTOJO" ? [
+                    "Sem rebordo / Rimless (RL)",
+                    "Semi-rebordo / Semi-rim (SR)",
+                    "Com rebordo / Rimmed (R)",
+                    "Rebordo destacável / Rebated rim (RB)",
+                    "Semi-rebordo destacável / Semi-rebated (SRB)",
+                    "Garrafa / Bottle neck",
+                    "Reto / Straight",
+                    "Cônico / Tapered",
+                  ] : [
                     "Ogival",
                     "Ogival truncado",
                     "Ponta plana (FP)",
@@ -2960,7 +3132,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                     "Garrafa (bottle neck)",
                     "Deformado",
                     "Fragmentado",
-                  ].map((fmt, idx, arr) => {
+                  ]).map((fmt, idx, arr) => {
                     const selected = activeWeapon?.formato === fmt
                     return (
                       <button
@@ -3065,7 +3237,25 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-4 pb-8">
-                  {[
+                  {(activeWeapon?.type === "ESTOJO" ? [
+                    "Ausente",
+                    "Amassamento na boca",
+                    "Amassamento no corpo",
+                    "Amassamento no rebordo",
+                    "Deformação por extração forçada",
+                    "Arranhões / riscos superficiais",
+                    "Oxidação com deformação",
+                    "Indeterminada",
+                  ] : activeWeapon?.type === "CARTUCHO" ? [
+                    "Ausente",
+                    "Amassamento na boca do estojo",
+                    "Amassamento no corpo do estojo",
+                    "Deformação no projétil",
+                    "Deformação no rebordo",
+                    "Arranhões / riscos superficiais",
+                    "Oxidação com deformação",
+                    "Indeterminada",
+                  ] : [
                     "Ausente",
                     "Leve",
                     "Moderada",
@@ -3086,7 +3276,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                     "Deformação por impacto em superfície dura",
                     "Deformação por passagem em material mole",
                     "Indeterminada",
-                  ].map((def, idx, arr) => {
+                  ]).map((def, idx, arr) => {
                     const selecionados = (activeWeapon?.deformacoesAcidentais ?? "").split(",").map(s => s.trim()).filter(Boolean)
                     const selected = selecionados.includes(def)
                     return (
@@ -3103,6 +3293,120 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                           {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </span>
                         <span className={`text-[15px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{def}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Tipo de lâmina picker ── */}
+        <AnimatePresence>
+          {tipoLaminaPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setTipoLaminaPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Tipo de lâmina</span>
+                    <button type="button" onClick={() => setTipoLaminaPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {["Lisa", "Serrilhada", "Mista (lisa e serrilhada)", "Ondulada / dentada", "Indeterminada"].map((opt, idx, arr) => {
+                    const selected = activeWeapon?.tipoLamina === opt
+                    return (
+                      <button key={opt} type="button"
+                        onClick={() => { setWeaponDirect("tipoLamina", selected ? "" : opt); setTipoLaminaPickerOpen(false) }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <span className={`text-[16px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Tipo de gume picker ── */}
+        <AnimatePresence>
+          {tipoGumePickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setTipoGumePickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Tipo de gume</span>
+                    <button type="button" onClick={() => setTipoGumePickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {["Simples (um gume)", "Duplo (dois gumes)", "Falso gume", "Sem gume definido", "Indeterminado"].map((opt, idx, arr) => {
+                    const selected = activeWeapon?.tipoGume === opt
+                    return (
+                      <button key={opt} type="button"
+                        onClick={() => { setWeaponDirect("tipoGume", selected ? "" : opt); setTipoGumePickerOpen(false) }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <span className={`text-[16px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Acabamento picker ── */}
+        <AnimatePresence>
+          {acabamentoPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setAcabamentoPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Acabamento</span>
+                    <button type="button" onClick={() => setAcabamentoPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {["Polido / espelhado", "Brunido / escurecido", "Fosco", "Revestimento preto", "Titânio", "DLC (Diamond-Like Carbon)", "Pintado", "Envernizado", "Oxidado", "Indeterminado"].map((opt, idx, arr) => {
+                    const selected = activeWeapon?.acabamento === opt
+                    return (
+                      <button key={opt} type="button"
+                        onClick={() => { setWeaponDirect("acabamento", selected ? "" : opt); setAcabamentoPickerOpen(false) }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <span className={`text-[16px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</span>
                       </button>
                     )
                   })}
