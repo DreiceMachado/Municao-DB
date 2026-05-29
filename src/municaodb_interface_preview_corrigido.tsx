@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import logo from "./assets/logo.png" 
+import logo from "./assets/logo.png"
+import logoEscudo from "./assets/logo-escudo.png"
 import {
   BarChart3,
   Building2,
@@ -387,20 +388,18 @@ function SidebarContent({ onOpenProfile }: { onOpenProfile: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-[#8e7340]/60 px-6 py-6">
-      <img
-        src={logo}
-        alt="Polícia Científica"
-        className="mx-auto w-36 h-36 object-contain"
-        style={{ background: "transparent" }}
-      />
-
-
-        <div className="mt-4 text-center">
-          <div className="text-xl font-bold tracking-wide text-[#f4dda2]">
+      <div className="border-b border-[#8e7340]/60 px-6 py-4">
+        <img
+          src={logo}
+          alt="Polícia Científica"
+          className="mx-auto w-24 h-24 object-contain"
+          style={{ background: "transparent" }}
+        />
+        <div className="mt-3 text-center">
+          <div className="text-base font-bold tracking-wide text-[#f4dda2]">
             POLÍCIA CIENTÍFICA
           </div>
-          <div className="text-sm uppercase tracking-[0.32em] text-[#d3b971]">
+          <div className="text-xs uppercase tracking-[0.32em] text-[#d3b971]">
             Paraná
           </div>
         </div>
@@ -676,7 +675,7 @@ const photoSlotsByType: Record<WeaponType, string[]> = {
   "ESPOLETA":     ["Vista frontal", "Vista lateral", "Base da espoleta", "Marcação de percussor"],
 }
 
-export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () => void }) {
+export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [weaponType, setWeaponType] = useState<WeaponType | null>(null)
   const [showTypeSelector, setShowTypeSelector] = useState(false)
@@ -909,7 +908,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
     <div className="min-h-screen bg-[linear-gradient(180deg,#09142a_0%,#0d1a34_50%,#091429_100%)] text-white">
       <div className="min-h-screen bg-[radial-gradient(circle_at_15%_18%,rgba(245,211,128,.08),transparent_18%),radial-gradient(circle_at_90%_10%,rgba(245,211,128,.05),transparent_18%),linear-gradient(180deg,rgba(255,255,255,.01),rgba(255,255,255,0))]">
         <header className="border-b-[3px] border-[#b79248] bg-[linear-gradient(180deg,#13233f_0%,#10203b_100%)] shadow-[0_12px_28px_rgba(0,0,0,.28)]">
-          <div className="border-b border-[#8e7340]/70 px-4 py-4 lg:px-8">
+          <div className="border-b border-[#8e7340]/70 px-4 py-2.5 lg:px-8">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 lg:hidden">
                 <button
@@ -918,22 +917,28 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                 >
                   <Menu className="h-5 w-5" />
                 </button>
-                <div>
-                  <div className="text-2xl font-bold text-[#f0d08a]">MunicaoDB</div>
-                  <div className="text-xs uppercase tracking-[0.24em] text-[#cfba81]">Balística</div>
+                <div className="flex items-center">
+                  <img src={logoEscudo} alt="BalísticaDB" className="h-12 w-auto object-contain" style={{ marginRight: "-14px" }} />
+                  <div className="flex flex-col gap-0" style={{ marginLeft: "-20px" }}>
+                    <div style={{ paddingLeft: "6px" }} className="text-2xl font-bold text-[#f0d08a]">BalísticaDB</div>
+                    <div style={{ paddingLeft: "2px" }} className="text-[11px] font-medium text-white/65 uppercase tracking-[0.12em]">Polícia Científica do Paraná</div>
+                  </div>
                 </div>
               </div>
 
-              <div className="hidden items-center gap-5 lg:flex">
-                <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-[#d7b76f] bg-[radial-gradient(circle_at_30%_30%,#28456e,#10213f_65%,#0b1830)] shadow-[0_10px_24px_rgba(0,0,0,.24)]">
-                  <Shield className="h-11 w-11 text-[#f0d08a]" />
-                </div>
-                <div>
-                  <h1 className="text-5xl font-black tracking-tight text-[#f0d08a]">MunicaoDB</h1>
-                  <p className="mt-1 text-lg text-[#f4e6be]">
+              <div className="hidden items-center lg:flex">
+                <img
+                  src={logoEscudo}
+                  alt="BalísticaDB"
+                  className="h-20 w-auto object-contain drop-shadow-[0_0_16px_rgba(240,208,138,.2)]"
+                  style={{ marginRight: "-18px" }}
+                />
+                <div style={{ marginLeft: "-34px" }} className="flex flex-col gap-0">
+                  <h1 style={{ paddingLeft: "6px" }} className="text-xl font-black tracking-tight text-[#f0d08a]">BalísticaDB</h1>
+                  <p style={{ paddingLeft: "8px" }} className="text-[11px] text-[#f4e6be]">
                     Perícia Balística — Sistema de Exames e Banco de Dados
                   </p>
-                  <p className="text-sm uppercase tracking-[0.28em] text-[#cfba81]">
+                  <p style={{ paddingLeft: "2px" }} className="text-[10px] font-black uppercase tracking-[0.18em] text-white/80">
                     Polícia Científica do Paraná
                   </p>
                 </div>
@@ -951,13 +956,13 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
         <div className="mx-auto flex max-w-[1800px]">
           {sidebarDesktop}
 
-          <main className="flex-1 px-4 py-5 lg:px-6 lg:py-6">
-            <div className="grid gap-6">
+          <main className="flex-1 px-4 py-5 lg:px-8 lg:py-6 xl:px-10">
+            <div className="grid gap-6 max-w-[1060px] mx-auto">
               <section className="space-y-6">
                 <div className="rounded-[28px] border border-[#8e7340] bg-[linear-gradient(180deg,rgba(20,35,63,.92)_0%,rgba(11,23,48,.96)_100%)] p-6 shadow-[0_18px_44px_rgba(0,0,0,.24)]">
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                     <div>
-                      <h2 className="text-3xl font-black tracking-tight text-[#f0d08a] md:text-4xl">
+                      <h2 className="text-xl font-black tracking-tight text-[#f0d08a] md:text-2xl">
                         Cadastro e gestão de exames em armas
                       </h2>
                       <p className="mt-2 max-w-3xl text-[15px] text-[#eadab0]">
@@ -989,7 +994,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                       <h3 className="text-xl font-black text-[#f0d08a]">Buscar</h3>
                     </div>
 
-                    <div className="space-y-4 p-5 text-[#27231c]">
+                    <div className="space-y-4 p-5 text-[#27231c] lg:grid lg:grid-cols-4 lg:gap-4 lg:items-end lg:space-y-0">
                       <div>
                         <label className="mb-2 block text-sm font-bold uppercase tracking-[0.16em] text-[#6b5838]">
                           Número
@@ -1196,7 +1201,10 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
               >
                 <div className="flex h-full flex-col">
                   <div className="flex items-center justify-between border-b border-white/10 p-6">
-                    <div className="text-xl font-black text-[#f0d08a]">MunicaoDB</div>
+                    <div className="flex items-center">
+                      <img src={logoEscudo} alt="BalísticaDB" className="h-11 w-auto object-contain" style={{ marginRight: "-12px" }} />
+                      <span style={{ paddingLeft: "6px" }} className="text-xl font-black text-[#f0d08a]">BalísticaDB</span>
+                    </div>
                     <button onClick={() => setMenuOpen(false)} className="text-white/60">
                       <X className="h-6 w-6" />
                     </button>
@@ -1241,7 +1249,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                 </div>
 
                 {/* conteúdo */}
-                <div className="space-y-6 p-5 md:p-6">
+                <div className="space-y-6 p-5 md:p-8 max-w-[860px] mx-auto">
                   {/* Identificação */}
                   <div>
                     <div className="mb-6 border-b border-[#d3c3a4] pb-3 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
@@ -1321,7 +1329,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                     {/* Armas de fogo */}
                     <div className="mb-5">
                       <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.22em] text-[#8d7854]">Armas de fogo</div>
-                      <div className="grid grid-cols-2 gap-2.5">
+                      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
                         {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).map((type) => (
                           <button key={type} type="button"
                             onClick={() => {
@@ -1330,7 +1338,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                               setActiveWeaponIdx(0)
                               setPieceFormOpen(true)
                             }}
-                            className="flex min-h-[72px] items-center justify-center rounded-2xl border-2 border-[#d3c4a8] bg-white px-3 py-4 text-center text-[13px] font-black uppercase tracking-[0.12em] text-[#50442f] shadow-sm transition active:scale-[.96] active:bg-[#ece6da]"
+                            className="flex min-h-[72px] items-center justify-center rounded-2xl border-2 border-[#d3c4a8] bg-white px-3 py-4 text-center text-[14px] font-black uppercase tracking-[0.08em] text-[#1a1410] shadow-sm transition active:scale-[.96] active:bg-[#ece6da]"
                           >
                             {type}
                           </button>
@@ -1341,7 +1349,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                     {/* Munição e componentes */}
                     <div className="mb-5">
                       <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.22em] text-[#8d7854]">Munição e componentes</div>
-                      <div className="grid grid-cols-2 gap-2.5">
+                      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
                         {(["PROJÉTIL","CARTUCHO","ESTOJO","ESPOLETA","PÓLVORA"] as WeaponType[]).map((type) => (
                           <button key={type} type="button"
                             onClick={() => {
@@ -1350,7 +1358,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                               setActiveWeaponIdx(0)
                               setPieceFormOpen(true)
                             }}
-                            className="flex min-h-[72px] items-center justify-center rounded-2xl border-2 border-[#d3c4a8] bg-white px-3 py-4 text-center text-[13px] font-black uppercase tracking-[0.12em] text-[#50442f] shadow-sm transition active:scale-[.96] active:bg-[#ece6da]"
+                            className="flex min-h-[72px] items-center justify-center rounded-2xl border-2 border-[#d3c4a8] bg-white px-3 py-4 text-center text-[14px] font-black uppercase tracking-[0.08em] text-[#1a1410] shadow-sm transition active:scale-[.96] active:bg-[#ece6da]"
                           >
                             {type}
                           </button>
@@ -1370,7 +1378,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                               setActiveWeaponIdx(0)
                               setPieceFormOpen(true)
                             }}
-                            className="flex min-h-[72px] items-center justify-center rounded-2xl border-2 border-[#d3c4a8] bg-white px-3 py-4 text-center text-[13px] font-black uppercase tracking-[0.12em] text-[#50442f] shadow-sm transition active:scale-[.96] active:bg-[#ece6da]"
+                            className="flex min-h-[72px] items-center justify-center rounded-2xl border-2 border-[#d3c4a8] bg-white px-3 py-4 text-center text-[14px] font-black uppercase tracking-[0.08em] text-[#1a1410] shadow-sm transition active:scale-[.96] active:bg-[#ece6da]"
                           >
                             {type}
                           </button>
@@ -1492,7 +1500,7 @@ export default function MunicaoDBInterfacePreview({ onLogout }: { onLogout: () =
                   </div>
                 </div>
 
-                <div className="space-y-6 p-5 md:p-6">
+                <div className="space-y-6 p-5 md:p-8 max-w-[860px] mx-auto">
                   <div className="space-y-3">
                     {/* ── Ícone da peça ── */}
                     <div className="flex items-center gap-4 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(135deg,#1b2947_0%,#12213d_100%)] px-5 py-4 shadow-[0_6px_22px_rgba(0,0,0,.28)]">
