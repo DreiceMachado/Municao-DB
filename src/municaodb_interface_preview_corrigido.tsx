@@ -36,7 +36,7 @@ import {
 
 type WeaponType =
   | "REVÓLVER" | "PISTOLA" | "ESPINGARDA" | "CARABINA" | "FUZIL" | "METRALHADORA"
-  | "ESTOJO" | "PROJÉTIL" | "CARTUCHO" | "FACA" | "PÓLVORA" | "ESPOLETA"
+  | "ESTOJO" | "PROJÉTIL" | "CARTUCHO" | "FACA" | "PÓLVORA" | "ESPOLETA" | "CARREGADOR"
 
 type WeaponEntry = {
   type: WeaponType
@@ -46,12 +46,14 @@ type WeaponEntry = {
   caliber: string
   serial: string
   paisFabricacao: string
+  origemMunicao: string
   // 2. Características físicas
   material: string
   acabamento: string
   compCano: string
   numCamaras: string
   tipoMira: string
+  tipoCarregador: string
   // 3. Mecanismo de funcionamento
   acaoSimples: boolean
   acaoDupla: boolean
@@ -135,6 +137,7 @@ type WeaponEntry = {
   caboDanificado: boolean
   manchas: boolean
   manchasObs: string
+  institucional: boolean | null
   naFlags: string[]
   tipoProd: string
   serialEstado: string
@@ -364,6 +367,16 @@ function PieceIcon({ type, className = "h-14 w-auto" }: { type: WeaponType; clas
         <rect x="4" y="55" width="16" height="2.5" rx="1" opacity="0.55"/>
         <rect x="3" y="57" width="18" height="5" rx="1.5"/>
         <circle cx="12" cy="64" r="2.5" fill="none" stroke="currentColor" strokeWidth="1.2"/>
+      </svg>
+    )
+    case "CARREGADOR": return (
+      <svg viewBox="0 0 32 48" fill="currentColor" className={className} aria-hidden="true">
+        <rect x="7" y="2" width="18" height="36" rx="3"/>
+        <rect x="10" y="5" width="12" height="4" rx="1.5" opacity="0.35"/>
+        <rect x="10" y="11" width="12" height="3" rx="1" opacity="0.28"/>
+        <rect x="10" y="16" width="12" height="3" rx="1" opacity="0.28"/>
+        <rect x="10" y="21" width="12" height="3" rx="1" opacity="0.28"/>
+        <rect x="9" y="38" width="14" height="8" rx="2"/>
       </svg>
     )
     case "FACA": return (
@@ -673,6 +686,7 @@ const photoSlotsByType: Record<WeaponType, string[]> = {
   "FACA":         ["Lâmina – frente", "Lâmina – verso", "Cabo", "Ponta", "Gume", "Numeração"],
   "PÓLVORA":      ["Vista geral", "Embalagem – frente", "Embalagem – verso", "Detalhe da granulometria"],
   "ESPOLETA":     ["Vista frontal", "Vista lateral", "Base da espoleta", "Marcação de percussor"],
+  "CARREGADOR":   ["Vista frontal", "Vista lateral", "Base", "Detalhe interno"],
 }
 
 export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: () => void }) {
@@ -712,6 +726,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [formatoPickerOpen, setFormatoPickerOpen] = useState(false)
   const [sentidoPickerOpen, setSentidoPickerOpen] = useState(false)
   const [deformacoesPickerOpen, setDeformacoesPickerOpen] = useState(false)
+  const [miraPickerOpen, setMiraPickerOpen] = useState(false)
+  const [carregadorPickerOpen, setCarregadorPickerOpen] = useState(false)
   const [tipoLaminaPickerOpen, setTipoLaminaPickerOpen] = useState(false)
   const [tipoGumePickerOpen, setTipoGumePickerOpen] = useState(false)
   const [acabamentoPickerOpen, setAcabamentoPickerOpen] = useState(false)
@@ -817,6 +833,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     "FACA":         "Exame de Faca",
     "PÓLVORA":      "Exame de Pólvora",
     "ESPOLETA":     "Exame de Espoleta",
+    "CARREGADOR":   "Exame de Carregador",
   }
 
   const handleField =
@@ -841,7 +858,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       )
     }
 
-  const setWeaponDirect = (field: keyof Omit<WeaponEntry, "type">, value: string | boolean) => {
+  const setWeaponDirect = (field: keyof Omit<WeaponEntry, "type">, value: string | boolean | null) => {
     setWeapons(prev => prev.map((w, i) => i === activeWeaponIdx ? { ...w, [field]: value } : w))
   }
 
@@ -857,8 +874,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
   const makeWeaponEntry = (type: WeaponType): WeaponEntry => ({
     type,
-    brand: "", model: "", caliber: "", serial: "", paisFabricacao: "",
-    material: "", acabamento: "", compCano: "", numCamaras: "", tipoMira: "",
+    brand: "", model: "", caliber: "", serial: "", paisFabricacao: "", origemMunicao: "",
+    material: "", acabamento: "", compCano: "", numCamaras: "", tipoMira: "", tipoCarregador: "",
     acaoSimples: true, acaoDupla: true, tamborGira: true, indexacaoCorreta: true,
     caoFuncional: true, gatilhoFuncional: true, seguranca: true,
     ferrugem: false, ferrugemObs: "", desgaste: false, desgasteObs: "",
@@ -880,7 +897,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     gumeFuncional: true, aptaUso: true, laminaIntegra: true,
     caboDanificado: false, manchas: false, manchasObs: "",
     sistemaAcionamento: "", tamanhoCamara: "", tipoRaiamento: "", materialQuadro: "",
-    naFlags: [], tipoProd: "", serialEstado: "", quantidade: "", diametroMin: "", massa: "",
+    institucional: null, naFlags: [], tipoProd: "", serialEstado: "", quantidade: "", diametroMin: "", massa: "",
     origemProjetil: "", origemProjetilRef: "", regiaoColeta: "", deformacoesAcidentais: "", estadoProjetil: "", alturaProjetil: "",
     estadoCartucho: "", estadoEstojo: "",
     tipoPolvora: "", cor: "", tipoEspoleta: "",
@@ -1267,7 +1284,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                         <span className="text-2xl font-black text-[#9e7f45]">/</span>
                         <div className="relative w-28">
-                          <select value={form.examYear} onChange={handleField("examYear")}
+                          <select value={form.examYear} onChange={e => setForm(f => ({ ...f, examYear: e.target.value }))}
                             className="h-14 w-full appearance-none rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-3 pr-8 text-[16px] text-center outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm cursor-pointer">
                             {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 5 + i).map(y => (
                               <option key={y} value={String(y)}>{y}</option>
@@ -1282,49 +1299,47 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {/* Peças salvas */}
                   {savedPieces.length > 0 && (
                     <div>
-                      <div className="mb-5 border-b border-[#d3c3a4] pb-3 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
+                      <div className="mb-3 border-b border-[#d3c3a4] pb-2 text-[13px] font-black uppercase tracking-[0.18em] text-[#50442f]">
                         Peças do exame
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {savedPieces.map((p, i) => (
-                          <div key={i} className="overflow-hidden rounded-2xl border border-[#c8b47e] bg-white shadow-sm">
+                          <div key={i} className="overflow-hidden rounded-xl border border-[#ddd0b3] bg-white shadow-sm">
                             <div className="flex items-stretch">
-                              {/* Card clicável para editar */}
                               <button
                                 type="button"
                                 onClick={() => openEditPiece(i)}
-                                className="flex flex-1 items-center gap-3 px-4 py-4 text-left transition active:bg-[#f5efe3]"
+                                className="flex flex-1 items-center gap-2.5 px-3 py-2.5 text-left transition active:bg-[#f5efe3]"
                               >
-                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-sm">
-                                  <PieceIcon type={p.type} className="h-5 w-auto max-w-[28px]" />
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a]">
+                                  <PieceIcon type={p.type} className="h-4 w-auto max-w-[22px]" />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <div className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#b89a58]">{p.type}</div>
-                                  <div className="truncate text-[14px] font-black text-[#26221b]">
-                                    {p.brand || <span className="font-medium italic text-[#b8a070]">Identificação não informada</span>}
+                                  <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#b89a58]">{p.type}</div>
+                                  <div className="truncate text-[13px] font-black leading-tight text-[#26221b]">
+                                    {p.brand || <span className="font-medium italic text-[#b8a070]">Não identificado</span>}
                                   </div>
                                   {p.model && (
-                                    <div className="truncate text-[12px] font-medium text-[#6b5838]">{p.model}</div>
+                                    <div className="truncate text-[11px] text-[#6b5838]">{p.model}</div>
                                   )}
                                 </div>
-                                <Pencil className="h-4 w-4 shrink-0 text-[#c8a96e]" />
+                                <Pencil className="h-3.5 w-3.5 shrink-0 text-[#c8a96e]" />
                               </button>
-                              {/* Divisor */}
-                              <div className="my-3 w-px shrink-0 bg-[#e8dfc8]" />
-                              {/* Botão excluir */}
+                              <div className="my-2 w-px shrink-0 bg-[#e8dfc8]" />
                               <button
                                 type="button"
                                 onClick={() => setConfirmDeletePieceIdx(i)}
-                                className="flex w-14 shrink-0 items-center justify-center text-[#c87070] transition active:bg-[#fdf0f0]"
-                                title="Remover peça"
+                                className="flex w-10 shrink-0 items-center justify-center text-[#c87070] transition active:bg-[#fdf0f0]"
                               >
-                                <X className="h-5 w-5" />
+                                <X className="h-4 w-4" />
                               </button>
                             </div>
-                            {/* Rodapé com número de série */}
-                            <div className="border-t border-[#f0e8d8] bg-[#fdfaf5] px-4 py-2">
-                              <span className="text-[11px] font-semibold text-[#9e8255]">Nº série: </span>
-                              <span className="text-[11px] font-black text-[#50442f]">{p.serial || <span className="font-medium italic text-[#c4ac82]">não informado</span>}</span>
+                            <div className="border-t border-[#f0e8d8] bg-[#fdfaf5] px-3 py-1.5">
+                              <div className="flex flex-wrap gap-x-3 gap-y-0">
+                                <span className="text-[10px] text-[#9e8255]">Série: <span className="font-black text-[#50442f]">{p.serial || <span className="italic text-[#c4ac82]">—</span>}</span></span>
+                                {p.tipoMira && <span className="text-[10px] text-[#9e8255]">Mira: <span className="font-black text-[#50442f]">{p.tipoMira}</span></span>}
+                                {p.tipoCarregador && <span className="text-[10px] text-[#9e8255]">Carregador: <span className="font-black text-[#50442f]">{p.tipoCarregador}{p.capacidadeCarregador ? ` · ${p.capacidadeCarregador}` : ""}</span></span>}
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -1362,7 +1377,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <div className="mb-5">
                       <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.22em] text-[#8d7854]">Munição e componentes</div>
                       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
-                        {(["PROJÉTIL","CARTUCHO","ESTOJO","ESPOLETA","PÓLVORA"] as WeaponType[]).map((type) => (
+                        {(["PROJÉTIL","CARTUCHO","ESTOJO","ESPOLETA","PÓLVORA","CARREGADOR"] as WeaponType[]).map((type) => (
                           <button key={type} type="button"
                             onClick={() => {
                               setWeaponType(type)
@@ -1379,7 +1394,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
 
                     {/* Arma branca */}
-                    <div>
+                    <div className="mb-5">
                       <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.22em] text-[#8d7854]">Arma branca</div>
                       <div className="grid grid-cols-1 gap-2.5">
                         {(["FACA"] as WeaponType[]).map((type) => (
@@ -1397,6 +1412,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         ))}
                       </div>
                     </div>
+
 
                   </div>
 
@@ -1525,6 +1541,42 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </div>
                     </div>
 
+                    {/* Institucional — apenas armas de fogo */}
+                    {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                      <div className="overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
+                        <div className="border-b border-[#e8dfc8] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-4 py-3">
+                          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[#ccb780]">Vínculo da arma</div>
+                        </div>
+                        <div className="grid grid-cols-2 divide-x divide-[#e8dfc8]">
+                          {([
+                            { v: true,  icon: <Building2 className="h-5 w-5" />, l: "Institucional", s: "Órgão público" },
+                            { v: false, icon: <User2     className="h-5 w-5" />, l: "Particular",    s: "Pessoa física / privada" },
+                          ] as { v: boolean; icon: React.ReactNode; l: string; s: string }[]).map(({ v, icon, l, s }) => {
+                            const sel = activeWeapon?.institucional === v
+                            return (
+                              <button key={String(v)} type="button"
+                                onClick={() => setWeaponDirect("institucional", sel ? null : v)}
+                                className={cn(
+                                  "flex flex-col items-center gap-2 px-4 py-5 transition active:scale-[0.97]",
+                                  sel ? "bg-[#7d6334]/10" : "bg-white hover:bg-[#fbf8f2]"
+                                )}>
+                                <div className={cn(
+                                  "flex h-10 w-10 items-center justify-center rounded-full border-2 transition",
+                                  sel ? "border-[#7d6334] bg-[#7d6334] text-white shadow-md" : "border-[#d3c4a8] bg-[#f5efe3] text-[#8d7854]"
+                                )}>
+                                  {icon}
+                                </div>
+                                <div className="text-center">
+                                  <div className={`text-[13px] font-black leading-tight ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{l}</div>
+                                  <div className="mt-0.5 text-[11px] text-[#a08c68]">{s}</div>
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Estado do Projétil */}
                     {activeWeapon?.type === "PROJÉTIL" && (
                       <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-4 shadow-sm">
@@ -1610,26 +1662,27 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     {/* Origem — universal para todos os tipos */}
                     {(() => {
                       const origemLabel: Record<WeaponType, string> = {
-                        "PROJÉTIL":    "Origem do projétil",
-                        "CARTUCHO":    "Origem do cartucho",
-                        "ESTOJO":      "Origem do estojo",
-                        "FACA":        "Origem da faca",
-                        "REVÓLVER":    "Origem do revólver",
-                        "PISTOLA":     "Origem da pistola",
-                        "ESPINGARDA":  "Origem da espingarda",
-                        "CARABINA":    "Origem da carabina",
-                        "FUZIL":       "Origem do fuzil",
-                        "METRALHADORA":"Origem da metralhadora",
-                        "PÓLVORA":     "Origem da pólvora",
-                        "ESPOLETA":    "Origem da espoleta",
+                        "PROJÉTIL":    "Origem de coleta do projétil",
+                        "CARTUCHO":    "Origem de coleta do cartucho",
+                        "ESTOJO":      "Origem de coleta do estojo",
+                        "FACA":        "Origem de coleta da faca",
+                        "REVÓLVER":    "Origem de coleta do revólver",
+                        "PISTOLA":     "Origem de coleta da pistola",
+                        "ESPINGARDA":  "Origem de coleta da espingarda",
+                        "CARABINA":    "Origem de coleta da carabina",
+                        "FUZIL":       "Origem de coleta do fuzil",
+                        "METRALHADORA":"Origem de coleta da metralhadora",
+                        "PÓLVORA":     "Origem de coleta da pólvora",
+                        "ESPOLETA":    "Origem de coleta da espoleta",
+                        "CARREGADOR":  "Origem de coleta do carregador",
                       }
                       const label = origemLabel[activeWeapon?.type as WeaponType] ?? "Origem"
                       return (
                         <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-4 shadow-sm">
                           <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8d7854]">{label}</div>
-                          <div className={`grid gap-2 ${(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","PÓLVORA","ESPOLETA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "grid-cols-2" : "grid-cols-3"}`}>
+                          <div className={`grid gap-2 ${(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "grid-cols-2" : "grid-cols-3"}`}>
                             {(
-                              (["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","PÓLVORA","ESPOLETA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
+                              (["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
                                 ? [
                                     { id: "DELEGACIA", label: "Delegacia", Icon: Building2 },
                                     { id: "LOCAL",     label: "Local",     Icon: MapPin    },
@@ -1686,14 +1739,61 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     })()}
                   </div>
 
+                  {/* Origem (Industrial/Recarga) — apenas CARTUCHO */}
+                  {activeWeapon?.type === "CARTUCHO" && (
+                    <div>
+                      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Natureza da munição</label>
+                      <div className="space-y-2">
+                        {([
+                          { v: "Industrial",    d: "Fabricada em linha industrial por empresa homologada" },
+                          { v: "Recarga",       d: "Montada artesanalmente com componentes avulsos" },
+                          { v: "Indeterminado", d: "Não foi possível determinar a origem de fabricação" },
+                        ] as {v:string;d:string}[]).map(({v,d}) => {
+                          const sel = activeWeapon?.origemMunicao === v
+                          return (
+                            <button key={v} type="button"
+                              onClick={() => setWeaponDirect("origemMunicao", sel ? "" : v)}
+                              className={cn(
+                                "flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition active:scale-[0.99]",
+                                sel ? "border-[#7d6334] bg-[#7d6334]/10" : "border-[#d3c4a8] bg-[#fbf8f2] hover:bg-[#f5efe3]"
+                              )}>
+                              <span className={cn(
+                                "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition",
+                                sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"
+                              )}>
+                                {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                              </span>
+                              <div className="min-w-0">
+                                <div className={`text-[13px] font-black leading-tight ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{v}</div>
+                                <div className="text-[11px] text-[#a08c68]">{d}</div>
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* ── Campos base ── */}
                   {!(["PROJÉTIL","PÓLVORA","ESPOLETA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && <div className="space-y-5">
                     <div className="grid gap-5 md:grid-cols-2">
                       {activeWeapon?.type !== "FACA" && (
                         <div>
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            {activeWeapon?.type === "CARTUCHO" ? "Tipo" : "Modelo"}
-                            <HelpBtn title={activeWeapon?.type === "CARTUCHO" ? "Tipo" : "Modelo"} text={
+                            Fabricante
+                            <HelpBtn title="Fabricante" text="Empresa responsável pela fabricação. Ex.: Taurus, Glock, CBC, Remington." />
+                          </label>
+                          <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
+                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                            placeholder={activeWeapon?.type === "ESTOJO" ? "Ex.: CBC, Sellier & Bellot…" : activeWeapon?.type === "CARTUCHO" ? "Ex.: CBC, Sellier & Bellot…" : "Ex.: Taurus, Glock, Colt…"} />
+                        </div>
+                      )}
+                      {activeWeapon?.type !== "FACA" && (
+                        <div>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            {activeWeapon?.type === "ESTOJO" ? "Identificação" : activeWeapon?.type === "CARTUCHO" ? "Tipo" : "Modelo"}
+                            <HelpBtn title={activeWeapon?.type === "ESTOJO" ? "Identificação" : activeWeapon?.type === "CARTUCHO" ? "Tipo" : "Modelo"} text={
+                              activeWeapon?.type === "ESTOJO" ? "Headstamp ou marcação identificadora do estojo. Ex.: CBC .38, RP 9mm." :
                               activeWeapon?.type === "CARTUCHO" ? "Tipo construtivo da munição. Ex.: FMJ (encamisado), HP (ponta oca), Slug (projétil único para espingarda)." :
                               "Designação comercial ou nomenclatura do armamento. Ex.: GP100, M1911, AR-15."
                             } />
@@ -1705,20 +1805,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               activeWeapon?.type === "CARTUCHO" ? "Ex.: FMJ, HP, Slug…" :
                               "Ex.: RT 627"
                             } />
-                        </div>
-                      )}
-                      {activeWeapon?.type !== "FACA" && (
-                        <div>
-                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            {activeWeapon?.type === "ESTOJO" ? "Identificação" : "Fabricante"}
-                            <HelpBtn title={activeWeapon?.type === "ESTOJO" ? "Identificação" : "Fabricante"} text={
-                              activeWeapon?.type === "ESTOJO" ? "Marca gravada no headstamp (base do estojo). Ex.: CBC, RP, FC." :
-                              "Empresa responsável pela fabricação. Ex.: Taurus, Glock, CBC, Remington."
-                            } />
-                          </label>
-                          <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
-                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                            placeholder={activeWeapon?.type === "ESTOJO" ? "Ex.: CBC, Sellier & Bellot…" : activeWeapon?.type === "CARTUCHO" ? "Ex.: CBC, Sellier & Bellot…" : "Ex.: Taurus, Glock, Colt…"} />
                         </div>
                       )}
                       {activeWeapon?.type !== "FACA" && (
@@ -1920,12 +2006,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               placeholder={ph} />
                           </div>
                         ))}
-                        <div className="md:col-span-2">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de mira</label>
-                          <input value={activeWeapon?.tipoMira ?? ""} onChange={handleWeaponField("tipoMira")}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                            placeholder="Ex.: aberta fixada" />
-                        </div>
                       </div>
                     </CollapsibleSection>
 
@@ -2077,7 +2157,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["compCano",             "Comprimento do cano",  "Ex.: 510 mm"],
                             ["compTotal",            "Comprimento total",    "Ex.: 940 mm"],
                             ["capacidadeCarregador", "Capacidade (munições)","Ex.: Sete"],
-                            ["tipoMira",             "Tipo de mira",         "Ex.: aberta, telescópica"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -2236,7 +2315,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           {([
                             ["compCano",             "Comprimento do cano",     "Ex.: 100 mm"],
                             ["compTotal",            "Comprimento total",       "Ex.: 180 mm"],
-                            ["tipoMira",             "Tipo de mira",            "Ex.: ajustável, ponto branco"],
                             ["capacidadeCarregador", "Capacidade do carregador","Ex.: 17 cartuchos"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
@@ -2372,7 +2450,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["numCanos",             "Número de canos",      "Ex.: 1, 2"],
                             ["tamanhoCamara",        "Tamanho da câmara",    "Ex.: 2 ¾ polegadas"],
                             ["capacidadeCarregador", "Capacidade (munições)","Ex.: Sete"],
-                            ["tipoMira",             "Tipo de mira",         "Ex.: bead, aberta"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -2535,7 +2612,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["compCano",             "Comprimento do cano",   "Ex.: 410 mm"],
                             ["compTotal",            "Comprimento total",     "Ex.: 860 mm"],
                             ["capacidadeCarregador", "Capacidade (munições)", "Ex.: Trinta"],
-                            ["tipoMira",             "Tipo de mira",          "Ex.: aberta, óptica, red dot"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -2695,7 +2771,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["compCano",             "Comprimento do cano",  "Ex.: 260 mm"],
                             ["compTotal",            "Comprimento total",    "Ex.: 690 mm"],
                             ["capacidadeCarregador", "Capacidade (munições)","Ex.: Cem"],
-                            ["tipoMira",             "Tipo de mira",         "Ex.: aberta, óptica"],
                             ["modoFogo",             "Modo de fogo",         "Ex.: semi, auto"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
@@ -2819,13 +2894,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </span>
                             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                           </button>
-                        </div>
-                        {/* Fabricante */}
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Fabricante</label>
-                          <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                            placeholder="Ex.: CBC, Sellier & Bellot…" />
                         </div>
                         {/* Outros campos */}
                         <div className="grid gap-4 md:grid-cols-2">
@@ -3301,9 +3369,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {activeWeapon?.type === "CARTUCHO" && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
-                        {/* Material — picker */}
+                        {/* Material do estojo — picker */}
                         <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material do estojo</label>
                           <button type="button" onClick={() => setMaterialPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
@@ -3312,10 +3380,30 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                           </button>
                         </div>
+                        {/* Formato do estojo */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Formato do estojo</label>
+                          <button type="button" onClick={() => setFormatoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.formato ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.formato || "Selecionar formato…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        {/* Inscrições (headstamp) */}
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Inscrições (headstamp)</label>
+                          <input
+                            value={activeWeapon?.inscricaoFabricante ?? ""}
+                            onChange={handleWeaponField("inscricaoFabricante")}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            placeholder="Ex.: CBC .38 SPL, RP 9mm LUGER…"
+                          />
+                        </div>
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
                             ...(activeWeapon?.estadoCartucho === "ÍNTEGRO" ? [["quantidade", "Quantidade", "Ex.: 12"]] : []),
-                            ["compTotal",  "Comprimento total", "Ex.: 29,7 mm"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -3457,6 +3545,143 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ))}
                         </div>
                       </CollapsibleCard>
+                    </div>
+                  )}
+
+                  {/* ── CARREGADOR (peça independente) ── */}
+                  {activeWeapon?.type === "CARREGADOR" && (
+                    <div className="space-y-4">
+                      <CollapsibleSection title="Características" defaultOpen={true}>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo</label>
+                            <button type="button" onClick={() => setCarregadorPickerOpen(true)}
+                              className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                              <span className={`truncate text-[15px] ${activeWeapon?.tipoCarregador ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                                {activeWeapon?.tipoCarregador || "Selecionar tipo…"}
+                              </span>
+                              <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                            </button>
+                          </div>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            {([
+                              ["caliber",              "Calibre compatível",   "Ex.: 9 mm, .40, .45"],
+                              ["capacidadeCarregador", "Capacidade",           "Ex.: 17 cartuchos"],
+                              ["brand",                "Fabricante",           "Ex.: Glock, Beretta"],
+                              ["material",             "Material",             "Ex.: polímero, aço"],
+                            ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                              <div key={field}>
+                                <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                                <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                  className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                  placeholder={ph} />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </CollapsibleSection>
+                      <CollapsibleCard title="Estado / Condição">
+                        <div className="space-y-2">
+                          {([
+                            ["carregadorFuncional", "Carregador funcional (mola/segurador)"],
+                            ["ferrugemPresente",    "Presença de ferrugem"],
+                            ["danoEstruturais",     "Danos estruturais visíveis"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
+                            const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            const isSim = !isNa && Boolean((activeWeapon as Record<string,unknown>)?.[key] ?? true)
+                            const isNao = !isNa && !Boolean((activeWeapon as Record<string,unknown>)?.[key] ?? true)
+                            return (
+                              <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
+                                <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>{label}</span>
+                                <div className="flex shrink-0 gap-1.5">
+                                  {(["SIM","NÃO","N/A"] as const).map(opt => {
+                                    const active = opt === "N/A" ? isNa : opt === "SIM" ? isSim : isNao
+                                    return (
+                                      <button key={opt} type="button"
+                                        onClick={() => {
+                                          if (opt === "N/A") handleWeaponNaToggle(key)
+                                          else setWeaponDirect(key as keyof Omit<WeaponEntry,"type">, opt === "SIM")
+                                        }}
+                                        className={cn("rounded-lg px-2.5 py-1 text-[11px] font-black tracking-[0.1em] transition",
+                                          active ? "bg-[#7d6334] text-white" : "bg-[#e8dfc8] text-[#7a6540]")}>
+                                        {opt}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </CollapsibleCard>
+                    </div>
+                  )}
+
+                  {/* ── Mira e Carregador ── */}
+                  {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                    <div className="overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
+                      <div className="border-b border-[#e8dfc8] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-4 py-3">
+                        <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[#ccb780]">Mira e Carregador</div>
+                      </div>
+                      <div className="divide-y divide-[#ede3ce]">
+                        {/* Mira */}
+                        <div className="flex items-center justify-between px-4 py-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Mira</div>
+                            {activeWeapon?.tipoMira
+                              ? <div className="mt-0.5 text-[14px] font-semibold text-[#26221b]">{activeWeapon.tipoMira}</div>
+                              : <div className="mt-0.5 text-[13px] text-[#b09a78]">Não informada</div>}
+                          </div>
+                          <div className="ml-3 flex items-center gap-1.5">
+                            {activeWeapon?.tipoMira && (
+                              <button type="button" onClick={() => setWeaponDirect("tipoMira", "")}
+                                className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e0b0b0] bg-[#fdf0f0] text-[#c87070] transition active:bg-[#fde0e0]">
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            <button type="button" onClick={() => setMiraPickerOpen(true)}
+                              className="flex h-9 items-center gap-1.5 rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-[12px] font-black uppercase tracking-[0.1em] text-[#7d6334] transition active:bg-[#f0e8d4]">
+                              <Plus className="h-3.5 w-3.5" />{activeWeapon?.tipoMira ? "Alterar" : "Adicionar"}
+                            </button>
+                          </div>
+                        </div>
+                        {/* Carregador — exceto revólver */}
+                        {activeWeapon?.type !== "REVÓLVER" && (
+                          <>
+                            <div className="flex items-center justify-between px-4 py-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Carregador</div>
+                                {activeWeapon?.tipoCarregador
+                                  ? <div className="mt-0.5 text-[14px] font-semibold text-[#26221b]">{activeWeapon.tipoCarregador}</div>
+                                  : <div className="mt-0.5 text-[13px] text-[#b09a78]">Não informado</div>}
+                              </div>
+                              <div className="ml-3 flex items-center gap-1.5">
+                                {activeWeapon?.tipoCarregador && (
+                                  <button type="button" onClick={() => { setWeaponDirect("tipoCarregador", ""); setWeaponDirect("capacidadeCarregador", "") }}
+                                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e0b0b0] bg-[#fdf0f0] text-[#c87070] transition active:bg-[#fde0e0]">
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                                <button type="button" onClick={() => setCarregadorPickerOpen(true)}
+                                  className="flex h-9 items-center gap-1.5 rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-[12px] font-black uppercase tracking-[0.1em] text-[#7d6334] transition active:bg-[#f0e8d4]">
+                                  <Plus className="h-3.5 w-3.5" />{activeWeapon?.tipoCarregador ? "Alterar" : "Adicionar"}
+                                </button>
+                              </div>
+                            </div>
+                            {activeWeapon?.tipoCarregador && (
+                              <div className="px-4 py-3">
+                                <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Capacidade do carregador</label>
+                                <input
+                                  value={String(activeWeapon?.capacidadeCarregador ?? "")}
+                                  onChange={handleWeaponField("capacidadeCarregador")}
+                                  className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                  placeholder="Ex.: 17 cartuchos"
+                                />
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -3798,7 +4023,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
                   <div className="flex items-center justify-between">
                     <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">
-                      {activeWeapon?.type === "ESTOJO" ? "Tipo de rebordo" : "Formato do projétil"}
+                      {activeWeapon?.type === "ESTOJO" ? "Tipo de rebordo" : activeWeapon?.type === "CARTUCHO" ? "Formato do estojo" : "Formato do projétil"}
                     </span>
                     <button type="button" onClick={() => setFormatoPickerOpen(false)}
                       className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]">
@@ -3807,7 +4032,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-4 pb-8">
-                  {(activeWeapon?.type === "ESTOJO" ? [
+                  {(activeWeapon?.type === "CARTUCHO" ? [
+                    "Reto",
+                    "Cônico",
+                    "Gargalado",
+                    "Semi-gargalado",
+                    "Com cinta",
+                    "Indeterminado",
+                  ] : activeWeapon?.type === "ESTOJO" ? [
                     "Sem rebordo / Rimless (RL)",
                     "Semi-rebordo / Semi-rim (SR)",
                     "Com rebordo / Rimmed (R)",
@@ -3848,6 +4080,170 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </span>
                         <span className={`text-[16px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{fmt}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Mira picker ── */}
+        <AnimatePresence>
+          {miraPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setMiraPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Tipo de mira</span>
+                    <button type="button" onClick={() => setMiraPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {(activeWeapon?.type === "REVÓLVER" || activeWeapon?.type === "PISTOLA" ? [
+                    { l: "Aberta fixada",        d: "Mira dianteira e alça traseira fixas, sem regulagem" },
+                    { l: "Aberta regulável",     d: "Alça traseira com ajuste de elevação e/ou deriva" },
+                    { l: "Ponto vermelho (red dot)", d: "Mira óptica com ponto luminoso; sem aumento" },
+                    { l: "Noturna (tritium)",    d: "Miras com insertos de trítio para visibilidade noturna" },
+                    { l: "Laser",                d: "Mira laser acoplada ou integrada" },
+                    { l: "Holográfica",          d: "Mira holográfica de visão aberta" },
+                    { l: "Telescópica",          d: "Luneta com aumento óptico" },
+                    { l: "Sem mira",             d: "Mira ausente ou removida" },
+                    { l: "Indeterminada",        d: "Não foi possível determinar" },
+                  ] : activeWeapon?.type === "ESPINGARDA" ? [
+                    { l: "Bead (pérola frontal)", d: "Ponto metálico ou plástico na extremidade do cano" },
+                    { l: "Aberta",               d: "Mira dianteira e alça traseira" },
+                    { l: "Ghost ring",           d: "Anel traseiro largo de resposta rápida" },
+                    { l: "Ponto vermelho (red dot)", d: "Mira óptica sem aumento com ponto luminoso" },
+                    { l: "Telescópica",          d: "Luneta com aumento óptico" },
+                    { l: "Sem mira",             d: "Mira ausente ou removida" },
+                    { l: "Indeterminada",        d: "Não foi possível determinar" },
+                  ] : activeWeapon?.type === "CARABINA" ? [
+                    { l: "Aberta",               d: "Mira dianteira e alça traseira" },
+                    { l: "Telescópica",          d: "Luneta com aumento óptico" },
+                    { l: "Ponto vermelho (red dot)", d: "Mira óptica sem aumento" },
+                    { l: "Holográfica",          d: "Mira holográfica de visão aberta" },
+                    { l: "Colimador",            d: "Colimador reflex de visão aberta" },
+                    { l: "Noturna (NVG/tritium)", d: "Para uso em condições de baixa luminosidade" },
+                    { l: "BUIS (ferro de reserva)", d: "Mira de ferro dobrável de backup" },
+                    { l: "Sem mira",             d: "Mira ausente ou removida" },
+                    { l: "Indeterminada",        d: "Não foi possível determinar" },
+                  ] : activeWeapon?.type === "FUZIL" ? [
+                    { l: "Aberta (ferro)",       d: "Mira dianteira e alça traseira padrão" },
+                    { l: "Telescópica",          d: "Luneta com aumento óptico" },
+                    { l: "Ponto vermelho (red dot)", d: "Mira óptica sem aumento" },
+                    { l: "Holográfica",          d: "EOTech e similares; visão aberta" },
+                    { l: "ACOG",                 d: "Advanced Combat Optical Gunsight; aumento fixo 4x" },
+                    { l: "Colimador",            d: "Colimador reflex" },
+                    { l: "Noturna / NVG",        d: "Compatível com visão noturna" },
+                    { l: "BUIS (ferro de reserva)", d: "Mira de ferro dobrável de backup" },
+                    { l: "Sem mira",             d: "Mira ausente ou removida" },
+                    { l: "Indeterminada",        d: "Não foi possível determinar" },
+                  ] : activeWeapon?.type === "METRALHADORA" ? [
+                    { l: "Aberta",               d: "Mira dianteira e alça traseira" },
+                    { l: "Óptica",               d: "Mira óptica acoplada" },
+                    { l: "Ponto vermelho (red dot)", d: "Mira óptica sem aumento" },
+                    { l: "Sem mira",             d: "Mira ausente ou removida" },
+                    { l: "Indeterminada",        d: "Não foi possível determinar" },
+                  ] : [{ l: "Indeterminada", d: "Não foi possível determinar" }]
+                  ).map(({ l: opt, d: desc }, idx, arr) => {
+                    const sel = activeWeapon?.tipoMira === opt
+                    return (
+                      <button key={opt} type="button"
+                        onClick={() => { setWeaponDirect("tipoMira", sel ? "" : opt); setMiraPickerOpen(false) }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {sel && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className={`text-[15px] font-semibold leading-tight ${sel ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</div>
+                          <div className="mt-0.5 text-[12px] text-[#a08c68]">{desc}</div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Carregador picker ── */}
+        <AnimatePresence>
+          {carregadorPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setCarregadorPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Tipo de carregador</span>
+                    <button type="button" onClick={() => setCarregadorPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {(activeWeapon?.type === "REVÓLVER" ? [
+                    { l: "Tambor fixo (cilindro)",  d: "Cilindro giratório integrado à arma; não removível" },
+                    { l: "Speed loader",            d: "Dispositivo de carga rápida para revólver" },
+                    { l: "Moon clip",               d: "Clipe metálico plano que agrupa os cartuchos" },
+                    { l: "Indeterminado",           d: "Não foi possível determinar" },
+                  ] : activeWeapon?.type === "PISTOLA" ? [
+                    { l: "Caixa padrão (standard)", d: "Carregador de caixa removível de capacidade original" },
+                    { l: "Caixa estendido",         d: "Carregador com capacidade superior ao original" },
+                    { l: "Tambor (drum)",           d: "Carregador circular de alta capacidade" },
+                    { l: "Indeterminado",           d: "Não foi possível determinar" },
+                  ] : activeWeapon?.type === "ESPINGARDA" ? [
+                    { l: "Tubo tubular (interno)",  d: "Carregador tubular fixo sob o cano" },
+                    { l: "Caixa removível padrão",  d: "Carregador de caixa destacável" },
+                    { l: "Caixa estendida",         d: "Carregador de caixa de maior capacidade" },
+                    { l: "Fixo interno",            d: "Câmara única; carga pelo cano ou abertura superior" },
+                    { l: "Indeterminado",           d: "Não foi possível determinar" },
+                  ] : activeWeapon?.type === "CARABINA" ? [
+                    { l: "Caixa reto",              d: "Carregador de caixa reto removível" },
+                    { l: "Caixa curvo",             d: "Carregador de caixa curvo removível" },
+                    { l: "Tambor (drum)",           d: "Carregador circular de alta capacidade" },
+                    { l: "Tubo tubular",            d: "Carregador tubular sob o cano ou na coronha" },
+                    { l: "Integrado fixo",          d: "Carregador interno não removível" },
+                    { l: "Indeterminado",           d: "Não foi possível determinar" },
+                  ] : activeWeapon?.type === "FUZIL" ? [
+                    { l: "Caixa reto (STANAG)",     d: "Padrão OTAN; 20 ou 30 cartuchos" },
+                    { l: "Caixa curvo",             d: "Carregador curvo para cartuchos cônicos (ex: 7,62×39)" },
+                    { l: "Tambor (drum)",           d: "Carregador circular de alta capacidade" },
+                    { l: "Duplo acoplado",          d: "Dois carregadores unidos para troca rápida" },
+                    { l: "P-Mag / polímero",        d: "Carregador de polímero reforçado" },
+                    { l: "Indeterminado",           d: "Não foi possível determinar" },
+                  ] : activeWeapon?.type === "METRALHADORA" ? [
+                    { l: "Cinta / fita de munição", d: "Alimentação por correia ou fita metálica" },
+                    { l: "Tambor (drum)",           d: "Carregador circular de alta capacidade" },
+                    { l: "Caixa",                  d: "Carregador de caixa removível" },
+                    { l: "Indeterminado",           d: "Não foi possível determinar" },
+                  ] : [{ l: "Indeterminado", d: "Não foi possível determinar" }]
+                  ).map(({ l: opt, d: desc }, idx, arr) => {
+                    const sel = activeWeapon?.tipoCarregador === opt
+                    return (
+                      <button key={opt} type="button"
+                        onClick={() => { setWeaponDirect("tipoCarregador", sel ? "" : opt); setCarregadorPickerOpen(false) }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {sel && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className={`text-[15px] font-semibold leading-tight ${sel ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</div>
+                          <div className="mt-0.5 text-[12px] text-[#a08c68]">{desc}</div>
+                        </div>
                       </button>
                     )
                   })}
@@ -4143,46 +4539,52 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                 </div>
                 <div className="flex-1 overflow-y-auto px-4 pb-8">
                   {(activeWeapon?.type === "REVÓLVER" ? [
-                    "Ação simples (SA)",
-                    "Ação dupla (DA)",
-                    "Ação dupla exclusiva (DAO)",
+                    { l: "Ação simples (SA)",           d: "Cão deve ser amartilhado manualmente antes de cada disparo" },
+                    { l: "Ação dupla (DA)",             d: "Gatilho arma e dispara o cão em um único movimento" },
+                    { l: "Ação dupla exclusiva (DAO)",  d: "Sempre DA; cão retorna à posição de repouso após cada disparo" },
+                    { l: "Indeterminado",               d: "Sistema não pôde ser determinado" },
                   ] : activeWeapon?.type === "PISTOLA" ? [
-                    "Ação simples (SA)",
-                    "Ação dupla / ação simples (DA/SA)",
-                    "Ação dupla exclusiva (DAO)",
-                    "Striker-fired (percussor armado)",
-                    "DA com desamartilhador",
-                    "DA com trava de serrilha",
+                    { l: "Ação simples (SA)",                    d: "Cão externo amartilhado manualmente; gatilho apenas dispara" },
+                    { l: "Ação dupla / ação simples (DA/SA)",    d: "Primeiro disparo DA (gatilho arma e dispara); seguintes SA" },
+                    { l: "Ação dupla exclusiva (DAO)",           d: "Todo disparo pelo gatilho; cão retorna ao repouso sempre" },
+                    { l: "Striker-fired (percussor armado)",     d: "Percussor interno parcialmente armado pelo ciclo do ferrolho" },
+                    { l: "DA com desamartilhador",               d: "DA/SA com alavanca que abaixa o cão com segurança" },
+                    { l: "DA com trava de serrilha",             d: "Trava no ferrolho impede disparo acidental; desengata pelo gatilho" },
+                    { l: "Indeterminado",                        d: "Sistema não pôde ser determinado" },
                   ] : activeWeapon?.type === "ESPINGARDA" ? [
-                    "Ferrolho deslizante / pump-action",
-                    "Semi-automático (autocarregável)",
-                    "Ferrolho giratório (bolt-action)",
-                    "Alavanca (lever-action)",
-                    "Canos tombantes (break-action)",
-                    "Duplo gatilho",
-                    "Gatilho seletivo",
+                    { l: "Ferrolho deslizante (pump-action)",    d: "Bombeamento manual para ciclar a munição" },
+                    { l: "Semi-automático (autocarregável)",     d: "Gases ou recuo ciclam automaticamente após cada disparo" },
+                    { l: "Ferrolho giratório (bolt-action)",     d: "Ação manual por alavanca giratória e deslizante" },
+                    { l: "Alavanca (lever-action)",              d: "Alavanca inferior cicla o mecanismo manualmente" },
+                    { l: "Canos tombantes (break-action)",       d: "Cano(s) tombam para baixo para carga/descarga" },
+                    { l: "Duplo gatilho",                        d: "Um gatilho por cano; acionamento independente" },
+                    { l: "Gatilho seletivo",                     d: "Um gatilho seleciona qual cano será disparado" },
+                    { l: "Indeterminado",                        d: "Sistema não pôde ser determinado" },
                   ] : activeWeapon?.type === "CARABINA" ? [
-                    "Ferrolho giratório (bolt-action)",
-                    "Alavanca (lever-action)",
-                    "Ferrolho deslizante / pump-action",
-                    "Semi-automático (autocarregável)",
-                    "Tiro a tiro (single-shot)",
+                    { l: "Ferrolho giratório (bolt-action)",     d: "Alavanca gira e desliza para ciclar manualmente" },
+                    { l: "Alavanca (lever-action)",              d: "Alavanca abaixo do gatilho cicla o mecanismo" },
+                    { l: "Ferrolho deslizante (pump-action)",    d: "Bombeamento manual da coronha dianteira" },
+                    { l: "Semi-automático (autocarregável)",     d: "Gases ou recuo ciclam automaticamente após cada disparo" },
+                    { l: "Tiro a tiro (single-shot)",            d: "Carregamento manual individual a cada disparo" },
+                    { l: "Indeterminado",                        d: "Sistema não pôde ser determinado" },
                   ] : activeWeapon?.type === "FUZIL" ? [
-                    "Semi-automático",
-                    "Automático",
-                    "Semi/automático seletivo",
-                    "Rajada de 3 tiros",
-                    "Ferrolho giratório (bolt-action)",
-                    "Tiro a tiro (single-shot)",
+                    { l: "Semi-automático",                      d: "Um disparo por acionamento do gatilho; cicla automaticamente" },
+                    { l: "Automático",                           d: "Disparo contínuo enquanto o gatilho é pressionado" },
+                    { l: "Semi/automático seletivo",             d: "Seletor permite alternar entre semi e automático" },
+                    { l: "Rajada de 3 tiros",                    d: "Ciclo limitado a 3 disparos por acionamento do gatilho" },
+                    { l: "Ferrolho giratório (bolt-action)",     d: "Ação manual; cada ciclo é feito pelo atirador" },
+                    { l: "Tiro a tiro (single-shot)",            d: "Carregamento manual individual a cada disparo" },
+                    { l: "Indeterminado",                        d: "Sistema não pôde ser determinado" },
                   ] : activeWeapon?.type === "METRALHADORA" ? [
-                    "Automático (open bolt)",
-                    "Automático (closed bolt)",
-                    "Semi/automático seletivo",
-                    "Rajada de 3 tiros",
-                    "Automático contínuo",
+                    { l: "Automático (open bolt)",               d: "Ferrolho parte da posição aberta; seguro quando não dispara" },
+                    { l: "Automático (closed bolt)",             d: "Ferrolho fecha antes do disparo; maior precisão" },
+                    { l: "Semi/automático seletivo",             d: "Seletor permite alternar entre semi e automático" },
+                    { l: "Rajada de 3 tiros",                    d: "Ciclo limitado a 3 disparos por acionamento" },
+                    { l: "Automático contínuo",                  d: "Disparos contínuos sem limite de rajada" },
+                    { l: "Indeterminado",                        d: "Sistema não pôde ser determinado" },
                   ] : [
-                    "Indeterminado",
-                  ]).map((opt, idx, arr) => {
+                    { l: "Indeterminado", d: "Sistema não pôde ser determinado" },
+                  ]).map(({ l: opt, d: desc }, idx, arr) => {
                     const selected = activeWeapon?.sistemaAcionamento === opt
                     return (
                       <button key={opt} type="button"
@@ -4191,7 +4593,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
                           {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </span>
-                        <span className={`text-[16px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className={`text-[15px] font-semibold leading-tight ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</div>
+                          <div className="mt-0.5 text-[12px] text-[#a08c68] leading-snug">{desc}</div>
+                        </div>
                       </button>
                     )
                   })}
