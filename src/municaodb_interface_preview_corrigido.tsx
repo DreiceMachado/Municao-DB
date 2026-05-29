@@ -1734,45 +1734,43 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               </div>
                             </div>
                           )}
+                          {activeWeapon?.type === "CARTUCHO" && (
+                            <div className="mt-3 border-t border-[#ede3ce] pt-3">
+                              <div className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Natureza da munição</div>
+                              <div className="space-y-2">
+                                {([
+                                  { v: "Industrial",    d: "Fabricada em linha industrial por empresa homologada" },
+                                  { v: "Recarga",       d: "Montada artesanalmente com componentes avulsos" },
+                                  { v: "Indeterminado", d: "Não foi possível determinar a origem" },
+                                ] as {v:string;d:string}[]).map(({v,d}) => {
+                                  const sel = activeWeapon?.origemMunicao === v
+                                  return (
+                                    <button key={v} type="button"
+                                      onClick={() => setWeaponDirect("origemMunicao", sel ? "" : v)}
+                                      className={cn(
+                                        "flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition active:scale-[0.99]",
+                                        sel ? "border-[#7d6334] bg-[#7d6334]/10" : "border-[#d3c4a8] bg-[#fbf8f2]"
+                                      )}>
+                                      <span className={cn(
+                                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition",
+                                        sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"
+                                      )}>
+                                        {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                                      </span>
+                                      <div className="min-w-0">
+                                        <div className={`text-[13px] font-black leading-tight ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{v}</div>
+                                        <div className="text-[11px] text-[#a08c68]">{d}</div>
+                                      </div>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )
                     })()}
                   </div>
-
-                  {/* Origem (Industrial/Recarga) — apenas CARTUCHO */}
-                  {activeWeapon?.type === "CARTUCHO" && (
-                    <div>
-                      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Natureza da munição</label>
-                      <div className="space-y-2">
-                        {([
-                          { v: "Industrial",    d: "Fabricada em linha industrial por empresa homologada" },
-                          { v: "Recarga",       d: "Montada artesanalmente com componentes avulsos" },
-                          { v: "Indeterminado", d: "Não foi possível determinar a origem de fabricação" },
-                        ] as {v:string;d:string}[]).map(({v,d}) => {
-                          const sel = activeWeapon?.origemMunicao === v
-                          return (
-                            <button key={v} type="button"
-                              onClick={() => setWeaponDirect("origemMunicao", sel ? "" : v)}
-                              className={cn(
-                                "flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition active:scale-[0.99]",
-                                sel ? "border-[#7d6334] bg-[#7d6334]/10" : "border-[#d3c4a8] bg-[#fbf8f2] hover:bg-[#f5efe3]"
-                              )}>
-                              <span className={cn(
-                                "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition",
-                                sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"
-                              )}>
-                                {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
-                              </span>
-                              <div className="min-w-0">
-                                <div className={`text-[13px] font-black leading-tight ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{v}</div>
-                                <div className="text-[11px] text-[#a08c68]">{d}</div>
-                              </div>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
 
                   {/* ── Campos base ── */}
                   {!(["PROJÉTIL","PÓLVORA","ESPOLETA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && <div className="space-y-5">
