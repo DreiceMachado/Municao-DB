@@ -754,6 +754,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [acabamentoPickerOpen, setAcabamentoPickerOpen] = useState(false)
   const [sistemaAcionamentoPickerOpen, setSistemaAcionamentoPickerOpen] = useState(false)
   const [calibreArmaPressaoPickerOpen, setCalibreArmaPressaoPickerOpen] = useState(false)
+  const [calibrePickerOpen, setCalibrePickerOpen] = useState(false)
+  const [calibreCustomInput, setCalibreCustomInput] = useState("")
+  const [paisPickerOpen, setPaisPickerOpen] = useState(false)
   const [tipoRaiamentoPickerOpen, setTipoRaiamentoPickerOpen] = useState(false)
   const [materialCoronhaPickerOpen, setMaterialCoronhaPickerOpen] = useState(false)
   const [materialQuadroPickerOpen, setMaterialQuadroPickerOpen] = useState(false)
@@ -1024,7 +1027,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         }}
                         className="flex h-12 items-center gap-2 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] px-6 text-sm font-black tracking-wide text-[#1d2433] shadow transition hover:brightness-105"
                       >
-                        + NOVO REP
+                        + NOVA REP
                       </button>
                     </div>
                   </div>
@@ -1160,7 +1163,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                 <div className="w-full max-w-sm rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_32px_80px_rgba(0,0,0,.55)] overflow-hidden">
                   {/* topo */}
                   <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-5">
-                    <div className="text-xl font-black text-[#f0d08a]">Novo REP</div>
+                    <div className="text-xl font-black text-[#f0d08a]">Nova REP</div>
                     <div className="mt-0.5 text-xs uppercase tracking-[0.2em] text-[#ccb780]">Selecione o tipo de exame</div>
                   </div>
                   {/* opções */}
@@ -1279,7 +1282,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         <ChevronLeft className="h-5 w-5" />
                       </button>
                       <div>
-                        <div className="text-lg font-black text-[#f0d08a]">Novo REP</div>
+                        <div className="text-lg font-black text-[#f0d08a]">Nova REP</div>
                         <div className="inline-block rounded-full bg-[#f0d08a]/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#f0d08a]">{examType}</div>
                       </div>
                     </div>
@@ -1876,14 +1879,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             Calibre
                             <HelpBtn title="Calibre" text="Designação nominal da munição compatível com a arma ou peça. Ex.: .38 SPL, 9 mm Luger, 12 Ga. Para projéteis deflagrados, utilize o campo de diâmetro medido." />
                           </label>
-                          <input value={activeWeapon?.caliber ?? ""} onChange={handleWeaponField("caliber")}
-                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                            placeholder={
-                              activeWeapon?.type === "ESPINGARDA" ? "Ex.: 12 Ga, 20 Ga…" :
-                              (["CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "Ex.: 5,56 mm, 7,62 mm…" :
-                              (["ESTOJO","CARTUCHO"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "Ex.: 9 mm Luger, .38 SPL…" :
-                              "Ex.: .38 SPL, 9 mm…"
-                            } />
+                          <button type="button" onClick={() => setCalibrePickerOpen(true)}
+                            className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[16px] ${activeWeapon?.caliber ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.caliber || "Selecionar calibre…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
                         </div>
                       )}
                       {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && activeWeapon?.type !== "CARREGADOR" && (
@@ -1892,9 +1894,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             País de fabricação
                             <HelpBtn title="País de fabricação" text="País onde a peça foi fabricada, conforme indicação do fabricante ou marcação na arma. Ex.: Brasil, EUA, Alemanha." />
                           </label>
-                          <input value={activeWeapon?.paisFabricacao ?? ""} onChange={handleWeaponField("paisFabricacao")}
-                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                            placeholder="Ex.: Brasil" />
+                          <button type="button" onClick={() => setPaisPickerOpen(true)}
+                            className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[16px] ${activeWeapon?.paisFabricacao ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.paisFabricacao || "Selecionar país…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
                         </div>
                       )}
                     </div>
@@ -3064,6 +3070,51 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                           </button>
                         </div>
+                      </CollapsibleSection>
+
+                      <CollapsibleCard title="Marcações balísticas">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["estriasPresentes",  "Estrias presentes"],
+                            ["deformacaoPresente","Deformação presente"],
+                            ["fragmentado",       "Fragmentado"],
+                            ["oxidacaoPresente",  "Oxidação presente"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                        <div className="mt-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Deformações acidentais</label>
+                          <button type="button" onClick={() => setDeformacoesPickerOpen(true)}
+                            className="flex min-h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 py-3 text-left transition focus:border-[#9e7f45]">
+                            <span className={`text-[14px] leading-snug ${activeWeapon?.deformacoesAcidentais ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.deformacoesAcidentais || "Selecionar deformações…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                      </CollapsibleCard>
+
+                      <CollapsibleCard title="Estado de conservação">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["completo", "Projétil íntegro / completo"],
+                            ["manchas",  "Manchas ou resíduos presentes"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+
+                      <CollapsibleSection title="Medições e calibre" defaultOpen={true}>
                         {/* Raias — só para DEFLAGRADO */}
                         {activeWeapon?.estadoProjetil !== "ÍNTEGRO" && (<>
                           {/* Sentido das raias */}
@@ -3141,44 +3192,133 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ))}
                           </div>
                           {(() => {
-                            const parseVal = (v: string) => parseFloat(String(v ?? "").replace(",", ".").replace(/[^\d.]/g, ""))
-                            const max = parseVal(activeWeapon?.diametro ?? "")
-                            const min = parseVal(activeWeapon?.diametroMin ?? "")
-                            if (isNaN(max) || isNaN(min)) return null
-                            const mediaNum = (max + min) / 2
-                            const media = mediaNum.toFixed(2).replace(".", ",")
-                            const familias: { min: number; max: number; nome: string; nominal: string }[] = [
-                              { min: 5.4,  max: 5.9,  nome: "Vinte e dois (.22)",           nominal: ".22 LR / .22 Short" },
-                              { min: 6.1,  max: 6.6,  nome: "Vinte e cinco (.25)",          nominal: ".25 ACP / 6,35mm Browning" },
-                              { min: 7.4,  max: 7.7,  nome: "Trinta e dois (.32)",          nominal: ".32 ACP / 7,65mm Browning" },
-                              { min: 7.7,  max: 7.95, nome: "Trinta e dois (.32)",          nominal: ".32 S&W Long" },
-                              { min: 8.4,  max: 9.3,  nome: "Nove milímetros (9 mm / .38)", nominal: "9mm Luger / .38TPC" },
-                              { min: 9.9,  max: 10.5, nome: "Quarenta (.40 / 10 mm)",       nominal: ".40 S&W / 10mm Auto" },
-                              { min: 11.0, max: 11.35, nome: "Quarenta e quatro (.44)",     nominal: ".44 Magnum / .44 S&W Special" },
-                              { min: 11.35, max: 11.7, nome: "Quarenta e cinco (.45)",      nominal: ".45 ACP / .45 Colt" },
+                            const pv = (v: string | undefined) => parseFloat(String(v ?? "").replace(",", ".").replace(/[^\d.]/g, ""))
+                            const dMax  = pv(activeWeapon?.diametro)
+                            const dMin  = pv(activeWeapon?.diametroMin)
+                            const alt   = pv(activeWeapon?.alturaProjetil)
+                            const mass  = pv(activeWeapon?.massa)
+                            if (isNaN(dMax) || isNaN(dMin)) return null
+                            const diam  = (dMax + dMin) / 2
+                            const media = diam.toFixed(2).replace(".", ",")
+
+                            type Cal = { nome: string; nominal: string; mm: string; dMin: number; dMax: number; aMin: number; aMax: number; mMin: number; mMax: number }
+                            const db: Cal[] = [
+                              { nome: ".22 LR",               nominal: ".22 LR",                    mm:"5,59 mm", dMin:5.40, dMax:5.80, aMin:7,  aMax:12, mMin:2.0,  mMax:3.5  },
+                              { nome: ".25 ACP / 6,35mm",     nominal: ".25 ACP / 6,35mm Browning", mm:"6,35 mm", dMin:6.00, dMax:6.60, aMin:8,  aMax:12, mMin:3.0,  mMax:4.0  },
+                              { nome: ".32 ACP / 7,65mm",     nominal: ".32 ACP / 7,65mm Browning", mm:"7,65 mm", dMin:7.45, dMax:7.85, aMin:9,  aMax:13, mMin:4.0,  mMax:5.5  },
+                              { nome: ".32 S&W Long",         nominal: ".32 S&W Long",              mm:"7,97 mm", dMin:7.85, dMax:8.10, aMin:11, aMax:16, mMin:5.0,  mMax:7.0  },
+                              { nome: ".380 ACP / 9mm Kurz",  nominal: ".380 ACP / 9mm Curto",      mm:"9,02 mm", dMin:8.70, dMax:9.10, aMin:8,  aMax:11, mMin:5.0,  mMax:7.5  },
+                              { nome: "9mm Luger / 9×19mm",   nominal: "9mm Luger",                 mm:"9,02 mm", dMin:8.80, dMax:9.20, aMin:11, aMax:15, mMin:6.5,  mMax:9.5  },
+                              { nome: ".38 SPL",              nominal: ".38 S&W Special",           mm:"9,07 mm", dMin:9.00, dMax:9.20, aMin:14, aMax:18, mMin:7.5,  mMax:12.0 },
+                              { nome: ".357 Magnum",          nominal: ".357 Magnum",               mm:"9,07 mm", dMin:9.00, dMax:9.20, aMin:15, aMax:22, mMin:8.0,  mMax:13.5 },
+                              { nome: ".40 S&W",              nominal: ".40 S&W",                   mm:"10,17 mm",dMin:9.90, dMax:10.40, aMin:12, aMax:16, mMin:9.5, mMax:13.5 },
+                              { nome: "10mm Auto",            nominal: "10mm Auto",                 mm:"10,17 mm",dMin:9.90, dMax:10.40, aMin:14, aMax:18, mMin:10.0,mMax:14.0 },
+                              { nome: ".44 SPL",              nominal: ".44 S&W Special",           mm:"10,92 mm",dMin:10.70, dMax:11.10, aMin:16, aMax:21, mMin:12.0,mMax:17.0},
+                              { nome: ".44 Magnum",           nominal: ".44 Magnum",                mm:"10,92 mm",dMin:10.70, dMax:11.10, aMin:18, aMax:26, mMin:13.0,mMax:20.0},
+                              { nome: ".45 ACP",              nominal: ".45 ACP",                   mm:"11,43 mm",dMin:11.20, dMax:11.70, aMin:13, aMax:17, mMin:12.0,mMax:17.0},
+                              { nome: ".45 Colt",             nominal: ".45 Colt / Long Colt",      mm:"11,43 mm",dMin:11.20, dMax:11.70, aMin:17, aMax:24, mMin:14.0,mMax:20.0},
                             ]
-                            const familia = familias.find(f => mediaNum >= f.min && mediaNum <= f.max)
+
+                            const deformado = !!(activeWeapon?.deformacaoPresente || activeWeapon?.fragmentado)
+
+                            const scoreNormal = (cal: Cal) => {
+                              const dScore = diam >= cal.dMin && diam <= cal.dMax ? 1
+                                : 1 - Math.min(1, Math.min(Math.abs(diam - cal.dMin), Math.abs(diam - cal.dMax)) / 0.5)
+                              if (dScore <= 0) return -1
+                              let total = dScore * 0.5, weight = 0.5
+                              if (!isNaN(alt) && alt > 0) {
+                                const a = alt >= cal.aMin && alt <= cal.aMax ? 1
+                                  : 1 - Math.min(1, Math.min(Math.abs(alt - cal.aMin), Math.abs(alt - cal.aMax)) / 3)
+                                total += a * 0.3; weight += 0.3
+                              }
+                              if (!isNaN(mass) && mass > 0) {
+                                const gap = Math.min(Math.abs(mass - cal.mMin), Math.abs(mass - cal.mMax))
+                                const m = mass >= cal.mMin && mass <= cal.mMax ? 1 : 1 - Math.min(1, gap / 1.0)
+                                if (m <= 0) return -1
+                                total += m * 0.3; weight += 0.3
+                              }
+                              return total / weight
+                            }
+
+                            // Modo deformado: considera que massa medida <= massa original
+                            // Massa pode estar abaixo do mínimo (perdeu massa); exclui apenas se acima do máximo
+                            const scoreDeformado = (cal: Cal) => {
+                              // Diâmetro: tolerância mais ampla (deformação altera diâmetro)
+                              const dScore = diam >= cal.dMin && diam <= cal.dMax ? 1
+                                : 1 - Math.min(1, Math.min(Math.abs(diam - cal.dMin), Math.abs(diam - cal.dMax)) / 1.2)
+                              if (dScore <= 0) return -1
+                              let total = dScore * 0.6, weight = 0.6
+                              if (!isNaN(mass) && mass > 0) {
+                                // Se massa > max do calibre → impossível (projétil não ganhou massa)
+                                if (mass > cal.mMax + 0.5) return -1
+                                // Se massa <= max → compatível (pode ter perdido massa)
+                                const m = mass >= cal.mMin ? 1
+                                  : 1 - Math.min(0.4, (cal.mMin - mass) / cal.mMin) // pequena penalidade por perda
+                                total += m * 0.4; weight += 0.4
+                              }
+                              return total / weight
+                            }
+
+                            const ranked = db
+                              .map(c => ({ ...c, score: deformado ? scoreDeformado(c) : scoreNormal(c) }))
+                              .filter(c => c.score > (deformado ? 0.35 : 0.45))
+                              .sort((a, b) => b.score - a.score)
+                              .slice(0, deformado ? 3 : 1)
+
+                            const top = ranked[0]
                             return (
                               <div className="mt-3 space-y-2">
                                 <div className="rounded-xl border border-[#b89a58]/40 bg-[#f0e8d4] px-4 py-3">
                                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Calibre real (média)</div>
                                   <div className="text-lg font-black text-[#1d2433]">{media} mm</div>
                                 </div>
-                                {familia && (
+                                {top && !deformado && (
                                   <div className="rounded-xl border border-[#7d9b6a]/40 bg-[#eef4e8] px-4 py-3">
                                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#5a7a48]">Família do calibre</div>
-                                    <div className="text-base font-black text-[#1d2433]">{familia.nome}</div>
+                                    <div className="text-base font-black text-[#1d2433]">{top.mm}</div>
+                                    <div className="text-[11px] text-[#5a7a48]">{top.nome}</div>
                                   </div>
                                 )}
-                                {familia && (
+                                {top && !deformado && (
                                   <div className="rounded-xl border border-[#4a6fa5]/30 bg-[#eaf0f8] px-4 py-3">
                                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#3a5a80]">Provável calibre nominal</div>
-                                    <div className="text-base font-black text-[#1d2433]">{familia.nominal}</div>
+                                    <div className="text-base font-black text-[#1d2433]">{top.nominal}</div>
                                   </div>
                                 )}
-                                {!familia && (
+                                {deformado && ranked.length > 0 && (
+                                  <div className="rounded-xl border border-[#c4913a]/40 bg-[#fdf3e3] px-4 py-3">
+                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8a5e20]">
+                                      Possíveis calibres — perda de massa considerada
+                                    </div>
+                                    <div className="mt-1.5 space-y-1">
+                                      {ranked.map((c, i) => (
+                                        <div key={c.nome} className={`flex items-center justify-between rounded-lg px-3 py-1.5 ${i === 0 ? "bg-[#f5e5c8]" : "bg-[#fbf0dc]"}`}>
+                                          <div>
+                                            <div className="text-[13px] font-black text-[#1d2433]">{c.nominal}</div>
+                                            <div className="text-[10px] text-[#8a6030]">{c.mm} · {c.nome}</div>
+                                          </div>
+                                          <div className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-black text-[#8a5e20] bg-[#f0d9a8]">
+                                            {Math.round(c.score * 100)}%
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div className="mt-2 text-[10px] text-[#a07040]">
+                                      {activeWeapon?.fragmentado ? "Projétil fragmentado" : "Deformação presente"} — calibre nominal requer confirmação
+                                    </div>
+                                  </div>
+                                )}
+                                {!top && (
                                   <div className="rounded-xl border border-[#b89a58]/25 bg-[#f5f0e8] px-4 py-2.5">
-                                    <div className="text-[11px] text-[#8d7854]">Família não identificada para {media} mm</div>
+                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Provável calibre nominal</div>
+                                    <div className="text-base font-black text-[#1d2433]">Indeterminado</div>
+                                    <div className="mt-0.5 text-[11px] text-[#8d7854]">
+                                      {deformado
+                                        ? activeWeapon?.fragmentado
+                                          ? "Projétil fragmentado — insuficiente para determinação"
+                                          : "Deformação severa — insuficiente para determinação"
+                                        : `Nenhum calibre identificado para ${media} mm`}
+                                    </div>
                                   </div>
                                 )}
                               </div>
@@ -3228,49 +3368,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           </div>
                         )}
                       </CollapsibleSection>
-                      <CollapsibleCard title="Marcações balísticas">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {([
-                            ["estriasPresentes",  "Estrias presentes"],
-                            ["deformacaoPresente","Deformação presente"],
-                            ["fragmentado",       "Fragmentado"],
-                            ["oxidacaoPresente",  "Oxidação presente"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
-                        </div>
-                        <div className="mt-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Deformações acidentais</label>
-                          <button
-                            type="button"
-                            onClick={() => setDeformacoesPickerOpen(true)}
-                            className="flex min-h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 py-3 text-left transition focus:border-[#9e7f45]"
-                          >
-                            <span className={`text-[14px] leading-snug ${activeWeapon?.deformacoesAcidentais ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                              {activeWeapon?.deformacoesAcidentais || "Selecionar deformações…"}
-                            </span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                      </CollapsibleCard>
-                      <CollapsibleCard title="Estado de conservação">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {([
-                            ["completo", "Projétil íntegro / completo"],
-                            ["manchas",  "Manchas ou resíduos presentes"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
-                        </div>
-                      </CollapsibleCard>
                     </div>
                   )}
 
@@ -3377,9 +3474,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                         <div>
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
-                          <input value={activeWeapon?.paisFabricacao ?? ""} onChange={handleWeaponField("paisFabricacao")}
-                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                            placeholder="Ex.: Brasil" />
+                          <button type="button" onClick={() => setPaisPickerOpen(true)}
+                            className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[16px] ${activeWeapon?.paisFabricacao ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.paisFabricacao || "Selecionar país…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
                         </div>
                       </div>
 
@@ -3410,9 +3511,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         <div className="space-y-3">
                           <div>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre compatível</label>
-                            <input value={activeWeapon?.caliber ?? ""} onChange={handleWeaponField("caliber")}
-                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                              placeholder="Ex.: 9 mm, .38 SPL…" />
+                            <button type="button" onClick={() => setCalibrePickerOpen(true)}
+                              className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                              <span className={`truncate text-[15px] ${activeWeapon?.caliber ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                                {activeWeapon?.caliber || "Selecionar calibre…"}
+                              </span>
+                              <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                            </button>
                           </div>
                           <div>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Quantidade</label>
@@ -3756,7 +3861,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           <div>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Capacidade</label>
                             <input value={String(activeWeapon?.capacidadeCarregador ?? "")} onChange={handleWeaponField("capacidadeCarregador")}
-                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                               placeholder="Ex.: 17 cartuchos" />
                           </div>
                           <div>
@@ -3820,13 +3925,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                   {/* ── Mira e Carregador ── */}
                   {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
-                    <div className="overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
-                      <div className="border-b border-[#e8dfc8] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-4 py-3">
-                        <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[#ccb780]">
-                          {activeWeapon?.type === "REVÓLVER" ? "Mira" : "Mira e Carregador"}
-                        </div>
+                    <div className="overflow-hidden rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3]">
+                      <div className="border-b border-[#e8dfc8] px-5 py-4">
+                        <span className="text-sm font-black uppercase tracking-[0.14em] text-[#1a1410]">Mira e Carregador</span>
                       </div>
-                      <div className="divide-y divide-[#ede3ce]">
+                      <div className="divide-y divide-[#e8dfc8]">
                         {/* Mira */}
                         <div className="flex items-center justify-between px-4 py-3">
                           <div className="flex-1 min-w-0">
@@ -3848,8 +3951,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </button>
                           </div>
                         </div>
-                        {/* Carregador — não exibido para revólver */}
-                        {activeWeapon?.type !== "REVÓLVER" && (
+                        {/* Carregador */}
+                        {(
                           <div className="flex items-center justify-between px-4 py-3">
                             <div className="flex-1 min-w-0">
                               <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Carregador</div>
@@ -3921,18 +4024,18 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   </div>
 
                   {/* ── Footer ── */}
-                  <div className="grid grid-cols-2 gap-3 border-t border-[#d3c3a4] pt-5">
+                  <div className="grid grid-cols-2 gap-3 border-t border-[#d3c3a4] pt-5 pb-20">
                     <button
                       type="button"
                       onClick={() => { resetPieceForm() }}
-                      className="rounded-2xl border border-[#a8894c] bg-[#efe1b5] py-3 text-sm font-black tracking-[0.14em] text-[#4b3b21] transition hover:brightness-95"
+                      className="rounded-2xl border border-[#a8894c] bg-[#efe1b5] py-4 text-sm font-black tracking-[0.14em] text-[#4b3b21] transition hover:brightness-95"
                     >
                       CANCELAR
                     </button>
                     <button
                       type="button"
                       onClick={savePiece}
-                      className="rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-3 text-sm font-black tracking-[0.16em] text-[#f0d08a] shadow-[0_12px_24px_rgba(0,0,0,.28)] transition hover:brightness-110"
+                      className="rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-4 text-sm font-black tracking-[0.16em] text-[#f0d08a] shadow-[0_12px_24px_rgba(0,0,0,.28)] transition hover:brightness-110"
                     >
                       {editingPieceIdx !== null ? "ATUALIZAR PEÇA" : "SALVAR PEÇA"}
                     </button>
@@ -4398,7 +4501,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
               <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setCarregadorPickerOpen(false)} />
-              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[75vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] text-[#26221b] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
                 initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 28, stiffness: 280 }}>
                 <div className="shrink-0 px-5 pb-3 pt-4">
@@ -4412,7 +4515,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <div>
                       <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Capacidade</label>
                       <input value={String(activeWeapon?.capacidadeCarregador ?? "")} onChange={handleWeaponField("capacidadeCarregador")}
-                        className="h-10 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        className="h-10 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-[14px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                         placeholder="Ex.: 17 cartuchos" />
                     </div>
                     <div>
@@ -4429,7 +4532,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-4 pb-8">
-                  {(activeWeapon?.type === "PISTOLA" ? [
+                  {(activeWeapon?.type === "REVÓLVER" ? [
+                    { l: "Jetloader",   d: "Dispositivo de carregamento rápido do tambor; acondiciona e insere todos os cartuchos simultaneamente" },
+                    { l: "Indeterminado", d: "Não foi possível determinar" },
+                  ] : activeWeapon?.type === "PISTOLA" ? [
                     { l: "Caixa padrão (standard)", d: "Carregador de caixa removível de capacidade original" },
                     { l: "Caixa estendido",         d: "Carregador com capacidade superior ao original" },
                     { l: "Tambor (drum)",           d: "Carregador circular de alta capacidade" },
@@ -4840,6 +4946,288 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           <div className="mt-0.5 text-[12px] text-[#a08c68] leading-snug">{desc}</div>
                         </div>
                       </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+
+          {/* ── País de fabricação picker ── */}
+          {paisPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setPaisPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">País de fabricação</span>
+                    <button type="button" onClick={() => setPaisPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {([
+                    { c: "br", l: "Brasil" },
+                    { c: "us", l: "Estados Unidos" },
+                    { c: "at", l: "Áustria" },
+                    { c: "de", l: "Alemanha" },
+                    { c: "it", l: "Itália" },
+                    { c: "cz", l: "República Tcheca" },
+                    { c: "be", l: "Bélgica" },
+                    { c: "ar", l: "Argentina" },
+                    { c: "ru", l: "Rússia" },
+                    { c: "cn", l: "China" },
+                    { c: "il", l: "Israel" },
+                    { c: "fr", l: "França" },
+                    { c: "gb", l: "Reino Unido" },
+                    { c: "es", l: "Espanha" },
+                    { c: "pt", l: "Portugal" },
+                    { c: "ch", l: "Suíça" },
+                    { c: "se", l: "Suécia" },
+                    { c: "fi", l: "Finlândia" },
+                    { c: "no", l: "Noruega" },
+                    { c: "jp", l: "Japão" },
+                    { c: "kr", l: "Coreia do Sul" },
+                    { c: "tr", l: "Turquia" },
+                    { c: "pk", l: "Paquistão" },
+                    { c: "in", l: "Índia" },
+                    { c: "za", l: "África do Sul" },
+                    { c: "",   l: "Indeterminado" },
+                  ]).map(({ c, l }, idx, arr) => {
+                    const selected = activeWeapon?.paisFabricacao === l
+                    return (
+                      <button key={l} type="button"
+                        onClick={() => { setWeaponDirect("paisFabricacao", selected ? "" : l); setPaisPickerOpen(false) }}
+                        className={`flex w-full items-center gap-4 py-3.5 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        {c
+                          ? <img src={`https://flagcdn.com/32x24/${c}.png`} alt={l} className="h-5 w-auto rounded-sm shadow-sm shrink-0" />
+                          : <span className="flex h-5 w-8 shrink-0 items-center justify-center rounded-sm bg-[#e8dfc8] text-[10px] font-black text-[#8d7854]">?</span>
+                        }
+                        <span className={`flex-1 text-[15px] font-semibold ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{l}</span>
+                        {selected && (
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#7d6334]">
+                            <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+
+          {/* ── Calibre picker geral (armas de fogo e demais peças) ── */}
+          {calibrePickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setCalibrePickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] text-[#26221b] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Calibre</span>
+                    <button type="button" onClick={() => setCalibrePickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {(activeWeapon?.type === "REVÓLVER" ? [
+                    { l: ".38 SPL",                d: "O mais comum no Brasil; padrão policial civil e militar" },
+                    { l: ".38 SPL +P",             d: "Versão de maior pressão do .38 SPL; maior velocidade" },
+                    { l: ".357 Magnum",            d: "Compatível com câmaras .38 SPL; alta energia" },
+                    { l: ".32 S&W Long",           d: "Revólveres compactos; antigo padrão policial" },
+                    { l: ".32 H&R Magnum",         d: "Evolução do .32 S&W Long; maior pressão" },
+                    { l: ".22 LR",                 d: "Rimfire; revólveres de treinamento e tiro esportivo" },
+                    { l: ".22 WMR (.22 Mag)",      d: "Rimfire magnum; maior potência que o .22 LR" },
+                    { l: ".38 Super",              d: "Calibre de alta velocidade; uso em competições" },
+                    { l: ".44 SPL",                d: "Versão de menor pressão do .44 Magnum" },
+                    { l: ".44 Magnum",             d: "Calibre de grande porte; alta energia cinética" },
+                    { l: ".45 Colt",               d: "Calibre histórico americano; revólveres de porte" },
+                    { l: "Outro",                  d: "Informar calibre não listado" },
+                    { l: "Indeterminado",          d: "Calibre não pôde ser determinado" },
+                  ] : activeWeapon?.type === "PISTOLA" ? [
+                    { l: "9 mm Luger (9×19mm)",    d: "Padrão NATO e policial mundial; o mais usado no Brasil" },
+                    { l: ".40 S&W",                d: "Padrão policial brasileiro (PMESP, PRF); alto poder de parada" },
+                    { l: ".45 ACP",                d: "Grande diâmetro; alto poder de parada subsônico" },
+                    { l: ".380 ACP (9 mm Curto)",  d: "Calibre compacto para pistolas de porte dissimulado" },
+                    { l: ".32 ACP (7,65mm)",       d: "Pistolas compactas antigas; antigo padrão policial" },
+                    { l: ".25 ACP (6,35mm)",       d: "Pistolas de bolso; baixo poder de parada" },
+                    { l: "9 mm Makarov (9×18mm)", d: "Padrão soviético; pistolas de origem russa/leste europeu" },
+                    { l: ".38 Super Auto",         d: "Alta velocidade; uso em competições e forças especiais" },
+                    { l: ".357 SIG",               d: "Alta velocidade em cano curto; uso policial especializado" },
+                    { l: "10 mm Auto",             d: "Alta energia; base do .40 S&W" },
+                    { l: ".22 LR",                 d: "Rimfire; pistolas de treinamento e tiro esportivo" },
+                    { l: "5,7×28 mm FN",           d: "Pistola FN Five-seveN; alta penetração em coletes" },
+                    { l: "Outro",                  d: "Informar calibre não listado" },
+                    { l: "Indeterminado",          d: "Calibre não pôde ser determinado" },
+                  ] : activeWeapon?.type === "ESPINGARDA" ? [
+                    { l: "12 Ga (2¾\")",           d: "O mais comum no Brasil; ampla variedade de cargas" },
+                    { l: "12 Ga (3\")",            d: "Câmara magnum; maior carga de pólvora e chumbo" },
+                    { l: "12 Ga (3½\")",           d: "Super magnum; uso em caça de aves migratórias" },
+                    { l: "16 Ga",                  d: "Calibre intermediário; uso em caça e tiro esportivo" },
+                    { l: "20 Ga",                  d: "Menor recuo; uso civil, esportivo e feminino" },
+                    { l: "28 Ga",                  d: "Calibre esportivo; argolas e pombos de barro" },
+                    { l: ".410 Bore (2½\")",       d: "Menor calibre de espingarda; baixo recuo; iniciantes" },
+                    { l: ".410 Bore (3\")",        d: "Versão magnum do .410; maior carga" },
+                    { l: "Outro",                  d: "Informar calibre não listado" },
+                    { l: "Indeterminado",          d: "Calibre não pôde ser determinado" },
+                  ] : activeWeapon?.type === "CARABINA" ? [
+                    { l: ".22 LR",                 d: "Rimfire; o mais usado em carabinas esportivas no Brasil" },
+                    { l: ".22 WMR (.22 Mag)",      d: "Rimfire magnum; maior alcance que o .22 LR" },
+                    { l: ".22 Hornet",             d: "Centerfire de pequeno porte; caça de animais pequenos" },
+                    { l: ".223 Rem / 5,56×45mm",  d: "Padrão NATO; carabinas táticas, esportivas e IMBEL" },
+                    { l: ".243 Winchester",        d: "Calibre de caça e tiro de precisão; médio alcance" },
+                    { l: "7mm-08 Rem",             d: "Derivado do .308; excelente precisão e baixo recuo" },
+                    { l: ".308 Win / 7,62×51mm",  d: "Padrão NATO; carabinas táticas e de precisão" },
+                    { l: "7,62×39 mm",            d: "Cartucho russo; AK-47 e derivados; carabinas SKS" },
+                    { l: ".30-30 Winchester",      d: "Clássico americano; carabinas lever-action" },
+                    { l: ".30 Carbine (7,62×33mm)",d: "Carabina M1 Carbine; leve e compacta" },
+                    { l: ".357 Magnum",            d: "Carabinas lever-action; mesma munição do revólver" },
+                    { l: ".44 Magnum",             d: "Carabinas lever-action; alta energia em curtas distâncias" },
+                    { l: "9 mm Luger",             d: "Carabinas pistoleiras; mesma munição da pistola 9mm" },
+                    { l: ".45 ACP",                d: "Carabinas pistoleiras; mesma munição da pistola .45" },
+                    { l: ".30-06 Springfield",     d: "Clássico americano; carabinas bolt-action de caça" },
+                    { l: "6,5mm Creedmoor",        d: "Precisão de longa distância; crescente no Brasil" },
+                    { l: "Outro",                  d: "Informar calibre não listado" },
+                    { l: "Indeterminado",          d: "Calibre não pôde ser determinado" },
+                  ] : activeWeapon?.type === "FUZIL" ? [
+                    { l: "5,56×45 mm NATO",        d: "Padrão OTAN; AR-15, M16, IMBEL IA2 — o mais usado no Brasil" },
+                    { l: "7,62×51 mm NATO",        d: "Padrão OTAN pesado; FAL, G3, IMBEL MD-2" },
+                    { l: "7,62×39 mm",            d: "Cartucho russo; AK-47/AKM e derivados" },
+                    { l: "5,45×39 mm",            d: "Padrão soviético moderno; AK-74 e derivados" },
+                    { l: "7,62×54R mm",           d: "Rimmed russo; SVD Dragunov, PK, Mosin-Nagant" },
+                    { l: ".308 Winchester",        d: "Equivalente civil do 7,62×51 NATO; fuzis de precisão" },
+                    { l: ".300 Blackout (.300 BLK)",d: "Subsônico/supersônico; uso com supressor; AR-15" },
+                    { l: "6,5mm Creedmoor",        d: "Fuzis de precisão de longa distância" },
+                    { l: ".338 Lapua Magnum",      d: "Precisão extrema; fuzis de atirador de elite" },
+                    { l: ".50 BMG (12,7×99mm)",   d: "Anti-material; fuzis Barrett e similares" },
+                    { l: ".30-06 Springfield",     d: "Clássico americano; fuzis históricos e caça" },
+                    { l: "Outro",                  d: "Informar calibre não listado" },
+                    { l: "Indeterminado",          d: "Calibre não pôde ser determinado" },
+                  ] : activeWeapon?.type === "METRALHADORA" ? [
+                    { l: "9 mm Luger (9×19mm)",   d: "Submetralhadoras; HK MP5, Uzi, INA M953" },
+                    { l: ".45 ACP",               d: "Thompson M1921/M1928; submetralhadoras clássicas" },
+                    { l: ".40 S&W",               d: "Submetralhadoras policiais modernas" },
+                    { l: ".380 ACP",              d: "Submetralhadoras compactas de porte" },
+                    { l: "5,56×45 mm NATO",       d: "Metralhadoras leves; Minimi/M249, HK23" },
+                    { l: "7,62×51 mm NATO",       d: "Metralhadoras médias; MAG58/M240, HK21" },
+                    { l: "7,62×39 mm",            d: "RPK, PKM e metralhadoras soviéticas" },
+                    { l: "7,62×54R mm",           d: "PK/PKM; padrão soviético pesado" },
+                    { l: "12,7×99 mm (.50 BMG)",  d: "Metralhadoras pesadas; M2 Browning" },
+                    { l: "14,5×114 mm",           d: "KPV; metralhadoras antiaéreas soviéticas" },
+                    { l: "Outro",                  d: "Informar calibre não listado" },
+                    { l: "Indeterminado",          d: "Calibre não pôde ser determinado" },
+                  ] : activeWeapon?.type === "ESTOJO" || activeWeapon?.type === "CARTUCHO" ? [
+                    { l: ".22 LR",                d: "Rimfire; revólveres e pistolas de treinamento" },
+                    { l: ".22 WMR (.22 Mag)",     d: "Rimfire magnum" },
+                    { l: ".25 ACP (6,35mm)",      d: "Pistolas compactas antigas" },
+                    { l: ".32 ACP (7,65mm)",      d: "Pistolas compactas; antigo padrão policial" },
+                    { l: ".32 S&W Long",          d: "Revólveres compactos" },
+                    { l: ".380 ACP (9mm Curto)",  d: "Pistolas de porte dissimulado" },
+                    { l: "9 mm Luger (9×19mm)",   d: "Padrão NATO e policial; pistolas e submetralhadoras" },
+                    { l: "9 mm Makarov (9×18mm)", d: "Pistolas de origem soviética" },
+                    { l: ".38 SPL",               d: "Revólveres policiais e civis; padrão no Brasil" },
+                    { l: ".38 SPL +P",            d: "Versão +P do .38 SPL" },
+                    { l: ".357 Magnum",           d: "Revólveres e carabinas lever-action" },
+                    { l: ".38 Super Auto",        d: "Pistolas de competição" },
+                    { l: ".40 S&W",               d: "Pistolas policiais; padrão brasileiro" },
+                    { l: "10 mm Auto",            d: "Pistolas de alta energia" },
+                    { l: ".44 SPL",               d: "Revólveres de grande porte" },
+                    { l: ".44 Magnum",            d: "Revólveres e carabinas de alta energia" },
+                    { l: ".45 ACP",               d: "Pistolas de grande porte" },
+                    { l: ".45 Colt",              d: "Revólveres lever-action históricos" },
+                    { l: ".223 Rem / 5,56×45mm",  d: "Fuzis e carabinas táticas" },
+                    { l: ".308 Win / 7,62×51mm",  d: "Fuzis e carabinas de precisão" },
+                    { l: "7,62×39 mm",            d: "AK e derivados" },
+                    { l: "7,62×54R mm",           d: "Fuzis e metralhadoras russas" },
+                    { l: ".30-30 Winchester",     d: "Carabinas lever-action" },
+                    { l: ".30 Carbine",           d: "Carabina M1" },
+                    { l: ".30-06 Springfield",    d: "Fuzis e carabinas de caça" },
+                    { l: "12 Ga",                 d: "Espingarda calibre 12" },
+                    { l: "20 Ga",                 d: "Espingarda calibre 20" },
+                    { l: ".410 Bore",             d: "Espingarda calibre .410" },
+                    { l: "5,7×28 mm FN",          d: "FN P90 / Five-seveN" },
+                    { l: "12,7×99 mm (.50 BMG)",  d: "Metralhadoras pesadas e fuzis anti-material" },
+                    { l: "Outro",                 d: "Informar calibre não listado" },
+                    { l: "Indeterminado",         d: "Calibre não pôde ser determinado" },
+                  ] : activeWeapon?.type === "CARREGADOR" ? [
+                    { l: "9 mm Luger",            d: "Pistolas e submetralhadoras; padrão policial" },
+                    { l: ".40 S&W",               d: "Pistolas policiais; padrão brasileiro" },
+                    { l: ".45 ACP",               d: "Pistolas de grande porte" },
+                    { l: ".380 ACP",              d: "Pistolas compactas de porte" },
+                    { l: ".32 ACP (7,65mm)",      d: "Pistolas compactas antigas" },
+                    { l: ".38 Super Auto",        d: "Pistolas de competição" },
+                    { l: "10 mm Auto",            d: "Pistolas de alta energia" },
+                    { l: "5,56×45 mm NATO",       d: "Fuzis AR-15/M16 e carabinas táticas" },
+                    { l: "7,62×39 mm",            d: "AK-47 e derivados" },
+                    { l: "7,62×51 mm NATO",       d: "Fuzis FAL, G3 e metralhadoras NATO" },
+                    { l: ".308 Win",              d: "Carabinas e fuzis de precisão" },
+                    { l: ".223 Rem",              d: "Carabinas esportivas AR-15" },
+                    { l: ".22 LR",                d: "Pistolas e carabinas de treinamento" },
+                    { l: "5,7×28 mm FN",          d: "FN P90 e pistola Five-seveN" },
+                    { l: "Outro",                 d: "Informar calibre não listado" },
+                    { l: "Indeterminado",         d: "Calibre não pôde ser determinado" },
+                  ] : [
+                    { l: "Indeterminado",     d: "Calibre não pôde ser determinado" },
+                  ]).map(({ l: opt, d: desc }, idx, arr) => {
+                    const selected = activeWeapon?.caliber === opt
+                    const isOutro = opt === "Outro"
+                    const outroAtivo = isOutro && activeWeapon?.caliber !== "Outro" &&
+                      !arr.some(o => o.l !== "Outro" && o.l !== "Indeterminado" && activeWeapon?.caliber === o.l) &&
+                      activeWeapon?.caliber && activeWeapon.caliber !== "Indeterminado"
+                    return (
+                      <div key={opt}>
+                        <button type="button"
+                          onClick={() => {
+                            if (isOutro) {
+                              setCalibreCustomInput(activeWeapon?.caliber && !arr.some(o => o.l === activeWeapon.caliber) ? activeWeapon.caliber : "")
+                              setWeaponDirect("caliber", "__outro__")
+                            } else {
+                              setWeaponDirect("caliber", selected ? "" : opt)
+                              setCalibrePickerOpen(false)
+                            }
+                          }}
+                          className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${(selected || activeWeapon?.caliber === "__outro__" && isOutro || outroAtivo) ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                            {(selected || (activeWeapon?.caliber === "__outro__" && isOutro) || outroAtivo) && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className={`text-[15px] font-semibold leading-tight ${(selected || activeWeapon?.caliber === "__outro__" && isOutro) ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</div>
+                            <div className="mt-0.5 text-[12px] text-[#a08c68] leading-snug">{desc}</div>
+                          </div>
+                        </button>
+                        {isOutro && activeWeapon?.caliber === "__outro__" && (
+                          <div className="border-b border-[#e5d9c3] pb-4 pt-2 space-y-2">
+                            <input
+                              autoFocus
+                              value={calibreCustomInput}
+                              onChange={e => setCalibreCustomInput(e.target.value)}
+                              className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                              placeholder="Ex.: .357 SIG, 7,5mm FK, 6,5 Creedmoor…"
+                            />
+                            <button type="button"
+                              disabled={!calibreCustomInput.trim()}
+                              onClick={() => {
+                                if (calibreCustomInput.trim()) {
+                                  setWeaponDirect("caliber", calibreCustomInput.trim())
+                                  setCalibrePickerOpen(false)
+                                }
+                              }}
+                              className="w-full rounded-xl border-2 border-[#9e7f45] bg-[#9e7f45] py-2.5 text-sm font-black uppercase tracking-[0.1em] text-white transition disabled:opacity-40">
+                              Confirmar
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )
                   })}
                 </div>
