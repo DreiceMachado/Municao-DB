@@ -106,6 +106,7 @@ type WeaponEntry = {
   tamanhoCamara: string
   tipoRaiamento: string
   materialQuadro: string
+  materialCoroha: string
   // FUZIL / METRALHADORA
   modoFogo: string
   seletoDisparo: boolean
@@ -922,7 +923,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     tipoLamina: "", compLamina: "", tipoGume: "",
     gumeFuncional: true, aptaUso: true, laminaIntegra: true,
     caboDanificado: false, manchas: false, manchasObs: "",
-    sistemaAcionamento: "", tamanhoCamara: "", tipoRaiamento: "", materialQuadro: "",
+    sistemaAcionamento: "", tamanhoCamara: "", tipoRaiamento: "", materialQuadro: "", materialCoroha: "",
     institucional: null, naFlags: [], tipoProd: "", serialEstado: "", quantidade: "", diametroMin: "", massa: "",
     origemProjetil: "", origemProjetilRef: "", regiaoColeta: "", deformacoesAcidentais: "", estadoProjetil: "", alturaProjetil: "",
     estadoCartucho: "", estadoEstojo: "",
@@ -2007,6 +2008,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                         </button>
                       </div>
+                      <div className="mb-4">
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material do quadro</label>
+                        <button type="button" onClick={() => setMaterialQuadroPickerOpen(true)}
+                          className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                          <span className={`truncate text-[15px] ${activeWeapon?.materialQuadro ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialQuadro || "Selecionar material…"}</span>
+                          <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                        </button>
+                      </div>
                       {/* Sistema de acionamento — picker */}
                       <div className="mb-4">
                         <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
@@ -2174,6 +2183,22 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           </button>
                         </div>
                         <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material da coronha</label>
+                          <button type="button" onClick={() => setMaterialCoronhaPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.materialCoroha ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialCoroha || "Selecionar material…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material do quadro</label>
+                          <button type="button" onClick={() => setMaterialQuadroPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.materialQuadro ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialQuadro || "Selecionar material…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
                           <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
@@ -2329,6 +2354,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           <button type="button" onClick={() => setAcabamentoPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.acabamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.acabamento || "Selecionar acabamento…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material do quadro</label>
+                          <button type="button" onClick={() => setMaterialQuadroPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.materialQuadro ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialQuadro || "Selecionar material…"}</span>
                             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                           </button>
                         </div>
@@ -2494,6 +2527,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           </button>
                         </div>
                         <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material da coronha</label>
+                          <button type="button" onClick={() => setMaterialCoronhaPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.materialCoroha ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialCoroha || "Selecionar material…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
                           <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
@@ -2653,7 +2694,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material da coronha</label>
                           <button type="button" onClick={() => setMaterialCoronhaPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.acabamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.acabamento || "Selecionar material…"}</span>
+                            <span className={`truncate text-[15px] ${activeWeapon?.materialCoroha ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialCoroha || "Selecionar material…"}</span>
                             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                           </button>
                         </div>
@@ -2788,6 +2829,22 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           </button>
                         </div>
                         <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material da coronha</label>
+                          <button type="button" onClick={() => setMaterialCoronhaPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.materialCoroha ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialCoroha || "Selecionar material…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material do quadro</label>
+                          <button type="button" onClick={() => setMaterialQuadroPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.materialQuadro ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialQuadro || "Selecionar material…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
                           <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
@@ -2801,7 +2858,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           </div>
                           <div className="divide-y divide-[#ede3ce]">
                             <div className="px-4 py-3">
-                              <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento<HelpBtn title="Tipo de raiamento" text="Característica interna do cano. Alma lisa: sem raias, comum em espingardas. Raiamento convencional: raias helicoidais que estabilizam o projétil. Poligonal: perfil poligonal em vez de raias tradicionais, comum em Glocks." /></label>
+                              <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento<HelpBtn title="Tipo de raiamento" text="Característica interna do cano. Alma lista: sem raias, comum em espingardas. Raiamento convencional: raias helicoidais que estabilizam o projétil. Poligonal: perfil poligonal em vez de raias tradicionais, comum em Glocks." /></label>
                               <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
                                 className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                                 <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}</span>
@@ -5040,32 +5097,27 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-4 pb-8">
-                  {(activeWeapon?.type === "REVÓLVER" ? [
-                    { l: ".38 SPL",                d: "O mais comum no Brasil; padrão policial civil e militar" },
+                  {((activeWeapon?.type === "REVÓLVER" || activeWeapon?.type === "PISTOLA") ? [
+                    { l: "9 mm Luger (9×19mm)",    d: "Padrão NATO e policial mundial; pistolas e revólveres adaptados" },
+                    { l: ".38 SPL",                d: "O mais comum no Brasil; padrão policial; revólveres e algumas pistolas" },
                     { l: ".38 SPL +P",             d: "Versão de maior pressão do .38 SPL; maior velocidade" },
-                    { l: ".357 Magnum",            d: "Compatível com câmaras .38 SPL; alta energia" },
-                    { l: ".32 S&W Long",           d: "Revólveres compactos; antigo padrão policial" },
-                    { l: ".32 H&R Magnum",         d: "Evolução do .32 S&W Long; maior pressão" },
-                    { l: ".22 LR",                 d: "Rimfire; revólveres de treinamento e tiro esportivo" },
-                    { l: ".22 WMR (.22 Mag)",      d: "Rimfire magnum; maior potência que o .22 LR" },
-                    { l: ".38 Super",              d: "Calibre de alta velocidade; uso em competições" },
-                    { l: ".44 SPL",                d: "Versão de menor pressão do .44 Magnum" },
-                    { l: ".44 Magnum",             d: "Calibre de grande porte; alta energia cinética" },
-                    { l: ".45 Colt",               d: "Calibre histórico americano; revólveres de porte" },
-                    { l: "Outro",                  d: "Informar calibre não listado" },
-                    { l: "Indeterminado",          d: "Calibre não pôde ser determinado" },
-                  ] : activeWeapon?.type === "PISTOLA" ? [
-                    { l: "9 mm Luger (9×19mm)",    d: "Padrão NATO e policial mundial; o mais usado no Brasil" },
-                    { l: ".40 S&W",                d: "Padrão policial brasileiro (PMESP, PRF); alto poder de parada" },
-                    { l: ".45 ACP",                d: "Grande diâmetro; alto poder de parada subsônico" },
-                    { l: ".380 ACP (9 mm Curto)",  d: "Calibre compacto para pistolas de porte dissimulado" },
-                    { l: ".32 ACP (7,65mm)",       d: "Pistolas compactas antigas; antigo padrão policial" },
-                    { l: ".25 ACP (6,35mm)",       d: "Pistolas de bolso; baixo poder de parada" },
-                    { l: "9 mm Makarov (9×18mm)", d: "Padrão soviético; pistolas de origem russa/leste europeu" },
-                    { l: ".38 Super Auto",         d: "Alta velocidade; uso em competições e forças especiais" },
+                    { l: ".357 Magnum",            d: "Revólveres e carabinas; compatível com câmaras .38 SPL" },
+                    { l: ".40 S&W",                d: "Padrão policial brasileiro; pistolas e alguns revólveres" },
+                    { l: ".45 ACP",                d: "Grande diâmetro; alto poder de parada; pistolas e revólveres .45" },
+                    { l: ".45 Colt",               d: "Calibre histórico; revólveres de porte e lever-action" },
+                    { l: ".380 ACP (9 mm Curto)",  d: "Pistolas compactas de porte dissimulado" },
                     { l: ".357 SIG",               d: "Alta velocidade em cano curto; uso policial especializado" },
+                    { l: ".38 Super Auto",         d: "Alta velocidade; competições e forças especiais" },
+                    { l: ".32 ACP (7,65mm)",       d: "Pistolas compactas antigas; antigo padrão policial" },
+                    { l: ".32 S&W Long",           d: "Revólveres compactos; antigo padrão policial" },
+                    { l: ".32 H&R Magnum",         d: "Evolução do .32 S&W Long; revólveres modernos" },
+                    { l: ".25 ACP (6,35mm)",       d: "Pistolas de bolso; baixo poder de parada" },
+                    { l: "9 mm Makarov (9×18mm)", d: "Padrão soviético; pistolas e revólveres de origem russa" },
                     { l: "10 mm Auto",             d: "Alta energia; base do .40 S&W" },
-                    { l: ".22 LR",                 d: "Rimfire; pistolas de treinamento e tiro esportivo" },
+                    { l: ".44 SPL",                d: "Versão de menor pressão do .44 Magnum" },
+                    { l: ".44 Magnum",             d: "Revólveres e pistolas de grande porte; alta energia cinética" },
+                    { l: ".22 LR",                 d: "Rimfire; revólveres e pistolas de treinamento e esporte" },
+                    { l: ".22 WMR (.22 Mag)",      d: "Rimfire magnum; maior potência que o .22 LR" },
                     { l: "5,7×28 mm FN",           d: "Pistola FN Five-seveN; alta penetração em coletes" },
                     { l: "Outro",                  d: "Informar calibre não listado" },
                     { l: "Indeterminado",          d: "Calibre não pôde ser determinado" },
@@ -5323,11 +5375,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-4 pb-8">
-                  {["Polímero sintético","Madeira (mogno)","Madeira (faia)","Madeira laminada","Fibra de vidro","Fibra de carbono","Metal (dobrável)","Plástico reforçado","Indeterminado"].map((opt, idx, arr) => {
-                    const selected = activeWeapon?.acabamento === opt
+                  {["Polímero sintético","Madeira (mogno)","Madeira (faia)","Madeira (carvalho)","Madeira laminada","Fibra de vidro","Fibra de carbono","Metal (dobrável/retrátil)","Plástico reforçado","Borracha / soft-touch","Indeterminado"].map((opt, idx, arr) => {
+                    const selected = activeWeapon?.materialCoroha === opt
                     return (
                       <button key={opt} type="button"
-                        onClick={() => { setWeaponDirect("acabamento", selected ? "" : opt); setMaterialCoronhaPickerOpen(false) }}
+                        onClick={() => { setWeaponDirect("materialCoroha", selected ? "" : opt); setMaterialCoronhaPickerOpen(false) }}
                         className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
                         <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
                           {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
