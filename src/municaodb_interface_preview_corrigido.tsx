@@ -36,7 +36,7 @@ import {
 
 type WeaponType =
   | "REVÓLVER" | "PISTOLA" | "ESPINGARDA" | "CARABINA" | "FUZIL" | "METRALHADORA"
-  | "ESTOJO" | "PROJÉTIL" | "CARTUCHO" | "FACA" | "ARMA DE PRESSÃO" | "PÓLVORA" | "ESPOLETA" | "CARREGADOR"
+  | "ESTOJO" | "PROJÉTIL" | "CARTUCHO" | "FACA" | "ARMA DE PRESSÃO" | "ARMA DE ANTECARGA" | "PÓLVORA" | "ESPOLETA" | "CARREGADOR"
 
 type WeaponEntry = {
   type: WeaponType
@@ -394,6 +394,20 @@ function PieceIcon({ type, className = "h-14 w-auto" }: { type: WeaponType; clas
         <path d="M22 9 L58 11 L68 14" fill="none" stroke="currentColor" strokeWidth="0.8"/>
       </svg>
     )
+    case "ARMA DE ANTECARGA": return (
+      <svg viewBox="0 0 88 32" fill="currentColor" className={className} aria-hidden="true">
+        {/* Cano longo */}
+        <rect x="4" y="13" width="60" height="6" rx="3"/>
+        <rect x="62" y="14" width="20" height="4" rx="2"/>
+        {/* Coronha curva */}
+        <path d="M4 13 Q2 13 2 19 Q2 25 6 27 L14 27 Q10 22 10 19 L4 19 Z"/>
+        {/* Gatilho/cão */}
+        <path d="M18 19 Q20 23 18 27" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        {/* Pederneira / mecanismo */}
+        <rect x="14" y="10" width="8" height="9" rx="1.5" opacity="0.7"/>
+        <rect x="15" y="8" width="5" height="3" rx="1" opacity="0.5"/>
+      </svg>
+    )
     case "ARMA DE PRESSÃO": return (
       <svg viewBox="0 0 80 36" fill="currentColor" className={className} aria-hidden="true">
         {/* Cano */}
@@ -704,6 +718,7 @@ const photoSlotsByType: Record<WeaponType, string[]> = {
   "CARTUCHO":     ["Vista lateral", "Base – headstamp", "Vista do projétil", "Vista geral"],
   "FACA":         ["Lâmina – frente", "Lâmina – verso", "Cabo", "Ponta", "Gume", "Numeração"],
   "ARMA DE PRESSÃO": ["Frente – boca do cano", "Lado direito", "Lado esquerdo", "Reservatório/cilindro", "Vista geral"],
+  "ARMA DE ANTECARGA": ["Frente – boca do cano", "Lado direito", "Lado esquerdo", "Mecanismo de ignição", "Coronha", "Vista geral"],
   "PÓLVORA":      ["Vista geral", "Embalagem – frente", "Embalagem – verso", "Detalhe da granulometria"],
   "ESPOLETA":     ["Vista frontal", "Vista lateral", "Base da espoleta", "Marcação de percussor"],
   "CARREGADOR":   ["Vista frontal", "Vista lateral", "Base", "Detalhe interno"],
@@ -755,6 +770,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [acabamentoPickerOpen, setAcabamentoPickerOpen] = useState(false)
   const [sistemaAcionamentoPickerOpen, setSistemaAcionamentoPickerOpen] = useState(false)
   const [calibreArmaPressaoPickerOpen, setCalibreArmaPressaoPickerOpen] = useState(false)
+  const [calibreAntecargaPickerOpen, setCalibreAntecargaPickerOpen] = useState(false)
   const [calibrePickerOpen, setCalibrePickerOpen] = useState(false)
   const [calibreCustomInput, setCalibreCustomInput] = useState("")
   const [paisPickerOpen, setPaisPickerOpen] = useState(false)
@@ -857,7 +873,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     "PROJÉTIL":     "Exame de Projétil",
     "CARTUCHO":     "Exame de Cartucho",
     "FACA":         "Exame de Faca",
-    "ARMA DE PRESSÃO": "Exame de Arma de Pressão",
+    "ARMA DE PRESSÃO":    "Exame de Arma de Pressão",
+    "ARMA DE ANTECARGA":  "Exame de Arma de Antecarga",
     "PÓLVORA":      "Exame de Pólvora",
     "ESPOLETA":     "Exame de Espoleta",
     "CARREGADOR":   "Exame de Carregador",
@@ -1425,7 +1442,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <div className="mb-5">
                       <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.22em] text-[#8d7854]">Arma branca e outros</div>
                       <div className="grid grid-cols-2 gap-2.5">
-                        {(["FACA", "ARMA DE PRESSÃO"] as WeaponType[]).map((type) => (
+                        {(["FACA", "ARMA DE PRESSÃO", "ARMA DE ANTECARGA"] as WeaponType[]).map((type) => (
                           <button key={type} type="button"
                             onClick={() => {
                               setWeaponType(type)
@@ -1694,7 +1711,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         "CARTUCHO":    "Origem de coleta do cartucho",
                         "ESTOJO":      "Origem de coleta do estojo",
                         "FACA":        "Origem de coleta da faca",
-                        "ARMA DE PRESSÃO": "Origem de coleta da arma de pressão",
+                        "ARMA DE PRESSÃO":    "Origem de coleta da arma de pressão",
+                        "ARMA DE ANTECARGA":  "Origem de coleta da arma de antecarga",
                         "REVÓLVER":    "Origem de coleta do revólver",
                         "PISTOLA":     "Origem de coleta da pistola",
                         "ESPINGARDA":  "Origem de coleta da espingarda",
@@ -3910,6 +3928,115 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                   )}
 
+                  {/* ── ARMA DE ANTECARGA ── */}
+                  {activeWeapon?.type === "ARMA DE ANTECARGA" && (
+                    <div className="space-y-4" style={{ marginTop: '-1.25rem' }}>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Identificação
+                            <HelpBtn title="Identificação" text="Designação, marca ou modelo da arma de antecarga. Ex.: Pederneira tipo Flintlock, Revólver Colt Navy 1851, Mosquete Brown Bess." />
+                          </label>
+                          <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            placeholder="Ex.: Pederneira, Colt Navy, Mosquete…" />
+                        </div>
+                        <div>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Calibre (mm)
+                            <HelpBtn title="Calibre" text="Diâmetro interno do cano em milímetros. Armas de antecarga utilizam calibres expressos em mm ou pol. (ex.: 9,14 mm = .36 cal; 11,17 mm = .44 cal)." />
+                          </label>
+                          <button type="button" onClick={() => setCalibreAntecargaPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.caliber ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.caliber || "Selecionar calibre…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                      </div>
+                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="mb-4">
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Sistema de ignição
+                            <HelpBtn title="Sistema de ignição" text="Mecanismo usado para deflagrar a carga propulsora. Pederneira (flintlock): sílex golpeia frisa gerando faísca. Percussão: cão golpeia espoleta de fulminato. Mecha: corda incandescente aciona a carga." />
+                          </label>
+                          <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Material do cano
+                            <HelpBtn title="Material do cano" text="Material de que é feito o cano da arma. Ex.: aço, ferro forjado, bronze." />
+                          </label>
+                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.material || "Selecionar material…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material da coronha</label>
+                          <button type="button" onClick={() => setMaterialCoronhaPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.materialCoroha ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialCoroha || "Selecionar material…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="mb-4">
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
+                          <button type="button" onClick={() => setPaisPickerOpen(true)}
+                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[15px] ${activeWeapon?.paisFabricacao ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.paisFabricacao || "Selecionar país…"}</span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          {([
+                            ["compCano",  "Comprimento do cano", "Ex.: 190 mm"],
+                            ["compTotal", "Comprimento total",   "Ex.: 380 mm"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                            <div key={field}>
+                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                placeholder={ph} />
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+                      <CollapsibleCard title="Estado de conservação">
+                        <div className="space-y-3">
+                          {([
+                            ["ferrugem",       "ferrugemObs",       "Ferrugem / oxidação presente"],
+                            ["desgaste",       "desgasteObs",       "Desgaste visível"],
+                            ["danoEstruturais","danoEstruturaisObs","Danos estruturais"],
+                          ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
+                            <div key={key}>
+                              <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                  className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                {label}
+                              </label>
+                              {activeWeapon?.[key] && (
+                                <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
+                                  placeholder={`Descreva: ${label.toLowerCase()}`}
+                                  className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                    </div>
+                  )}
+
                   {/* ── CARREGADOR (peça independente) ── */}
                   {activeWeapon?.type === "CARREGADOR" && (
                     <div className="space-y-4">
@@ -4980,6 +5107,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     { l: "Rajada de 3 tiros",                    d: "Ciclo limitado a 3 disparos por acionamento" },
                     { l: "Automático contínuo",                  d: "Disparos contínuos sem limite de rajada" },
                     { l: "Indeterminado",                        d: "Sistema não pôde ser determinado" },
+                  ] : activeWeapon?.type === "ARMA DE ANTECARGA" ? [
+                    { l: "Pederneira (flintlock)",        d: "Sílex preso no cão golpeia frisa metálica gerando faísca; sistema mais antigo" },
+                    { l: "Percussão (percussion cap)",    d: "Cão golpeia espoleta de fulminato de mercúrio; séc. XIX" },
+                    { l: "Mecha (matchlock)",             d: "Corda embebida incandescente aciona a panela de pólvora" },
+                    { l: "Roda (wheellock)",              d: "Roda de aço ranhurada gera faíscas ao girar contra pirita" },
+                    { l: "Espoleta inline",               d: "Sistema moderno inline; espoleta centralizada no eixo do cano" },
+                    { l: "Indeterminado",                 d: "Sistema de ignição não pôde ser determinado" },
                   ] : activeWeapon?.type === "ARMA DE PRESSÃO" ? [
                     { l: "Mola/pistão (spring-piston)",          d: "Mola comprimida pelo armamento libera pistão que comprime o ar" },
                     { l: "CO₂ (cartucho de gás)",                d: "Cartucho de CO₂ armazenado pressuriza o sistema de disparo" },
@@ -5280,6 +5414,60 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           </div>
                         )}
                       </div>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+
+          {/* ── Calibre antecarga picker (em mm) ── */}
+          {calibreAntecargaPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setCalibreAntecargaPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] text-[#26221b] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Calibre (mm)</span>
+                    <button type="button" onClick={() => setCalibreAntecargaPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {([
+                    { l: "6,35 mm (.25 cal)",   d: "Pistolas de bolso e pequenos revólveres de antecarga" },
+                    { l: "7,65 mm (.30 cal)",   d: "Pistolas compactas e revólveres de antecarga de pequeno porte" },
+                    { l: "9,14 mm (.36 cal)",   d: "Revólveres Colt Navy 1851; calibre policial civil do séc. XIX" },
+                    { l: "10,16 mm (.40 cal)",  d: "Pistolas e rifles de médio porte" },
+                    { l: "11,17 mm (.44 cal)",  d: "Revólveres Colt Army 1860 e Remington 1858; o mais comum" },
+                    { l: "11,43 mm (.45 cal)",  d: "Rifles e pistolas de calibre padrão americano" },
+                    { l: "12,7 mm (.50 cal)",   d: "Rifles Hawken e rifles de precisão do séc. XIX" },
+                    { l: "13,72 mm (.54 cal)",  d: "Rifles plains e carabinas de caça de grande porte" },
+                    { l: "14,73 mm (.58 cal)",  d: "Fuzis Minié da Guerra de Secessão; alto poder de parada" },
+                    { l: "15,4 mm (.61 cal)",   d: "Pistolas de duelo e armas de coleção de grande calibre" },
+                    { l: "17,5 mm (.69 cal)",   d: "Mosquetes de alma lisa; padrão francês e americano colonial" },
+                    { l: "19,0 mm (.75 cal)",   d: "Brown Bess; mosquete britânico padrão séc. XVIII–XIX" },
+                    { l: "20,3 mm (.80 cal)",   d: "Armas pesadas de infantaria e artilharia leve" },
+                    { l: "Indeterminado",        d: "Calibre não pôde ser determinado" },
+                  ]).map(({ l: opt, d: desc }, idx, arr) => {
+                    const selected = activeWeapon?.caliber === opt
+                    return (
+                      <button key={opt} type="button"
+                        onClick={() => { setWeaponDirect("caliber", selected ? "" : opt); setCalibreAntecargaPickerOpen(false) }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className={`text-[15px] font-semibold leading-tight ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{opt}</div>
+                          <div className="mt-0.5 text-[12px] text-[#a08c68] leading-snug">{desc}</div>
+                        </div>
+                      </button>
                     )
                   })}
                 </div>
