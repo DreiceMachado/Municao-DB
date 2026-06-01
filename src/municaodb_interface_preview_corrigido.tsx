@@ -1587,7 +1587,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
 
                     {/* Institucional — apenas armas de fogo */}
-                    {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                    {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                       <div className="overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
                         <div className="border-b border-[#e8dfc8] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-4 py-3">
                           <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[#ccb780]">Vínculo da arma</div>
@@ -1727,9 +1727,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       return (
                         <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-4 shadow-sm">
                           <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8d7854]">{label}</div>
-                          <div className={`grid gap-2 ${(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR","ARMA DE PRESSÃO"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "grid-cols-2" : "grid-cols-3"}`}>
+                          <div className={`grid gap-2 ${(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR","ARMA DE PRESSÃO","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "grid-cols-2" : "grid-cols-3"}`}>
                             {(
-                              (["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR","ARMA DE PRESSÃO"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
+                              (["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR","ARMA DE PRESSÃO","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
                                 ? [
                                     { id: "DELEGACIA", label: "Delegacia", Icon: Building2 },
                                     { id: "LOCAL",     label: "Local",     Icon: MapPin    },
@@ -1841,9 +1841,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                   {/* ── Campos base ── */}
                   {!(["PROJÉTIL","PÓLVORA","ESPOLETA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && <div className="space-y-5">
-                    <div className="grid gap-5 md:grid-cols-2">
+                    <div className="grid gap-5 md:grid-cols-4">
                       {/* Identificação — armas de fogo usam campo próprio; demais usam model */}
-                      {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                      {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                         <div>
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             Identificação
@@ -1854,7 +1854,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             placeholder="Ex.: RT 627, REP 001/2025…" />
                         </div>
                       )}
-                      {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && !(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                      {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && !(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                         <div>
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             {activeWeapon?.type === "CARTUCHO" ? "Tipo" : "Identificação"}
@@ -1881,7 +1881,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       )}
                       {/* Modelo — apenas armas de fogo */}
-                      {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                      {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                         <div>
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             Modelo
@@ -1898,7 +1898,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             Calibre
                             <HelpBtn title="Calibre" text="Designação nominal da munição compatível com a arma ou peça. Ex.: .38 SPL, 9 mm Luger, 12 Ga. Para projéteis deflagrados, utilize o campo de diâmetro medido." />
                           </label>
-                          <button type="button" onClick={() => setCalibrePickerOpen(true)}
+                          <button type="button" onClick={() => {
+                            if (activeWeapon?.type === "ARMA DE ANTECARGA") setCalibreAntecargaPickerOpen(true);
+                            else setCalibrePickerOpen(true);
+                          }}
                             className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[16px] ${activeWeapon?.caliber ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
                               {activeWeapon?.caliber || "Selecionar calibre…"}
@@ -1925,7 +1928,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
 
                     {/* Tipo de produção — apenas armas de fogo */}
-                    {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                    {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                       <div className="rounded-2xl border border-[#d3c4a8] bg-white p-4 shadow-sm">
                         <label className="mb-3 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de produção</label>
                         <div className="flex gap-2">
@@ -1952,7 +1955,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               Número de série — estado
                               <HelpBtn title="Número de série" text="Indica a condição em que o número de série se encontra na arma. LEGÍVEL: completamente visível. PARCIAL: parte dos algarismos visível. SUPRIMIDO: intencionalmente removido ou apagado. NÃO APARENTE: não localizado no exame visual." />
                             </label>
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-4 gap-2">
                               {(["LEGÍVEL", "PARCIAL", "SUPRIMIDO", "NÃO APARENTE"]).map(est => (
                                 <button
                                   key={est}
@@ -3930,31 +3933,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                   {/* ── ARMA DE ANTECARGA ── */}
                   {activeWeapon?.type === "ARMA DE ANTECARGA" && (
-                    <div className="space-y-4" style={{ marginTop: '-1.25rem' }}>
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div>
-                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            Identificação
-                            <HelpBtn title="Identificação" text="Designação, marca ou modelo da arma de antecarga. Ex.: Pederneira tipo Flintlock, Revólver Colt Navy 1851, Mosquete Brown Bess." />
-                          </label>
-                          <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
-                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                            placeholder="Ex.: Pederneira, Colt Navy, Mosquete…" />
-                        </div>
-                        <div>
-                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            Calibre (mm)
-                            <HelpBtn title="Calibre" text="Diâmetro interno do cano em milímetros. Armas de antecarga utilizam calibres expressos em mm ou pol. (ex.: 9,14 mm = .36 cal; 11,17 mm = .44 cal)." />
-                          </label>
-                          <button type="button" onClick={() => setCalibreAntecargaPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.caliber ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                              {activeWeapon?.caliber || "Selecionar calibre…"}
-                            </span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                      </div>
+                    <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
                         <div className="mb-4">
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
@@ -3987,14 +3966,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           <button type="button" onClick={() => setMaterialCoronhaPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.materialCoroha ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialCoroha || "Selecionar material…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
-                          <button type="button" onClick={() => setPaisPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.paisFabricacao ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.paisFabricacao || "Selecionar país…"}</span>
                             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                           </button>
                         </div>
