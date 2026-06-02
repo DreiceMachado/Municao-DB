@@ -54,6 +54,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [form, setForm] = useState({
     examNumber: "",
     examYear: String(new Date().getFullYear()),
+    caseNumber: "",
     unit: "Núcleo de Polícia Científica",
     expert: "Perito responsável",
     date: "26/03/2026",
@@ -583,8 +584,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <div className="mb-6 border-b border-[#d3c3a4] pb-3 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
                       Identificação do exame
                     </div>
-                    <div>
-                      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número do exame</label>
+                    <div className="space-y-5">
+                      <div>
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número do exame</label>
                       <div className="flex items-center gap-3">
                         <div className="relative flex-1">
                           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
@@ -601,6 +603,17 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ))}
                           </select>
                           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9e7f45]" />
+                        </div>
+                      </div>
+                    </div>
+
+                      <div>
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número do caso</label>
+                        <div className="relative">
+                          <Database className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
+                          <input value={form.caseNumber} onChange={handleField("caseNumber")}
+                            placeholder="Ex.: 12345"
+                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm" />
                         </div>
                       </div>
                     </div>
