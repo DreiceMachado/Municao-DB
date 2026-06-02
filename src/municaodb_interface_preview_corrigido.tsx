@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import logo from "./assets/logo.png"
 import logoEscudo from "./assets/logo-escudo.png"
@@ -15,6 +15,7 @@ import {
   MapPin,
   Menu,
   Microscope,
+  Package,
   Pencil,
   Plus,
   Search,
@@ -101,6 +102,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [materialQuadroPickerOpen, setMaterialQuadroPickerOpen] = useState(false)
   const [tipoPolvoraPickerOpen, setTipoPolvoraPickerOpen] = useState(false)
   const [tipoEspoletaPickerOpen, setTipoEspoletaPickerOpen] = useState(false)
+  const [acessorioPickerOpen, setAcessorioPickerOpen] = useState(false)
+  const [origemAcessorioPickerOpen, setOrigemAcessorioPickerOpen] = useState(false)
+  const [materialAcessorioPickerOpen, setMaterialAcessorioPickerOpen] = useState(false)
+  const [materialAcessorioItem, setMaterialAcessorioItem] = useState<string | null>(null)
+  const [acessoriosEditando, setAcessoriosEditando] = useState(false)
+  const [confirmDeleteAcessorios, setConfirmDeleteAcessorios] = useState(false)
+
+  useEffect(() => { setAcessoriosEditando(false) }, [activeWeaponIdx])
   const [fieldHelper, setFieldHelper] = useState<{ title: string; text: string } | null>(null)
   const HelpBtn = ({ title, text }: { title: string; text: string }) => (
     <button
@@ -164,6 +173,24 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
   const removeSavedPiece = (idx: number) => {
     setSavedPieces(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const tituloMaterialAcessorio = (item: string): string => {
+    const map: Record<string, string> = {
+      "Varetas":            "Material das Varetas",
+      "Recipientes":        "Material dos Recipientes",
+      "Balança":            "Material da Balança",
+      "Caixas":             "Material das Caixas",
+      "Maletas":            "Material das Maletas",
+      "Capa":               "Material da Capa",
+      "Coldre":             "Material do Coldre",
+      "Mira":               "Material da Mira",
+      "Carregador":         "Material do Carregador",
+      "Cano Sobressalente": "Material do Cano Sobressalente",
+      "Bipé":               "Material do Bipé",
+      "Cinto de munição":   "Material do Cinto de munição",
+    }
+    return map[item] ?? `Material — ${item}`
   }
 
   const filteredRecords = useMemo(() => {
@@ -3788,65 +3815,412 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                   )}
 
-                  {/* ── Mira e Carregador ── */}
-                  {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
-                    <div className="overflow-hidden rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3]">
-                      <div className="border-b border-[#e8dfc8] px-5 py-4">
-                        <span className="text-sm font-black uppercase tracking-[0.14em] text-[#1a1410]">
-                          {activeWeapon?.type === "ARMA DE ANTECARGA" ? "Mira" : "Mira e Carregador"}
-                        </span>
-                      </div>
-                      <div className="divide-y divide-[#e8dfc8]">
-                        {/* Mira */}
-                        <div className="flex items-center justify-between px-4 py-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Mira</div>
-                            {activeWeapon?.tipoMira && activeWeapon.tipoMira.length > 0
-                              ? <div className="mt-0.5 text-[14px] font-semibold text-[#26221b]">{activeWeapon.tipoMira.join(", ")}</div>
-                              : <div className="mt-0.5 text-[13px] text-[#b09a78]">Não informada</div>}
+                  {/* ── Acessórios e Embalagem (opcional) ── */}
+                  {(["REVÓLVER", "PISTOLA", "ESPINGARDA", "CARABINA", "FUZIL", "METRALHADORA", "ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (() => {
+                    const hasData = !!(
+                      (activeWeapon?.tipoAcessorio?.length ?? 0) > 0 ||
+                      activeWeapon?.lacreEntradaAcessorio ||
+                      activeWeapon?.lacreSaidaAcessorio ||
+                      activeWeapon?.origemAcessorio ||
+                      Object.keys(activeWeapon?.materialAcessorio ?? {}).length > 0 ||
+                      activeWeapon?.descricaoAcessorio
+                    )
+                    const clearAcessorios = () => {
+                      setAcessoriosEditando(false)
+                      setWeaponDirect("tipoAcessorio" as any, [])
+                      setWeaponDirect("lacreEntradaAcessorio" as any, "")
+                      setWeaponDirect("lacreSaidaAcessorio" as any, "")
+                      setWeaponDirect("origemAcessorio" as any, "")
+                      setWeaponDirect("materialAcessorio" as any, {} as any)
+                      setWeaponDirect("descricaoAcessorio" as any, "")
+                    }
+                    const temMira = activeWeapon?.tipoAcessorio?.includes("Mira")
+                    const temCarregador = activeWeapon?.tipoAcessorio?.includes("Carregador")
+
+                    /* ── Estado 1: card-resumo (salvo, não editando) ── */
+                    if (hasData && !acessoriosEditando) return (
+                      <div className="overflow-hidden rounded-xl border border-[#ddd0b3] bg-white shadow-sm">
+                        <div className="flex items-stretch">
+                          <button type="button" onClick={() => setAcessoriosEditando(true)}
+                            className="flex flex-1 items-center gap-2.5 px-3 py-2.5 text-left transition active:bg-[#f5efe3]">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a]">
+                              <Package className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#b89a58]">Acessórios e Embalagem</div>
+                              <div className="truncate text-[13px] font-black leading-tight text-[#26221b]">
+                                {activeWeapon?.tipoAcessorio?.length
+                                  ? activeWeapon.tipoAcessorio.join(", ")
+                                  : <span className="font-medium italic text-[#b8a070]">Sem itens selecionados</span>}
+                              </div>
+                            </div>
+                            <Pencil className="h-3.5 w-3.5 shrink-0 text-[#c8a96e]" />
+                          </button>
+                          <div className="my-2 w-px shrink-0 bg-[#e8dfc8]" />
+                          <button type="button" onClick={() => setConfirmDeleteAcessorios(true)}
+                            className="flex w-10 shrink-0 items-center justify-center text-[#c87070] transition active:bg-[#fdf0f0]">
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <div className="border-t border-[#f0e8d8] bg-[#fdfaf5] px-3 py-1.5">
+                          <div className="flex flex-wrap gap-x-3 gap-y-0">
+                            {activeWeapon?.lacreEntradaAcessorio && <span className="text-[10px] text-[#9e8255]">Lacre ent.: <span className="font-black text-[#50442f]">{activeWeapon.lacreEntradaAcessorio}</span></span>}
+                            {activeWeapon?.lacreSaidaAcessorio  && <span className="text-[10px] text-[#9e8255]">Lacre saí.: <span className="font-black text-[#50442f]">{activeWeapon.lacreSaidaAcessorio}</span></span>}
+                            {activeWeapon?.origemAcessorio       && <span className="text-[10px] text-[#9e8255]">Origem: <span className="font-black text-[#50442f]">{activeWeapon.origemAcessorio}</span></span>}
                           </div>
-                          <div className="ml-3 flex items-center gap-1.5">
-                            {activeWeapon?.tipoMira && activeWeapon.tipoMira.length > 0 && (
-                              <button type="button" onClick={() => setConfirmDeleteMira(true)}
-                                className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e0b0b0] bg-[#fdf0f0] text-[#c87070] transition active:bg-[#fde0e0]">
-                                <X className="h-3.5 w-3.5" />
+                        </div>
+                      </div>
+                    )
+
+                    /* ── Estado 2: formulário completo (editando) ── */
+                    if (acessoriosEditando) return (
+                      <div className="overflow-hidden rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3]">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-[#ede3ce]">
+                          <span className="text-sm font-black uppercase tracking-[0.14em] text-[#50442f]">Acessórios e Embalagem</span>
+                        </div>
+                        <div className="px-5 pt-5 pb-6 space-y-5">
+                          {/* Itens */}
+                          <div>
+                            <label className="mb-2 flex items-center gap-1 text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">
+                              Itens / Acessórios
+                              <HelpBtn title="Acessórios e Embalagem" text="Registre aqui os itens apreendidos junto com o material: miras sobressalentes, carregadores extras, coldre, capa, maleta, vareta de limpeza, etc. Se houver mira ou carregador adicional, selecione o item e configure o tipo logo abaixo. A embalagem (lacre de entrada e saída) também é registrada nesta seção." />
+                            </label>
+                            <button type="button" onClick={() => setAcessorioPickerOpen(true)}
+                              className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                              <span className={`truncate text-[15px] ${activeWeapon?.tipoAcessorio?.length ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                                {activeWeapon?.tipoAcessorio?.length ? activeWeapon.tipoAcessorio.join(", ") : "Selecionar itens…"}
+                              </span>
+                              <Plus className="h-4 w-4 text-[#b89a58]" />
+                            </button>
+                          </div>
+
+                          {/* Sub-campo: Mira */}
+                          {temMira && (
+                            <div>
+                              <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Tipos de mira</label>
+                              <button type="button" onClick={() => setMiraPickerOpen(true)}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                                <span className={`truncate text-[15px] ${activeWeapon?.tipoMira?.length ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.tipoMira?.length ? activeWeapon.tipoMira.join(", ") : "Selecionar tipos de mira…"}
+                                </span>
+                                <ChevronRight className="h-4 w-4 text-[#b89a58]" />
                               </button>
-                            )}
-                            <button type="button" onClick={() => setMiraPickerOpen(true)}
-                              className="flex h-9 items-center gap-1.5 rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-[12px] font-black uppercase tracking-[0.1em] text-[#7d6334] transition active:bg-[#f0e8d4]">
-                              <Plus className="h-3.5 w-3.5" />{activeWeapon?.tipoMira && activeWeapon.tipoMira.length > 0 ? "Alterar" : "Adicionar"}
+                            </div>
+                          )}
+
+                          {/* Sub-campo: Carregador */}
+                          {temCarregador && (
+                            <div className="space-y-3">
+                              <div>
+                                <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Tipo de carregador</label>
+                                <button type="button" onClick={() => setCarregadorPickerOpen(true)}
+                                  className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                                  <span className={`truncate text-[15px] ${activeWeapon?.tipoCarregador?.length ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                                    {activeWeapon?.tipoCarregador?.length ? activeWeapon.tipoCarregador.join(", ") : "Selecionar tipo…"}
+                                  </span>
+                                  <ChevronRight className="h-4 w-4 text-[#b89a58]" />
+                                </button>
+                              </div>
+                              {activeWeapon?.type !== "REVÓLVER" && (
+                                <div>
+                                  <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Capacidade</label>
+                                  <input value={String(activeWeapon?.capacidadeCarregador ?? "")} onChange={handleWeaponField("capacidadeCarregador")}
+                                    className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45]"
+                                    placeholder="Ex.: 17 cartuchos" />
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Origem */}
+                          <div>
+                            <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Origem</label>
+                            <button type="button" onClick={() => setOrigemAcessorioPickerOpen(true)}
+                              className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                              <span className={`truncate text-[15px] ${activeWeapon?.origemAcessorio ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                                {activeWeapon?.origemAcessorio || "Selecionar…"}
+                              </span>
+                              <ChevronRight className="h-4 w-4 text-[#b89a58]" />
+                            </button>
+                          </div>
+
+                          {/* Material por item */}
+                          {(activeWeapon?.tipoAcessorio ?? []).map((item) => {
+                            const titulo = tituloMaterialAcessorio(item)
+                            const valor = (activeWeapon?.materialAcessorio ?? {})[item] ?? ""
+                            return (
+                              <div key={item}>
+                                <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">{titulo}</label>
+                                <button type="button" onClick={() => { setMaterialAcessorioItem(item); setMaterialAcessorioPickerOpen(true) }}
+                                  className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                                  <span className={`truncate text-[15px] ${valor ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                                    {valor || "Selecionar…"}
+                                  </span>
+                                  <ChevronRight className="h-4 w-4 text-[#b89a58]" />
+                                </button>
+                              </div>
+                            )
+                          })}
+
+                          {/* Descrição */}
+                          <div>
+                            <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Descrição</label>
+                            <textarea value={String(activeWeapon?.descricaoAcessorio ?? "")} onChange={handleWeaponField("descricaoAcessorio" as any)}
+                              className="min-h-[80px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 py-3 text-[15px] outline-none transition focus:border-[#9e7f45]"
+                              placeholder="Descreva os acessórios e o estado da embalagem..." />
+                          </div>
+
+                          {/* Lacre de Entrada */}
+                          <div className="border-t border-[#ede3ce] pt-4">
+                            <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Lacre de Entrada</p>
+                            <input value={String(activeWeapon?.lacreEntradaAcessorio ?? "")} onChange={handleWeaponField("lacreEntradaAcessorio" as any)}
+                              className="mb-4 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45]"
+                              placeholder="Nº do lacre de entrada" />
+                            <div className="grid grid-cols-2 gap-3">
+                              {([
+                                { key: "emb_ent_f", label: "Lacre Ent. (Frente)" },
+                                { key: "emb_ent_v", label: "Lacre Ent. (Verso)" },
+                              ] as const).map((p) => {
+                                const photoKey = `acc_${p.key}_${activeWeaponIdx}`
+                                return (
+                                  <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
+                                    photoUrl={photoUrls.get(photoKey)}
+                                    onCapture={handlePhotoCapture} onRemove={handlePhotoRemove}
+                                    onView={(url) => setViewerPhoto(url)} />
+                                )
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Fotos do material */}
+                          <div className="border-t border-[#ede3ce] pt-4">
+                            <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Fotos do material</label>
+                            <div className="grid grid-cols-2 gap-3">
+                              {([
+                                { key: "mat_ant",  label: "Mat. Anterior" },
+                                { key: "mat_post", label: "Mat. Posterior" },
+                              ] as const).map((p) => {
+                                const photoKey = `acc_${p.key}_${activeWeaponIdx}`
+                                return (
+                                  <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
+                                    photoUrl={photoUrls.get(photoKey)}
+                                    onCapture={handlePhotoCapture} onRemove={handlePhotoRemove}
+                                    onView={(url) => setViewerPhoto(url)} />
+                                )
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Lacre de Saída */}
+                          <div className="border-t border-[#ede3ce] pt-4">
+                            <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Lacre de Saída</p>
+                            <input value={String(activeWeapon?.lacreSaidaAcessorio ?? "")} onChange={handleWeaponField("lacreSaidaAcessorio" as any)}
+                              className="mb-4 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45]"
+                              placeholder="Nº do lacre de saída" />
+                            <div className="grid grid-cols-2 gap-3">
+                              {([
+                                { key: "emb_sai_f", label: "Lacre Saí. (Frente)" },
+                                { key: "emb_sai_v", label: "Lacre Saí. (Verso)" },
+                              ] as const).map((p) => {
+                                const photoKey = `acc_${p.key}_${activeWeaponIdx}`
+                                return (
+                                  <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
+                                    photoUrl={photoUrls.get(photoKey)}
+                                    onCapture={handlePhotoCapture} onRemove={handlePhotoRemove}
+                                    onView={(url) => setViewerPhoto(url)} />
+                                )
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Botões Cancelar / Salvar */}
+                          <div className="grid grid-cols-2 gap-3 border-t border-[#ede3ce] pt-4">
+                            <button type="button"
+                              onClick={() => { if (!hasData) clearAcessorios(); else setAcessoriosEditando(false) }}
+                              className="rounded-2xl border border-[#a8894c] bg-[#efe1b5] py-3.5 text-sm font-black tracking-[0.14em] text-[#4b3b21] transition active:brightness-95">
+                              CANCELAR
+                            </button>
+                            <button type="button" onClick={() => setAcessoriosEditando(false)}
+                              className="rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-3.5 text-sm font-black tracking-[0.16em] text-[#f0d08a] shadow-[0_8px_20px_rgba(0,0,0,.25)] transition active:brightness-110">
+                              SALVAR
                             </button>
                           </div>
                         </div>
-                        {/* Carregador — não exibido para ARMA DE ANTECARGA */}
-                        {activeWeapon?.type !== "ARMA DE ANTECARGA" && (
-                          <div className="flex items-center justify-between px-4 py-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Carregador</div>
-                              {activeWeapon?.tipoCarregador && activeWeapon.tipoCarregador.length > 0
-                                ? <div className="mt-0.5 text-[14px] font-semibold text-[#26221b]">
-                                    {activeWeapon.tipoCarregador.join(", ")}
-                                    {activeWeapon.capacidadeCarregador ? <span className="ml-1.5 text-[12px] font-normal text-[#7a6540]">· {activeWeapon.capacidadeCarregador}</span> : null}
-                                  </div>
-                                : <div className="mt-0.5 text-[13px] text-[#b09a78]">Não informado</div>}
-                            </div>
-                            <div className="ml-3 flex items-center gap-1.5">
-                              {activeWeapon?.tipoCarregador && activeWeapon.tipoCarregador.length > 0 && (
-                                <button type="button" onClick={() => setConfirmDeleteCarregador(true)}
-                                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e0b0b0] bg-[#fdf0f0] text-[#c87070] transition active:bg-[#fde0e0]">
-                                  <X className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                              <button type="button" onClick={() => setCarregadorPickerOpen(true)}
-                                className="flex h-9 items-center gap-1.5 rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-[12px] font-black uppercase tracking-[0.1em] text-[#7d6334] transition active:bg-[#f0e8d4]">
-                                <Plus className="h-3.5 w-3.5" />{activeWeapon?.tipoCarregador && activeWeapon.tipoCarregador.length > 0 ? "Alterar" : "Adicionar"}
-                              </button>
-                            </div>
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  )}
+                    )
+
+                    /* ── Estado 3: botão "+ Adicionar" ── */
+                    return (
+                      <button type="button" onClick={() => setAcessoriosEditando(true)}
+                        className="flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-[#cdbf9e] bg-[#fbf8f2] px-5 py-4 transition active:bg-[#ece6da]">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#e8dfc8]">
+                          <Plus className="h-5 w-5 text-[#8d7854]" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-black uppercase tracking-[0.14em] text-[#50442f]">Acessórios e Embalagem</p>
+                          <p className="text-[11px] text-[#8d7854]">Opcional — toque para adicionar</p>
+                        </div>
+                      </button>
+                    )
+                  })()}
+        {/* ── Picker: Acessórios ── */}
+        <AnimatePresence>
+          {acessorioPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setAcessorioPickerOpen(false)} />
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              >
+                <div className="shrink-0 px-5 pb-3 pt-4 border-b border-[#e5d9c3]">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Selecionar Acessórios</span>
+                    <button type="button" onClick={() => setAcessorioPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+                  {((): string[] => {
+                    const base = ["Mira", "Coldre", "Capa", "Maletas", "Varetas", "Recipientes", "Balança", "Caixas"]
+                    const t = activeWeapon?.type
+                    if (t === "ARMA DE ANTECARGA") return base
+                    if (t === "REVÓLVER") return ["Mira", "Carregador", ...base.filter(i => i !== "Mira")]
+                    if (t === "PISTOLA" || t === "CARABINA") return ["Mira", "Carregador", ...base.filter(i => i !== "Mira")]
+                    if (t === "ESPINGARDA") return ["Mira", "Carregador", "Cano Sobressalente", ...base.filter(i => i !== "Mira")]
+                    if (t === "FUZIL") return ["Mira", "Carregador", "Bipé", ...base.filter(i => i !== "Mira")]
+                    if (t === "METRALHADORA") return ["Mira", "Carregador", "Bipé", "Cinto de munição", ...base.filter(i => i !== "Mira")]
+                    return base
+                  })().map((acc) => {
+                    const selected = (activeWeapon as any)?.tipoAcessorio?.includes(acc);
+                    return (
+                      <button key={acc} type="button"
+                        onClick={() => {
+                          const current = (activeWeapon as any)?.tipoAcessorio || [];
+                          const next = selected ? current.filter((x: string) => x !== acc) : [...current, acc];
+                          setWeaponDirect("tipoAcessorio" as any, next);
+                        }}
+                        className={`flex w-full items-center justify-between rounded-xl px-4 py-4 transition ${selected ? "bg-[#7d6334] text-white" : "text-[#7a6540] hover:bg-[#efe1b5]"}`}>
+                        <span className="text-sm font-bold uppercase tracking-wide">{acc}</span>
+                        {selected && <div className="h-2 w-2 rounded-full bg-white shadow-[0_0_8px_white]" />}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="p-4 border-t border-[#e5d9c3]">
+                  <button type="button" onClick={() => setAcessorioPickerOpen(false)}
+                    className="w-full rounded-2xl bg-[#7d6334] py-4 text-sm font-black text-white">CONCLUIR</button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Picker: Origem Acessório ── */}
+        <AnimatePresence>
+          {origemAcessorioPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setOrigemAcessorioPickerOpen(false)} />
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              >
+                <div className="shrink-0 px-5 pb-3 pt-4 border-b border-[#e5d9c3]">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Origem da Embalagem</span>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+                  {["Delegacia de Polícia", "Local de Crime", "Instituto Médico Legal", "Outra Unidade", "Indeterminado"].map((opt) => {
+                    const selected = activeWeapon?.origemAcessorio === opt;
+                    return (
+                      <button key={opt} type="button"
+                        onClick={() => { setWeaponDirect("origemAcessorio" as any, opt); setOrigemAcessorioPickerOpen(false); }}
+                        className={`flex w-full items-center justify-between rounded-xl px-4 py-4 transition ${selected ? "bg-[#7d6334] text-white" : "text-[#7a6540] hover:bg-[#efe1b5]"}`}>
+                        <span className="text-sm font-bold uppercase tracking-wide">{opt}</span>
+                        {selected && <div className="h-2 w-2 rounded-full bg-white" />}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="p-4">
+                  <button type="button" onClick={() => setOrigemAcessorioPickerOpen(false)}
+                    className="w-full rounded-2xl bg-[#efe1b5] py-4 text-sm font-black text-[#6b5838]">CANCELAR</button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Picker: Material Acessório ── */}
+        <AnimatePresence>
+          {materialAcessorioPickerOpen && materialAcessorioItem && (() => {
+            const materiaisPorItem: Record<string, string[]> = {
+              "Varetas":           ["Alumínio", "Aço inoxidável", "Plástico", "Madeira", "Fibra de carbono"],
+              "Recipientes":       ["Plástico (Frasco)", "Vidro", "Metal", "Alumínio", "Borracha"],
+              "Balança":           ["Plástico", "Aço inoxidável", "Alumínio"],
+              "Caixas":            ["Papelão", "Madeira", "Plástico rígido", "Metal", "MDF"],
+              "Maletas":           ["Plástico ABS", "Alumínio", "Couro sintético", "Lona", "Polipropileno"],
+              "Capa":              ["Couro", "Couro sintético", "Nylon", "Tecido", "Vinil"],
+              "Coldre":            ["Couro", "Polímero", "Nylon", "Canvas", "Kydex"],
+              "Mira":              ["Metal", "Alumínio", "Polímero", "Fibra de carbono"],
+              "Carregador":        ["Polímero", "Aço", "Alumínio", "Liga de alumínio"],
+              "Cano Sobressalente":["Aço", "Aço inoxidável", "Alumínio", "Inox escovado"],
+              "Bipé":              ["Aço", "Alumínio", "Polímero", "Liga de alumínio"],
+              "Cinto de munição":  ["Lona", "Couro", "Nylon", "Metal"],
+            }
+            const opcoes: string[] = [...(materiaisPorItem[materialAcessorioItem] ?? ["Plástico", "Metal", "Madeira", "Outro"])]
+            if (!opcoes.includes("Outro")) opcoes.push("Outro")
+            const valorAtual = (activeWeapon?.materialAcessorio ?? {})[materialAcessorioItem] ?? ""
+            const titulo = tituloMaterialAcessorio(materialAcessorioItem)
+            return (
+              <>
+                <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  onClick={() => setMaterialAcessorioPickerOpen(false)} />
+                <motion.div
+                  className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                  initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                  transition={{ type: "spring", damping: 28, stiffness: 280 }}
+                >
+                  <div className="shrink-0 px-5 pb-3 pt-4 border-b border-[#e5d9c3]">
+                    <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">{titulo}</span>
+                  </div>
+                  <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+                    {opcoes.map((opt) => {
+                      const selected = valorAtual === opt
+                      return (
+                        <button key={opt} type="button"
+                          onClick={() => {
+                            const prev = activeWeapon?.materialAcessorio ?? {}
+                            setWeaponDirect("materialAcessorio" as any, { ...prev, [materialAcessorioItem]: opt } as any)
+                            setMaterialAcessorioPickerOpen(false)
+                          }}
+                          className={`flex w-full items-center justify-between rounded-xl px-4 py-4 transition ${selected ? "bg-[#7d6334] text-white" : "text-[#7a6540] hover:bg-[#efe1b5]"}`}>
+                          <span className="text-sm font-bold uppercase tracking-wide">{opt}</span>
+                          {selected && <div className="h-2 w-2 rounded-full bg-white" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="p-4">
+                    <button type="button" onClick={() => setMaterialAcessorioPickerOpen(false)}
+                      className="w-full rounded-2xl bg-[#efe1b5] py-4 text-sm font-black text-[#6b5838]">CANCELAR</button>
+                  </div>
+                </motion.div>
+              </>
+            )
+          })()}
+        </AnimatePresence>
+
 
                   {/* ── Imagens ── */}
                   <div>
@@ -4187,6 +4561,18 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           confirmDeleteCarregador={confirmDeleteCarregador}
           onDeleteCarregador={() => { setWeaponDirect("tipoCarregador", []); setConfirmDeleteCarregador(false) }}
           onCancelDeleteCarregador={() => setConfirmDeleteCarregador(false)}
+          confirmDeleteAcessorios={confirmDeleteAcessorios}
+          onDeleteAcessorios={() => {
+            setAcessoriosEditando(false)
+            setWeaponDirect("tipoAcessorio" as any, [])
+            setWeaponDirect("lacreEntradaAcessorio" as any, "")
+            setWeaponDirect("lacreSaidaAcessorio" as any, "")
+            setWeaponDirect("origemAcessorio" as any, "")
+            setWeaponDirect("materialAcessorio" as any, {} as any)
+            setWeaponDirect("descricaoAcessorio" as any, "")
+            setConfirmDeleteAcessorios(false)
+          }}
+          onCancelDeleteAcessorios={() => setConfirmDeleteAcessorios(false)}
         />
 
         <ProfilePanel

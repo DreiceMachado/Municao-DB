@@ -16,6 +16,10 @@ type Props = {
   confirmDeleteCarregador: boolean
   onDeleteCarregador: () => void
   onCancelDeleteCarregador: () => void
+
+  confirmDeleteAcessorios: boolean
+  onDeleteAcessorios: () => void
+  onCancelDeleteAcessorios: () => void
 }
 
 const sheetContainer = "overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.45)]"
@@ -47,6 +51,9 @@ export function ConfirmDialogs({
   confirmDeleteCarregador,
   onDeleteCarregador,
   onCancelDeleteCarregador,
+  confirmDeleteAcessorios,
+  onDeleteAcessorios,
+  onCancelDeleteAcessorios,
 }: Props) {
   const piece = confirmDeletePieceIdx !== null ? savedPieces[confirmDeletePieceIdx] : null
 
@@ -152,6 +159,36 @@ export function ConfirmDialogs({
                     <X className="h-4 w-4" /> SIM, REMOVER
                   </button>
                   <button type="button" onClick={onCancelDeleteCarregador} className={cancelBtn}>CANCELAR</button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {confirmDeleteAcessorios && (
+          <>
+            <motion.div className="fixed inset-0 z-[140] bg-black/60 backdrop-blur-[2px]"
+              {...backdropMotion} onClick={onCancelDeleteAcessorios} />
+            <motion.div className="fixed inset-x-0 bottom-0 z-[150] px-4 pb-8" {...sheetMotion}>
+              <div className={sheetContainer}>
+                <div className={sheetHeader}>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f08a8a]/15">
+                      <X className="h-5 w-5 text-[#f08a8a]" />
+                    </div>
+                    <div>
+                      <div className="text-base font-black text-[#f08a8a]">Excluir acessórios e embalagem</div>
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#c47a7a]">Todos os dados serão removidos. Continuar?</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3 p-4">
+                  <button type="button" onClick={onDeleteAcessorios} className={confirmBtn}>
+                    <X className="h-4 w-4" /> SIM, EXCLUIR
+                  </button>
+                  <button type="button" onClick={onCancelDeleteAcessorios} className={cancelBtn}>CANCELAR</button>
                 </div>
               </div>
             </motion.div>

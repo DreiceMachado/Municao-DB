@@ -145,6 +145,13 @@ export type WeaponEntry = {
   tipoEspoleta: string
   // ARMA DE PRESSÃO
   adaptadaArmaFogo: boolean | null
+  // Acessórios e Embalagem
+  tipoAcessorio: string[]
+  lacreEntradaAcessorio: string
+  lacreSaidaAcessorio: string
+  origemAcessorio: string
+  materialAcessorio: Record<string, string>
+  descricaoAcessorio: string
 }
 
 export type RecordItem = {

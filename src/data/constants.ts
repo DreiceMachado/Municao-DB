@@ -101,5 +101,7 @@ export function makeWeaponEntry(type: WeaponType): WeaponEntry {
     estadoCartucho: "", estadoEstojo: "",
     tipoPolvora: "", cor: "", tipoEspoleta: "",
     adaptadaArmaFogo: null,
+    tipoAcessorio: [], lacreEntradaAcessorio: "", lacreSaidaAcessorio: "",
+    origemAcessorio: "", materialAcessorio: {}, descricaoAcessorio: "",
   }
 }
