@@ -1490,6 +1490,35 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </label>
                           ))}
                         </div>
+                        <div className="mt-4 border-t border-[#ede3ce] pt-4">
+                          <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
+                          <div className="space-y-2">
+                            {( [
+                              ["TODAS",      "Exame feito com todas as munições que acompanham o material"],
+                              ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
+                              ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
+                              ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                            ] as const).map(([val, label]) => {
+                              const sel = (activeWeapon as any)?.tipoMunicaoExame === val
+                              return (
+                                <button key={val} type="button"
+                                  onClick={() => setWeaponDirect("tipoMunicaoExame" as any, sel ? "" : val)}
+                                  className={cn(
+                                    "flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition active:scale-[0.99]",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]/10" : "border-[#d3c4a8] bg-[#fbf8f2]"
+                                  )}>
+                                  <span className={cn(
+                                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"
+                                  )}>
+                                    {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                                  </span>
+                                  <span className={`text-[12px] font-bold leading-tight ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{label}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
                       </CollapsibleCard>
                     </div>
                   </>)}
@@ -1665,6 +1694,35 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </label>
                           ))}
                         </div>
+                        <div className="mt-4 border-t border-[#ede3ce] pt-4">
+                          <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
+                          <div className="space-y-2">
+                            {( [
+                              ["TODAS",      "Exame feito com todas as munições que acompanham o material"],
+                              ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
+                              ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
+                              ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                            ] as const).map(([val, label]) => {
+                              const sel = (activeWeapon as any)?.tipoMunicaoExame === val
+                              return (
+                                <button key={val} type="button"
+                                  onClick={() => setWeaponDirect("tipoMunicaoExame" as any, sel ? "" : val)}
+                                  className={cn(
+                                    "flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition active:scale-[0.99]",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]/10" : "border-[#d3c4a8] bg-[#fbf8f2]"
+                                  )}>
+                                  <span className={cn(
+                                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"
+                                  )}>
+                                    {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                                  </span>
+                                  <span className={`text-[12px] font-bold leading-tight ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{label}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
                       </CollapsibleCard>
                     </div>
                   )}
@@ -1834,6 +1892,35 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </label>
                           ))}
                         </div>
+                        <div className="mt-4 border-t border-[#ede3ce] pt-4">
+                          <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
+                          <div className="space-y-2">
+                            {( [
+                              ["TODAS",      "Exame feito com todas as munições que acompanham o material"],
+                              ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
+                              ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
+                              ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                            ] as const).map(([val, label]) => {
+                              const sel = (activeWeapon as any)?.tipoMunicaoExame === val
+                              return (
+                                <button key={val} type="button"
+                                  onClick={() => setWeaponDirect("tipoMunicaoExame" as any, sel ? "" : val)}
+                                  className={cn(
+                                    "flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition active:scale-[0.99]",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]/10" : "border-[#d3c4a8] bg-[#fbf8f2]"
+                                  )}>
+                                  <span className={cn(
+                                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"
+                                  )}>
+                                    {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                                  </span>
+                                  <span className={`text-[12px] font-bold leading-tight ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{label}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
                       </CollapsibleCard>
                     </div>
                   )}
@@ -1968,6 +2055,35 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               {label}
                             </label>
                           ))}
+                        </div>
+                        <div className="mt-4 border-t border-[#ede3ce] pt-4">
+                          <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
+                          <div className="space-y-2">
+                            {( [
+                              ["TODAS",      "Exame feito com todas as munições que acompanham o material"],
+                              ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
+                              ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
+                              ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                            ] as const).map(([val, label]) => {
+                              const sel = (activeWeapon as any)?.tipoMunicaoExame === val
+                              return (
+                                <button key={val} type="button"
+                                  onClick={() => setWeaponDirect("tipoMunicaoExame" as any, sel ? "" : val)}
+                                  className={cn(
+                                    "flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition active:scale-[0.99]",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]/10" : "border-[#d3c4a8] bg-[#fbf8f2]"
+                                  )}>
+                                  <span className={cn(
+                                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"
+                                  )}>
+                                    {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                                  </span>
+                                  <span className={`text-[12px] font-bold leading-tight ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{label}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                       </CollapsibleCard>
                     </div>
@@ -2135,6 +2251,35 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               {label}
                             </label>
                           ))}
+                        </div>
+                        <div className="mt-4 border-t border-[#ede3ce] pt-4">
+                          <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
+                          <div className="space-y-2">
+                            {( [
+                              ["TODAS",      "Exame feito com todas as munições que acompanham o material"],
+                              ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
+                              ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
+                              ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                            ] as const).map(([val, label]) => {
+                              const sel = (activeWeapon as any)?.tipoMunicaoExame === val
+                              return (
+                                <button key={val} type="button"
+                                  onClick={() => setWeaponDirect("tipoMunicaoExame" as any, sel ? "" : val)}
+                                  className={cn(
+                                    "flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition active:scale-[0.99]",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]/10" : "border-[#d3c4a8] bg-[#fbf8f2]"
+                                  )}>
+                                  <span className={cn(
+                                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"
+                                  )}>
+                                    {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                                  </span>
+                                  <span className={`text-[12px] font-bold leading-tight ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{label}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                       </CollapsibleCard>
                     </div>
@@ -2311,6 +2456,35 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               {label}
                             </label>
                           ))}
+                        </div>
+                        <div className="mt-4 border-t border-[#ede3ce] pt-4">
+                          <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
+                          <div className="space-y-2">
+                            {( [
+                              ["TODAS",      "Exame feito com todas as munições que acompanham o material"],
+                              ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
+                              ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
+                              ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                            ] as const).map(([val, label]) => {
+                              const sel = (activeWeapon as any)?.tipoMunicaoExame === val
+                              return (
+                                <button key={val} type="button"
+                                  onClick={() => setWeaponDirect("tipoMunicaoExame" as any, sel ? "" : val)}
+                                  className={cn(
+                                    "flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition active:scale-[0.99]",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]/10" : "border-[#d3c4a8] bg-[#fbf8f2]"
+                                  )}>
+                                  <span className={cn(
+                                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"
+                                  )}>
+                                    {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                                  </span>
+                                  <span className={`text-[12px] font-bold leading-tight ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{label}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                       </CollapsibleCard>
                     </div>
