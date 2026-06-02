@@ -1239,7 +1239,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
 
                     {/* Tipo de produção — apenas armas de fogo */}
-                    {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                    {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                       <div className="rounded-2xl border border-[#d3c4a8] bg-white p-4 shadow-sm">
                         <label className="mb-3 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de produção</label>
                         <div className="flex gap-2">
@@ -1429,15 +1429,21 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                   {label}
                                 </span>
                                 <div className="flex shrink-0 gap-1.5">
-                                  <button type="button" disabled={isNa}
-                                    onClick={() => setWeaponDirect(key, true)}
+                                  <button type="button"
+                                    onClick={() => {
+                                      setWeaponDirect(key, true);
+                                      if (isNa) handleWeaponNaToggle(key);
+                                    }}
                                     className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
-                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]"
                                     )}>SIM</button>
-                                  <button type="button" disabled={isNa}
-                                    onClick={() => setWeaponDirect(key, false)}
+                                  <button type="button"
+                                    onClick={() => {
+                                      setWeaponDirect(key, false);
+                                      if (isNa) handleWeaponNaToggle(key);
+                                    }}
                                     className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
-                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]"
                                     )}>NÃO</button>
                                   <button type="button"
                                     onClick={() => handleWeaponNaToggle(key)}
@@ -1632,15 +1638,21 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                   {label}
                                 </span>
                                 <div className="flex shrink-0 gap-1.5">
-                                  <button type="button" disabled={isNa}
-                                    onClick={() => setWeaponDirect(key, true)}
+                                  <button type="button"
+                                    onClick={() => {
+                                      setWeaponDirect(key, true);
+                                      if (isNa) handleWeaponNaToggle(key);
+                                    }}
                                     className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
-                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]"
                                     )}>SIM</button>
-                                  <button type="button" disabled={isNa}
-                                    onClick={() => setWeaponDirect(key, false)}
+                                  <button type="button"
+                                    onClick={() => {
+                                      setWeaponDirect(key, false);
+                                      if (isNa) handleWeaponNaToggle(key);
+                                    }}
                                     className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
-                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]"
                                     )}>NÃO</button>
                                   <button type="button"
                                     onClick={() => handleWeaponNaToggle(key)}
@@ -1830,15 +1842,21 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                   {label}
                                 </span>
                                 <div className="flex shrink-0 gap-1.5">
-                                  <button type="button" disabled={isNa}
-                                    onClick={() => setWeaponDirect(key, true)}
+                                  <button type="button"
+                                    onClick={() => {
+                                      setWeaponDirect(key, true);
+                                      if (isNa) handleWeaponNaToggle(key);
+                                    }}
                                     className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
-                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]"
                                     )}>SIM</button>
-                                  <button type="button" disabled={isNa}
-                                    onClick={() => setWeaponDirect(key, false)}
+                                  <button type="button"
+                                    onClick={() => {
+                                      setWeaponDirect(key, false);
+                                      if (isNa) handleWeaponNaToggle(key);
+                                    }}
                                     className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
-                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]"
                                     )}>NÃO</button>
                                   <button type="button"
                                     onClick={() => handleWeaponNaToggle(key)}
@@ -1997,15 +2015,21 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                   {label}
                                 </span>
                                 <div className="flex shrink-0 gap-1.5">
-                                  <button type="button" disabled={isNa}
-                                    onClick={() => setWeaponDirect(key, true)}
+                                  <button type="button"
+                                    onClick={() => {
+                                      setWeaponDirect(key, true);
+                                      if (isNa) handleWeaponNaToggle(key);
+                                    }}
                                     className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
-                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]"
                                     )}>SIM</button>
-                                  <button type="button" disabled={isNa}
-                                    onClick={() => setWeaponDirect(key, false)}
+                                  <button type="button"
+                                    onClick={() => {
+                                      setWeaponDirect(key, false);
+                                      if (isNa) handleWeaponNaToggle(key);
+                                    }}
                                     className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
-                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]"
                                     )}>NÃO</button>
                                   <button type="button"
                                     onClick={() => handleWeaponNaToggle(key)}
@@ -2192,15 +2216,21 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                   {label}
                                 </span>
                                 <div className="flex shrink-0 gap-1.5">
-                                  <button type="button" disabled={isNa}
-                                    onClick={() => setWeaponDirect(key, true)}
+                                  <button type="button"
+                                    onClick={() => {
+                                      setWeaponDirect(key, true);
+                                      if (isNa) handleWeaponNaToggle(key);
+                                    }}
                                     className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
-                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]"
                                     )}>SIM</button>
-                                  <button type="button" disabled={isNa}
-                                    onClick={() => setWeaponDirect(key, false)}
+                                  <button type="button"
+                                    onClick={() => {
+                                      setWeaponDirect(key, false);
+                                      if (isNa) handleWeaponNaToggle(key);
+                                    }}
                                     className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
-                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]"
                                     )}>NÃO</button>
                                   <button type="button"
                                     onClick={() => handleWeaponNaToggle(key)}
@@ -2397,15 +2427,21 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                   {label}
                                 </span>
                                 <div className="flex shrink-0 gap-1.5">
-                                  <button type="button" disabled={isNa}
-                                    onClick={() => setWeaponDirect(key, true)}
+                                  <button type="button"
+                                    onClick={() => {
+                                      setWeaponDirect(key, true);
+                                      if (isNa) handleWeaponNaToggle(key);
+                                    }}
                                     className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
-                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]"
                                     )}>SIM</button>
-                                  <button type="button" disabled={isNa}
-                                    onClick={() => setWeaponDirect(key, false)}
+                                  <button type="button"
+                                    onClick={() => {
+                                      setWeaponDirect(key, false);
+                                      if (isNa) handleWeaponNaToggle(key);
+                                    }}
                                     className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
-                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45] disabled:opacity-25"
+                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]"
                                     )}>NÃO</button>
                                   <button type="button"
                                     onClick={() => handleWeaponNaToggle(key)}
@@ -3432,6 +3468,76 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                         </button>
                       </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
+                        <button type="button" onClick={() => setPaisPickerOpen(true)}
+                          className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                          <span className={`truncate text-[15px] ${activeWeapon?.paisFabricacao ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                            {activeWeapon?.paisFabricacao || "Selecionar país…"}
+                          </span>
+                          <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                        </button>
+                      </div>
+                      <div className="rounded-2xl border border-[#d3c4a8] bg-white p-4 shadow-sm">
+                        <label className="mb-3 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de produção</label>
+                        <div className="flex gap-2">
+                          {(["INDUSTRIAL", "ARTESANAL"]).map(tipo => (
+                            <button
+                              key={tipo}
+                              type="button"
+                              onClick={() => { setWeaponDirect("tipoProd", tipo); if (tipo === "ARTESANAL") setWeaponDirect("serialEstado", "") }}
+                              className={`flex-1 rounded-xl border-2 py-3 text-sm font-black tracking-[0.12em] transition active:scale-[.97] ${
+                                activeWeapon?.tipoProd === tipo
+                                  ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                                  : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                              }`}
+                            >
+                              {tipo}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Bloco de número de série — só para INDUSTRIAL */}
+                        {activeWeapon?.tipoProd === "INDUSTRIAL" && (
+                          <div className="mt-4 border-t border-[#e8dfc8] pt-4">
+                            <label className="mb-3 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                              Número de série — estado
+                              <HelpBtn title="Número de série" text="Indica a condição em que o número de série se encontra na arma. LEGÍVEL: completamente visível. PARCIAL: parte dos algarismos visível. SUPRIMIDO: intencionalmente removido ou apagado. NÃO APARENTE: não localizado no exame visual." />
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {(["LEGÍVEL", "PARCIAL", "SUPRIMIDO", "NÃO APARENTE"]).map(est => (
+                                <button
+                                  key={est}
+                                  type="button"
+                                  onClick={() => setWeaponDirect("serialEstado", est)}
+                                  className={`rounded-xl border-2 py-2.5 text-xs font-black tracking-[0.1em] transition active:scale-[.97] ${
+                                    activeWeapon?.serialEstado === est
+                                      ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a]"
+                                      : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                                  }`}
+                                >
+                                  {est}
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Input do número — só para LEGÍVEL ou PARCIAL */}
+                            {(activeWeapon?.serialEstado === "LEGÍVEL" || activeWeapon?.serialEstado === "PARCIAL") && (
+                              <div className="mt-3">
+                                <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                                  Número de série
+                                </label>
+                                <input
+                                  value={activeWeapon?.serial ?? ""}
+                                  onChange={handleWeaponField("serial")}
+                                  className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                                  placeholder="Ex.: ABC-123456"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
                         <div className="mb-4">
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
@@ -3464,14 +3570,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           <button type="button" onClick={() => setMaterialCoronhaPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.materialCoroha ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialCoroha || "Selecionar material…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
-                          <button type="button" onClick={() => setPaisPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.paisFabricacao ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.paisFabricacao || "Selecionar país…"}</span>
                             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                           </button>
                         </div>
@@ -3509,6 +3607,95 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               )}
                             </div>
                           ))}
+                        </div>
+                      </CollapsibleCard>
+
+                      <CollapsibleCard title="Mecanismo de funcionamento">
+                        <div className="space-y-2">
+                          {([
+                            ["gatilhoFuncional",  "Gatilho funcional"],
+                            ["ignicaoFuncional",  "Mecanismo de ignição funcional"],
+                            ["varetaPresente",    "Vareta de carga presente"],
+                            ["canalDesobstruido", "Canal de ignição (ouvido) desobstruído"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
+                            const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            const isSim = !isNa && Boolean((activeWeapon as any)?.[key] ?? true)
+                            const isNao = !isNa && !Boolean((activeWeapon as any)?.[key] ?? false)
+                            return (
+                              <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
+                                <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>
+                                  {label}
+                                </span>
+                                <div className="flex shrink-0 gap-1.5">
+                                  <button type="button"
+                                    onClick={() => {
+                                      setWeaponDirect(key, true);
+                                      if (isNa) handleWeaponNaToggle(key);
+                                    }}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
+                                      isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]"
+                                    )}>SIM</button>
+                                  <button type="button"
+                                    onClick={() => {
+                                      setWeaponDirect(key, false);
+                                      if (isNa) handleWeaponNaToggle(key);
+                                    }}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95",
+                                      isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]"
+                                    )}>NÃO</button>
+                                  <button type="button"
+                                    onClick={() => handleWeaponNaToggle(key)}
+                                    className={cn("h-10 min-w-[44px] rounded-xl px-2 text-[10px] font-black uppercase tracking-wide transition active:scale-95",
+                                      isNa ? "bg-[#b89a58] text-white shadow-sm" : "border border-[#e8dfc8] bg-white text-[#c8a96e]"
+                                    )}>N/A</button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </CollapsibleCard>
+
+                      <CollapsibleCard title="Exame de disparo">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["aptoDisparo",    "Apta para disparo"],
+                            ["testePercussao", "Teste de ignição / percussão"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={Boolean((activeWeapon as any)?.[key] ?? true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                        <div className="mt-4 border-t border-[#ede3ce] pt-4">
+                          <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
+                          <div className="space-y-2">
+                            {( [
+                              ["TODAS",      "Exame feito com todas as munições que acompanham o material"],
+                              ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
+                              ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
+                              ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                            ] as const).map(([val, label]) => {
+                              const sel = (activeWeapon as any)?.tipoMunicaoExame === val
+                              return (
+                                <button key={val} type="button"
+                                  onClick={() => setWeaponDirect("tipoMunicaoExame" as any, sel ? "" : val)}
+                                  className={cn(
+                                    "flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition active:scale-[0.99]",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]/10" : "border-[#cdbf9e] bg-white"
+                                  )}>
+                                  <span className={cn(
+                                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"
+                                  )}>
+                                    {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                                  </span>
+                                  <span className={`text-[12px] font-bold leading-tight ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{label}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                       </CollapsibleCard>
                     </div>
@@ -3566,8 +3753,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                     return (
                                       <button key={opt} type="button"
                                         onClick={() => {
-                                          if (opt === "N/A") handleWeaponNaToggle(key)
-                                          else setWeaponDirect(key as keyof Omit<WeaponEntry,"type">, opt === "SIM")
+                                          if (opt === "N/A") {
+                                            handleWeaponNaToggle(key)
+                                          } else {
+                                            setWeaponDirect(key as keyof Omit<WeaponEntry,"type">, opt === "SIM")
+                                            if (isNa) handleWeaponNaToggle(key)
+                                          }
                                         }}
                                         className={cn("rounded-lg px-2.5 py-1 text-[11px] font-black tracking-[0.1em] transition",
                                           active ? "bg-[#7d6334] text-white" : "bg-[#e8dfc8] text-[#7a6540]")}>
