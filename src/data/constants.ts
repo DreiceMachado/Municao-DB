@@ -73,7 +73,8 @@ export function makeWeaponEntry(type: WeaponType): WeaponEntry {
   return {
     type,
     identificacao: "", brand: "", model: "", caliber: "", serial: "", paisFabricacao: "", origemMunicao: "",
-    material: "", acabamento: "", compCano: "", numCamaras: "", tipoMira: [], tipoCarregador: [],
+    material: "", acabamento: "", compCano: "", numCamaras: "", tamborSobressalente: "", tamborSobressalenteQtd: "", tipoMira: [], tipoCarregador: [],
+    canoSobressalente: "", canoSobressalenteQtd: "", canoSobressalenteComp: "", canoSobressalenteMaterial: "", canoSobressalenteAcabamento: "",
     acaoSimples: true, acaoDupla: true, tamborGira: true, indexacaoCorreta: true,
     caoFuncional: true, gatilhoFuncional: true, seguranca: true,
     ferrugem: false, ferrugemObs: "", desgaste: false, desgasteObs: "",

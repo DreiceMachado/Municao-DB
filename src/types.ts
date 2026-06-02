@@ -30,6 +30,13 @@ export type WeaponEntry = {
   acabamento: string
   compCano: string
   numCamaras: string
+  tamborSobressalente: string
+  tamborSobressalenteQtd: string
+  canoSobressalente: string
+  canoSobressalenteQtd: string
+  canoSobressalenteComp: string
+  canoSobressalenteMaterial: string
+  canoSobressalenteAcabamento: string
   tipoMira: string[]
   tipoCarregador: string[]
   // 3. Mecanismo de funcionamento

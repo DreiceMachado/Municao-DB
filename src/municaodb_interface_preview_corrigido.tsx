@@ -90,6 +90,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [sistemaAcionamentoPickerOpen, setSistemaAcionamentoPickerOpen] = useState(false)
   const [calibreArmaPressaoPickerOpen, setCalibreArmaPressaoPickerOpen] = useState(false)
   const [calibreAntecargaPickerOpen, setCalibreAntecargaPickerOpen] = useState(false)
+  const [tamborPickerOpen, setTamborPickerOpen] = useState(false)
+  const [canoSobresPickerOpen, setCanoSobresPickerOpen] = useState(false)
   const [calibrePickerOpen, setCalibrePickerOpen] = useState(false)
   // calibreCustomInput is now managed locally inside AllPickers
   const [paisPickerOpen, setPaisPickerOpen] = useState(false)
@@ -1160,6 +1162,48 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                             placeholder="Ex.: GP100, M1911, AR-15…" />
+                        </div>
+                      )}
+
+                      {/* Tambor sobressalente — apenas REVÓLVER */}
+                      {activeWeapon?.type === "REVÓLVER" && (
+                        <div>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Tambor sobressalente
+                            <HelpBtn title="Tambor sobressalente" text="Tambor adicional apreendido junto com o revólver, com calibre diferente do original. Registrado como informação complementar; não altera o calibre nominal da arma." />
+                          </label>
+                          <button type="button" onClick={() => setTamborPickerOpen(true)}
+                            className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[16px] ${activeWeapon?.tamborSobressalente ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.tamborSobressalente
+                                ? `${activeWeapon.tamborSobressalente}${activeWeapon.tamborSobressalenteQtd ? ` · ${activeWeapon.tamborSobressalenteQtd} unid.` : ""}`
+                                : "Sem tambor sobressalente"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Cano sobressalente — apenas ESPINGARDA */}
+                      {activeWeapon?.type === "ESPINGARDA" && (
+                        <div>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Cano sobressalente
+                            <HelpBtn title="Cano sobressalente" text="Cano adicional apreendido junto com a espingarda, com calibre nominal diferente do original. Registrado como informação complementar; não altera o calibre nominal da arma." />
+                          </label>
+                          <button type="button" onClick={() => setCanoSobresPickerOpen(true)}
+                            className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[16px] ${activeWeapon?.canoSobressalente ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.canoSobressalente
+                                ? [
+                                    activeWeapon.canoSobressalente,
+                                    activeWeapon.canoSobressalenteComp,
+                                    activeWeapon.canoSobressalenteQtd && `${activeWeapon.canoSobressalenteQtd} unid.`,
+                                  ].filter(Boolean).join(" · ")
+                                : "Sem cano sobressalente"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
                         </div>
                       )}
                       {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && activeWeapon?.type !== "CARREGADOR" && activeWeapon?.type !== "ARMA DE ANTECARGA" && (
@@ -3574,6 +3618,185 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
             setters[picker]?.(false)
           }}
         />
+
+        {/* ── Picker: Tambor sobressalente (revólver) ── */}
+        <AnimatePresence>
+          {tamborPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setTamborPickerOpen(false)} />
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              >
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Tambor sobressalente</span>
+                    <button type="button" onClick={() => setTamborPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[11px] text-[#8d7854]">Registra tambor extra apreendido. Não altera o calibre nominal da arma.</p>
+                  <div className="mt-3">
+                    <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Quantidade de tambores</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={activeWeapon?.tamborSobressalenteQtd ?? ""}
+                      onChange={handleWeaponField("tamborSobressalenteQtd" as keyof Omit<WeaponEntry,"type">)}
+                      className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                      placeholder="Ex.: 1"
+                    />
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {([
+                    { l: "Sem tambor sobressalente",      d: "Nenhum tambor adicional apreendido junto com a arma",                                caliber: "" },
+                    { l: ".38 SPL",                       d: "Tambor .38 SPL; comum em revólveres .357 Magnum com câmaras menores",                caliber: ".38 SPL" },
+                    { l: ".357 Magnum",                   d: "Tambor .357 Magnum; câmaras mais longas, aceita também .38 SPL",                    caliber: ".357 Magnum" },
+                    { l: "9 mm Luger (moon clips)",       d: "Tambor adaptado para 9 mm com uso de moon clips; Taurus, S&W e outros",             caliber: "9 mm Luger (9×19mm)" },
+                    { l: ".44 SPL",                       d: "Tambor para .44 SPL; câmaras menores que .44 Magnum",                               caliber: ".44 SPL" },
+                    { l: ".44 Magnum",                    d: "Tambor .44 Magnum; câmaras maiores para maior pressão",                             caliber: ".44 Magnum" },
+                    { l: ".45 ACP (moon clips)",          d: "Tambor .45 ACP com moon clips; comum em revólveres .45 Colt adaptados",             caliber: ".45 ACP" },
+                    { l: ".45 Colt",                      d: "Tambor original de revólveres .45; câmaras clássicas",                              caliber: ".45 Colt" },
+                    { l: ".22 LR",                        d: "Tambor rimfire .22 LR; usado em revólveres .22 WMR com tambor duplo",               caliber: ".22 LR" },
+                    { l: ".22 WMR (.22 Mag)",             d: "Tambor .22 WMR; câmaras ligeiramente maiores que .22 LR",                          caliber: ".22 WMR (.22 Mag)" },
+                    { l: ".32 H&R Magnum",                d: "Tambor .32 H&R Magnum; evolução do .32 S&W Long",                                  caliber: ".32 H&R Magnum" },
+                    { l: ".32 S&W Long",                  d: "Tambor .32 S&W Long; calibre de revólveres compactos",                             caliber: ".32 S&W Long" },
+                    { l: "Indeterminado",                 d: "Calibre do tambor sobressalente não pôde ser determinado",                          caliber: "" },
+                  ] as { l: string; d: string; caliber: string }[]).map(({ l, d, caliber: cal }, idx, arr) => {
+                    const selected = (activeWeapon?.tamborSobressalente || "") === l || (l === "Sem tambor sobressalente" && !activeWeapon?.tamborSobressalente)
+                    return (
+                      <button key={l} type="button"
+                        onClick={() => {
+                          setWeaponDirect("tamborSobressalente", l === "Sem tambor sobressalente" ? "" : l)
+                          if (l === "Sem tambor sobressalente") setWeaponDirect("tamborSobressalenteQtd", "")
+                          setTamborPickerOpen(false)
+                        }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className={`text-[15px] font-semibold leading-tight ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{l}</div>
+                          <div className="mt-0.5 text-[12px] text-[#a08c68] leading-snug">{d}</div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Picker: Cano sobressalente (espingarda) ── */}
+        <AnimatePresence>
+          {canoSobresPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setCanoSobresPickerOpen(false)} />
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[85vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              >
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Cano sobressalente</span>
+                    <button type="button" onClick={() => setCanoSobresPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[11px] text-[#8d7854]">Registra cano extra apreendido junto com a espingarda. Não altera o calibre nominal da arma.</p>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Quantidade</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={activeWeapon?.canoSobressalenteQtd ?? ""}
+                        onChange={handleWeaponField("canoSobressalenteQtd" as keyof Omit<WeaponEntry,"type">)}
+                        className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        placeholder="Ex.: 1"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Comprimento</label>
+                      <input
+                        value={activeWeapon?.canoSobressalenteComp ?? ""}
+                        onChange={handleWeaponField("canoSobressalenteComp" as keyof Omit<WeaponEntry,"type">)}
+                        className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        placeholder="Ex.: 660 mm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Material</label>
+                      <input
+                        value={activeWeapon?.canoSobressalenteMaterial ?? ""}
+                        onChange={handleWeaponField("canoSobressalenteMaterial" as keyof Omit<WeaponEntry,"type">)}
+                        className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        placeholder="Ex.: Aço"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Acabamento</label>
+                      <input
+                        value={activeWeapon?.canoSobressalenteAcabamento ?? ""}
+                        onChange={handleWeaponField("canoSobressalenteAcabamento" as keyof Omit<WeaponEntry,"type">)}
+                        className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                        placeholder="Ex.: Brunido"
+                      />
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Calibre nominal do cano sobressalente</p>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {([
+                    { l: "Sem cano sobressalente", d: "Nenhum cano adicional apreendido junto com a arma" },
+                    { l: "12",                     d: "Calibre 12 (12 gauge) — o mais comum em espingardas" },
+                    { l: "16",                     d: "Calibre 16 (16 gauge) — intermediário, menos comum atualmente" },
+                    { l: "20",                     d: "Calibre 20 (20 gauge) — opção mais leve e compacta" },
+                    { l: "28",                     d: "Calibre 28 (28 gauge) — espingardas leves de caça" },
+                    { l: ".410 (36)",               d: "Calibre .410 bore / 36 — o menor calibre de espingarda convencional" },
+                    { l: "Indeterminado",           d: "Calibre do cano sobressalente não pôde ser determinado" },
+                  ]).map(({ l, d }, idx, arr) => {
+                    const selected = (activeWeapon?.canoSobressalente || "") === l || (l === "Sem cano sobressalente" && !activeWeapon?.canoSobressalente)
+                    return (
+                      <button key={l} type="button"
+                        onClick={() => {
+                          setWeaponDirect("canoSobressalente", l === "Sem cano sobressalente" ? "" : l)
+                          if (l === "Sem cano sobressalente") {
+                            setWeaponDirect("canoSobressalenteQtd", "")
+                            setWeaponDirect("canoSobressalenteComp", "")
+                            setWeaponDirect("canoSobressalenteMaterial", "")
+                            setWeaponDirect("canoSobressalenteAcabamento", "")
+                          }
+                          setCanoSobresPickerOpen(false)
+                        }}
+                        className={`flex w-full items-center gap-4 py-4 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                          {selected && <svg viewBox="0 0 12 10" className="h-3 w-3"><path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className={`text-[15px] font-semibold leading-tight ${selected ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>{l}</div>
+                          <div className="mt-0.5 text-[12px] text-[#a08c68] leading-snug">{d}</div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         <ConfirmDialogs
           confirmDeletePieceIdx={confirmDeletePieceIdx}
