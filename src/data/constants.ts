@@ -80,6 +80,7 @@ export function makeWeaponEntry(type: WeaponType): WeaponEntry {
     ferrugem: false, ferrugemObs: "", desgaste: false, desgasteObs: "",
     danoEstruturais: false, danoEstruturaisObs: "", pecasFaltantes: false, pecasFaltantesObs: "",
     aptoDisparo: true, funcMunicaoReal: true, testePercussao: true, marcacaoPercussor: true,
+    tipoMunicaoDisparo: "", qtdMunicaoDisparo: "",
     sistemaRepeticao: true, carregadorPresente: true, carregadorFuncional: true,
     ferrolhoFuncional: true, percussorFuncional: true, extratorFuncional: true,
     ejetorFuncional: true, retencaoFerrolho: true, alimentacaoFuncional: true,

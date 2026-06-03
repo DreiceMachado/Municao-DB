@@ -61,6 +61,8 @@ export type WeaponEntry = {
   funcMunicaoReal: boolean
   testePercussao: boolean
   marcacaoPercussor: boolean
+  tipoMunicaoDisparo: string
+  qtdMunicaoDisparo: string
   // Carabina — Funcionamento
   sistemaRepeticao: boolean
   // Pistola — Funcionamento

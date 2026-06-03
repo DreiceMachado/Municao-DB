@@ -1,10 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import logo from "./assets/logo.png"
 import logoEscudo from "./assets/logo-escudo.png"
 import {
   Building2,
-  CalendarDays,
   Camera,
   ChevronDown,
   ChevronLeft,
@@ -15,6 +13,7 @@ import {
   MapPin,
   Menu,
   Microscope,
+  ChevronUp,
   Package,
   Pencil,
   Plus,
@@ -23,8 +22,8 @@ import {
   X,
 } from "lucide-react"
 
-import type { ExamForm, ExamType, ProfileView, WeaponEntry, WeaponType } from "./types"
-import { recordsSeed, titleByType, makeWeaponEntry } from "./data/constants"
+import type { WeaponEntry, WeaponType } from "./types"
+import { recordsSeed, makeWeaponEntry } from "./data/constants"
 import { cn } from "./utils/cn"
 import { CollapsibleSection } from "./components/ui/CollapsibleSection"
 import { CollapsibleCard } from "./components/ui/CollapsibleCard"
@@ -39,13 +38,10 @@ import { PhotosScreen } from "./components/PhotosScreen"
 import { WeaponFormProvider } from "./context/WeaponFormContext"
 import { AllPickers } from "./components/AllPickers"
 
-// Types, constants, and utility components are now imported from their respective modules above.
-
 
 export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [weaponType, setWeaponType] = useState<WeaponType | null>(null)
-  const [showTypeSelector, setShowTypeSelector] = useState(true)
   const [showGroupFirearms, setShowGroupFirearms] = useState(false)
   const [showGroupAmmo, setShowGroupAmmo] = useState(false)
   const [showGroupOthers, setShowGroupOthers] = useState(false)
@@ -65,7 +61,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
   const [weapons, setWeapons] = useState<WeaponEntry[]>([])
   const [activeWeaponIdx, setActiveWeaponIdx] = useState(0)
-  const [showAddWeaponSelector, setShowAddWeaponSelector] = useState(false)
   const [savedPieces, setSavedPieces] = useState<WeaponEntry[]>([])
   const [editingPieceIdx, setEditingPieceIdx] = useState<number | null>(null)
   const [confirmDeletePieceIdx, setConfirmDeletePieceIdx] = useState<number | null>(null)
@@ -108,6 +103,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [materialAcessorioPickerOpen, setMaterialAcessorioPickerOpen] = useState(false)
   const [materialAcessorioItem, setMaterialAcessorioItem] = useState<string | null>(null)
   const [acessoriosEditando, setAcessoriosEditando] = useState(false)
+  const [tipoMunicaoPickerOpen, setTipoMunicaoPickerOpen] = useState(false)
+  const [qtdMunicaoPickerOpen, setQtdMunicaoPickerOpen] = useState(false)
+  const [tipoMunicaoCustom, setTipoMunicaoCustom] = useState("")
   const [confirmDeleteAcessorios, setConfirmDeleteAcessorios] = useState(false)
 
   useEffect(() => { setAcessoriosEditando(false) }, [activeWeaponIdx])
@@ -242,21 +240,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     }))
   }
 
-  const addWeapon = (type: WeaponType) => {
-    setActiveWeaponIdx(weapons.length)
-    setWeapons((prev) => [...prev, makeWeaponEntry(type)])
-  }
-
   const sidebarDesktop = (
     <aside className="hidden w-[300px] shrink-0 border-r border-[#8e7340] bg-[linear-gradient(180deg,#0d1a31_0%,#11203c_58%,#0b1730_100%)] xl:block">
       <SidebarContent onOpenProfile={() => setProfileView("main")} />
     </aside>
-  )
-
-  const sidebarMobile = (
-  <div className="min-h-screen bg-[linear-gradient(180deg,#0d1a31_0%,#11203c_58%,#0b1730_100%)]">
-    <SidebarContent onOpenProfile={() => setProfileView("main")} />
-  </div>
   )
 
 
@@ -1581,6 +1568,29 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               )
                             })}
                           </div>
+                          <div className="mt-4 grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Calibre</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.tipoMunicaoDisparo ?? ""); setTipoMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`truncate text-[14px] ${activeWeapon?.tipoMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.tipoMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Qtd. utilizada</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.qtdMunicaoDisparo ?? ""); setQtdMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`text-[14px] ${activeWeapon?.qtdMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.qtdMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
+                          </div>
+
                         </div>
                       </CollapsibleCard>
                     </div>
@@ -1791,6 +1801,28 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               )
                             })}
                           </div>
+                          <div className="mt-4 grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Calibre</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.tipoMunicaoDisparo ?? ""); setTipoMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`truncate text-[14px] ${activeWeapon?.tipoMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.tipoMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Qtd. utilizada</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.qtdMunicaoDisparo ?? ""); setQtdMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`text-[14px] ${activeWeapon?.qtdMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.qtdMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </CollapsibleCard>
                     </div>
@@ -1995,6 +2027,28 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               )
                             })}
                           </div>
+                          <div className="mt-4 grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Calibre</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.tipoMunicaoDisparo ?? ""); setTipoMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`truncate text-[14px] ${activeWeapon?.tipoMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.tipoMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Qtd. utilizada</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.qtdMunicaoDisparo ?? ""); setQtdMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`text-[14px] ${activeWeapon?.qtdMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.qtdMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </CollapsibleCard>
                     </div>
@@ -2164,6 +2218,28 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 </button>
                               )
                             })}
+                          </div>
+                          <div className="mt-4 grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Calibre</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.tipoMunicaoDisparo ?? ""); setTipoMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`truncate text-[14px] ${activeWeapon?.tipoMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.tipoMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Qtd. utilizada</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.qtdMunicaoDisparo ?? ""); setQtdMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`text-[14px] ${activeWeapon?.qtdMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.qtdMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </CollapsibleCard>
@@ -2366,6 +2442,28 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 </button>
                               )
                             })}
+                          </div>
+                          <div className="mt-4 grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Calibre</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.tipoMunicaoDisparo ?? ""); setTipoMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`truncate text-[14px] ${activeWeapon?.tipoMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.tipoMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Qtd. utilizada</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.qtdMunicaoDisparo ?? ""); setQtdMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`text-[14px] ${activeWeapon?.qtdMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.qtdMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </CollapsibleCard>
@@ -2577,6 +2675,28 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 </button>
                               )
                             })}
+                          </div>
+                          <div className="mt-4 grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Calibre</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.tipoMunicaoDisparo ?? ""); setTipoMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`truncate text-[14px] ${activeWeapon?.tipoMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.tipoMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Qtd. utilizada</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.qtdMunicaoDisparo ?? ""); setQtdMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`text-[14px] ${activeWeapon?.qtdMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.qtdMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </CollapsibleCard>
@@ -3753,6 +3873,28 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               )
                             })}
                           </div>
+                          <div className="mt-4 grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Calibre</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.tipoMunicaoDisparo ?? ""); setTipoMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`truncate text-[14px] ${activeWeapon?.tipoMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.tipoMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Qtd. utilizada</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.qtdMunicaoDisparo ?? ""); setQtdMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`text-[14px] ${activeWeapon?.qtdMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.qtdMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </CollapsibleCard>
                     </div>
@@ -3892,9 +4034,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     /* ── Estado 2: formulário completo (editando) ── */
                     if (acessoriosEditando) return (
                       <div className="overflow-hidden rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3]">
-                        <div className="flex items-center justify-between px-5 py-4 border-b border-[#ede3ce]">
+                        <button
+                          type="button"
+                          onClick={() => setAcessoriosEditando(false)}
+                          className="flex w-full items-center justify-between px-5 py-4 border-b border-[#ede3ce] transition active:bg-[#f0e8d0]"
+                        >
                           <span className="text-sm font-black uppercase tracking-[0.14em] text-[#50442f]">Acessórios e Embalagem</span>
-                        </div>
+                          <ChevronUp className="h-4 w-4 text-[#9e7f45]" />
+                        </button>
                         <div className="px-5 pt-5 pb-6 space-y-5">
                           {/* Itens */}
                           <div>
@@ -4080,6 +4227,101 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </button>
                     )
                   })()}
+        {/* ── Picker: Tipo de munição ── */}
+        <AnimatePresence>
+          {tipoMunicaoPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setTipoMunicaoPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6"
+                initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
+                transition={{ type: "spring", damping: 28, stiffness: 320 }}>
+                <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
+                  <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4">
+                    <div className="text-base font-black text-[#f0d08a]">Calibre da munição</div>
+                    <div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione ou digite abaixo</div>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {[".22 LR",".22 WMR",".25 ACP",".32 ACP (7,65mm)",".32 S&W Long",".32 H&R Magnum",".38 SPL",".38 SPL +P",".357 Magnum",".38 Super Auto",".380 ACP","9mm Luger","9mm Makarov",".357 SIG",".40 S&W","10mm Auto",".44 SPL",".44 Magnum",".45 ACP",".45 Colt","5,7×28mm","12 Ga","16 Ga","20 Ga","28 Ga",".410","5,56×45mm NATO",".223 Rem","7,62×39mm","7,62×51mm NATO",".308 Win","7,62×54R","5,45×39mm",".30-30 Win",".30 Carbine",".30-06","6,5mm Creedmoor",".338 Lapua",".50 BMG","Outro"].map(opt => {
+                      const sel = activeWeapon?.tipoMunicaoDisparo === opt
+                      return (
+                        <button key={opt} type="button"
+                          onClick={() => { setWeaponDirect("tipoMunicaoDisparo", opt); setTipoMunicaoPickerOpen(false) }}
+                          className={`flex w-full items-center gap-3 border-b border-[#ede3ce] px-5 py-3.5 text-left transition active:bg-[#f0e8d0] ${sel ? "bg-[#f0e8d0]" : "bg-white"}`}>
+                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e]"}`}>
+                            {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                          </span>
+                          <span className={`text-[14px] font-bold ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{opt}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="p-4 space-y-3">
+                    <input value={tipoMunicaoCustom} onChange={e => setTipoMunicaoCustom(e.target.value)}
+                      placeholder="Outro calibre (ex.: .454 Casull, 6,8 SPC…)"
+                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setTipoMunicaoPickerOpen(false)}
+                        className="rounded-xl border border-[#d3c4a8] bg-[#ece6da] py-3 text-sm font-bold text-[#6b5838]">Cancelar</button>
+                      <button type="button" onClick={() => { if (tipoMunicaoCustom.trim()) setWeaponDirect("tipoMunicaoDisparo", tipoMunicaoCustom.trim()); setTipoMunicaoPickerOpen(false) }}
+                        className="rounded-xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-3 text-sm font-black text-[#f0d08a]">Confirmar</button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Picker: Quantidade utilizada ── */}
+        <AnimatePresence>
+          {qtdMunicaoPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setQtdMunicaoPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6"
+                initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
+                transition={{ type: "spring", damping: 28, stiffness: 320 }}>
+                <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
+                  <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4">
+                    <div className="text-base font-black text-[#f0d08a]">Quantidade utilizada</div>
+                    <div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione ou digite abaixo</div>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {["1","2","3","4","5","6","7","8","9","10","12"].map(n => {
+                      const sel = activeWeapon?.qtdMunicaoDisparo === n
+                      return (
+                        <button key={n} type="button"
+                          onClick={() => { setWeaponDirect("qtdMunicaoDisparo", n); setQtdMunicaoPickerOpen(false) }}
+                          className={`flex w-full items-center gap-3 border-b border-[#ede3ce] px-5 py-3.5 text-left transition active:bg-[#f0e8d0] ${sel ? "bg-[#f0e8d0]" : "bg-white"}`}>
+                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e]"}`}>
+                            {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                          </span>
+                          <span className={`text-[14px] font-bold ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{n}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="p-4 space-y-3">
+                    <input value={tipoMunicaoCustom} onChange={e => setTipoMunicaoCustom(e.target.value)}
+                      inputMode="numeric"
+                      placeholder="Outra quantidade (ex.: 15)"
+                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setQtdMunicaoPickerOpen(false)}
+                        className="rounded-xl border border-[#d3c4a8] bg-[#ece6da] py-3 text-sm font-bold text-[#6b5838]">Cancelar</button>
+                      <button type="button" onClick={() => { if (tipoMunicaoCustom.trim()) setWeaponDirect("qtdMunicaoDisparo", tipoMunicaoCustom.trim()); setTipoMunicaoCustom(""); setQtdMunicaoPickerOpen(false) }}
+                        className="rounded-xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-3 text-sm font-black text-[#f0d08a]">Confirmar</button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
         {/* ── Picker: Acessórios ── */}
         <AnimatePresence>
           {acessorioPickerOpen && (
@@ -4469,7 +4711,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     { l: ".32 H&R Magnum",                d: "Tambor .32 H&R Magnum; evolução do .32 S&W Long",                                  caliber: ".32 H&R Magnum" },
                     { l: ".32 S&W Long",                  d: "Tambor .32 S&W Long; calibre de revólveres compactos",                             caliber: ".32 S&W Long" },
                     { l: "Indeterminado",                 d: "Calibre do tambor sobressalente não pôde ser determinado",                          caliber: "" },
-                  ] as { l: string; d: string; caliber: string }[]).map(({ l, d, caliber: cal }, idx, arr) => {
+                  ] as { l: string; d: string; caliber: string }[]).map(({ l, d }, idx, arr) => {
                     const selected = (activeWeapon?.tamborSobressalente || "") === l || (l === "Sem tambor sobressalente" && !activeWeapon?.tamborSobressalente)
                     return (
                       <button key={l} type="button"
