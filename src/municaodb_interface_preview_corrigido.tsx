@@ -107,15 +107,40 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [qtdMunicaoPickerOpen, setQtdMunicaoPickerOpen] = useState(false)
   const [tipoMunicaoCustom, setTipoMunicaoCustom] = useState("")
   const [confirmDeleteAcessorios, setConfirmDeleteAcessorios] = useState(false)
+  const [coletaActivePieceIdx, setColetaActivePieceIdx] = useState<number | null>(null)
+  const [coletaPhotoUrls, setColetaPhotoUrls] = useState<Map<string, string>>(new Map())
+  const [coletaQtdProjeteisPicker, setColetaQtdProjeteisPicker] = useState(false)
+  const [coletaQtdEstojosPicker, setColetaQtdEstojosPicker] = useState(false)
+  const [coletaTipoProjetilPicker, setColetaTipoProjetilPicker] = useState(false)
+  const [coletaMaterialProjetilPicker, setColetaMaterialProjetilPicker] = useState(false)
+  const [coletaTipoEstojoPicker, setColetaTipoEstojoPicker] = useState(false)
+  const [coletaMaterialEstojoPicker, setColetaMaterialEstojoPicker] = useState(false)
+
+  const handleColetaPhotoCapture = (key: string, file: File) => {
+    const reader = new FileReader()
+    reader.onload = e => {
+      const url = e.target?.result as string
+      setColetaPhotoUrls(prev => { const n = new Map(prev); n.set(key, url); return n })
+    }
+    reader.readAsDataURL(file)
+  }
+  const handleColetaPhotoRemove = (key: string) =>
+    setColetaPhotoUrls(prev => { const n = new Map(prev); n.delete(key); return n })
+
+  const updateColeta = (idx: number, field: keyof WeaponEntry, value: string | boolean) =>
+    setSavedPieces(prev => prev.map((p, i) => i === idx ? { ...p, [field]: value } : p))
 
   useEffect(() => { setAcessoriosEditando(false) }, [activeWeaponIdx])
   const [fieldHelper, setFieldHelper] = useState<{ title: string; text: string } | null>(null)
   const HelpBtn = ({ title, text }: { title: string; text: string }) => (
-    <button
-      type="button"
-      onClick={() => setFieldHelper({ title, text })}
-      className="ml-1.5 inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border border-[#c8a96e] bg-[#fdf6e8] text-[10px] font-black text-[#9e7f45] transition active:bg-[#f0d08a]"
-    >?</button>
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={e => { e.stopPropagation(); setFieldHelper({ title, text }) }}
+      onKeyDown={e => e.key === "Enter" && setFieldHelper({ title, text })}
+      className="ml-1.5 inline-flex h-[18px] w-[18px] shrink-0 cursor-pointer select-none items-center justify-center rounded-full border border-[#c8a96e] bg-[#fdf6e8] text-[10px] font-black text-[#9e7f45] transition active:bg-[#f0d08a]"
+      style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+    >?</span>
   )
 
   const [profileView, setProfileView] = useState<null | "main" | "changeEmail" | "changePassword">(null)
@@ -139,16 +164,33 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const activeWeapon = weapons[activeWeaponIdx] ?? null
 
   const resetPieceForm = () => {
-    setWeaponType(null) // Reset weapon type
-    setWeapons([]) // Clear current weapon forms
-    setActiveWeaponIdx(0) // Reset active weapon index
-    setPieceFormOpen(false) // Close piece form
-    setPhotosOpen(false) // Close photos screen
-    setLacreNumero("") // Clear entry seal number
-    setLacreSaidaNumero("") // Clear exit seal number
-    setPhotoUrls(new Map()) // Clear photo URLs
+    setWeaponType(null)
+    setWeapons([])
+    setActiveWeaponIdx(0)
+    setPieceFormOpen(false)
+    setShowGroupFirearms(false)
+    setShowGroupAmmo(false)
+    setShowGroupOthers(false)
+    setPhotosOpen(false)
+    setLacreNumero("")
+    setLacreSaidaNumero("")
+    setPhotoUrls(prev => {
+      const next = new Map<string, string>()
+      prev.forEach((v, k) => { if (k.startsWith("coleta-")) next.set(k, v) })
+      return next
+    })
     setViewerPhoto(null)
     setEditingPieceIdx(null)
+  }
+
+  const resetFullExam = () => {
+    resetPieceForm()
+    setSavedPieces([])
+    setColetaActivePieceIdx(null)
+    setColetaPhotoUrls(new Map())
+    setPhotoUrls(new Map())
+    setExamType(null)
+    setRepMinimized(false)
   }
 
   const savePiece = () => {
@@ -679,6 +721,174 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 {p.tipoCarregador && p.tipoCarregador.length > 0 && <span className="text-[10px] text-[#9e8255]">Carregador: <span className="font-black text-[#50442f]">{p.tipoCarregador.join(", ")}{p.capacidadeCarregador ? ` · ${p.capacidadeCarregador}` : ""}</span></span>}
                               </div>
                             </div>
+
+                            {/* ── Coleta de Padrão por peça ── */}
+                            {p.coletaSalva ? (
+                              /* Estado salvo — card inteiro clicável para editar */
+                              <button type="button"
+                                onClick={() => { updateColeta(i, "coletaSalva", false); setColetaActivePieceIdx(i) }}
+                                className="w-full border-t border-[#e8dfc8] bg-[#f5efe3] px-3 py-2.5 text-left transition active:bg-[#ece6da]">
+                                <div className="flex items-center justify-between">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Coleta de Padrão</div>
+                                    <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0">
+                                      {p.coletaNumero && <span className="text-[11px] font-black text-[#50442f]">Nº {p.coletaNumero}</span>}
+                                      <span className="text-[11px] text-[#6b5838]">REP {form.examNumber || "—"}/{p.coletaRepAno || form.examYear}</span>
+                                      {p.coletaQtdProjeteis && <span className="text-[11px] text-[#6b5838]">{p.coletaQtdProjeteis} proj.</span>}
+                                      {p.coletaQtdEstojos   && <span className="text-[11px] text-[#6b5838]">{p.coletaQtdEstojos} est.</span>}
+                                    </div>
+                                  </div>
+                                  <Pencil className="ml-2 h-3.5 w-3.5 shrink-0 text-[#c8a96e]" />
+                                </div>
+                              </button>
+                            ) : (
+                              /* Estado edição — formulário completo */
+                              <>
+                                <button type="button"
+                                  onClick={() => setColetaActivePieceIdx(coletaActivePieceIdx === i ? null : i)}
+                                  className="flex w-full items-center justify-between border-t border-[#e8dfc8] bg-[#f5efe3] px-3 py-2.5 transition active:bg-[#ece6da]">
+                                  <div className="flex items-center gap-2">
+                                    <Plus className="h-3.5 w-3.5 text-[#9e7f45]" />
+                                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Adicionar coleta de padrão</span>
+                                  </div>
+                                  <ChevronDown className={`h-3.5 w-3.5 text-[#9e7f45] transition-transform ${coletaActivePieceIdx === i ? "rotate-180" : ""}`} />
+                                </button>
+
+                                {coletaActivePieceIdx === i && (
+                                  <div className="border-t border-[#e8dfc8] bg-[#fdfaf5] px-3 pb-4 pt-3 space-y-4">
+
+                                    {/* Chips pré-preenchidos da peça */}
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {p.caliber && <span className="rounded-full bg-[#e8dfc8] px-2.5 py-1 text-[11px] font-black text-[#50442f]">{p.caliber}</span>}
+                                      {p.brand   && <span className="rounded-full bg-[#e8dfc8] px-2.5 py-1 text-[11px] font-bold text-[#6b5838]">{p.brand}</span>}
+                                      {p.model   && <span className="rounded-full bg-[#e8dfc8] px-2.5 py-1 text-[11px] text-[#6b5838]">{p.model}</span>}
+                                    </div>
+
+                                    {/* Nº coleta + Ano REP independente */}
+                                    <div className="flex gap-2">
+                                      <div className="flex-1">
+                                        <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.14em] text-[#8d7854]">Nº da coleta</label>
+                                        <input value={p.coletaNumero} onChange={e => updateColeta(i, "coletaNumero", e.target.value)}
+                                          placeholder="Ex.: 001"
+                                          className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[15px] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                                      </div>
+                                      <div className="w-28">
+                                        <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.14em] text-[#8d7854]">Ano REP</label>
+                                        <div className="relative">
+                                          <select value={p.coletaRepAno || form.examYear}
+                                            onChange={e => updateColeta(i, "coletaRepAno", e.target.value)}
+                                            className="h-11 w-full appearance-none rounded-xl border border-[#cdbf9e] bg-white pl-3 pr-7 text-[14px] outline-none focus:border-[#9e7f45] cursor-pointer">
+                                            {Array.from({ length: 11 }, (_, k) => new Date().getFullYear() - 5 + k).map(y => (
+                                              <option key={y} value={String(y)}>{y}</option>
+                                            ))}
+                                          </select>
+                                          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9e7f45]" />
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Munições utilizadas */}
+                                    <div>
+                                      <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.14em] text-[#8d7854]">Munições utilizadas</label>
+                                      <div className="space-y-1.5">
+                                        {([
+                                          ["TODAS",      "Todas as munições que acompanham o material"],
+                                          ["AMOSTRAGEM", "Amostragem das munições do material"],
+                                          ["MISTA",      "Munições do material + munições próprias da unidade"],
+                                          ["PROPRIA",    "Apenas munições próprias da unidade"],
+                                        ] as const).map(([val, label]) => {
+                                          const sel = p.coletaMunicaoTipo === val
+                                          return (
+                                            <button key={val} type="button"
+                                              onClick={() => updateColeta(i, "coletaMunicaoTipo", sel ? "" : val)}
+                                              className={cn("flex w-full items-center gap-2.5 rounded-lg border-2 px-3 py-2.5 text-left transition active:scale-[0.99]",
+                                                sel ? "border-[#7d6334] bg-[#7d6334]/10" : "border-[#d3c4a8] bg-white")}>
+                                              <span className={cn("flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2",
+                                                sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white")}>
+                                                {sel && <svg viewBox="0 0 10 10" className="h-2 w-2"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                                              </span>
+                                              <span className={`text-[12px] font-bold leading-tight ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{label}</span>
+                                            </button>
+                                          )
+                                        })}
+                                      </div>
+                                    </div>
+
+                                    {/* Quantidades */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.14em] text-[#8d7854]">Qtd. projéteis</label>
+                                        <button type="button"
+                                          onClick={() => { setColetaActivePieceIdx(i); setTipoMunicaoCustom(p.coletaQtdProjeteis); setColetaQtdProjeteisPicker(true) }}
+                                          className="flex h-11 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-white px-3 text-left active:bg-[#f0e8d0]">
+                                          <span className={`text-[13px] ${p.coletaQtdProjeteis ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>{p.coletaQtdProjeteis || "Selecionar…"}</span>
+                                          <ChevronRight className="h-4 w-4 text-[#b89a58]" />
+                                        </button>
+                                      </div>
+                                      <div>
+                                        <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.14em] text-[#8d7854]">Qtd. estojos</label>
+                                        <button type="button"
+                                          onClick={() => { setColetaActivePieceIdx(i); setTipoMunicaoCustom(p.coletaQtdEstojos); setColetaQtdEstojosPicker(true) }}
+                                          className="flex h-11 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-white px-3 text-left active:bg-[#f0e8d0]">
+                                          <span className={`text-[13px] ${p.coletaQtdEstojos ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>{p.coletaQtdEstojos || "Selecionar…"}</span>
+                                          <ChevronRight className="h-4 w-4 text-[#b89a58]" />
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Projétil e Estojo — botões sheet */}
+                                    <div className="grid grid-cols-2 gap-2 items-end">
+                                      {([
+                                        ["Tipo do projétil",     p.coletaTipoProjetil,     () => { setColetaActivePieceIdx(i); setColetaTipoProjetilPicker(true) }],
+                                        ["Material do projétil", p.coletaMaterialProjetil, () => { setColetaActivePieceIdx(i); setColetaMaterialProjetilPicker(true) }],
+                                        ["Tipo do estojo",       p.coletaTipoEstojo,       () => { setColetaActivePieceIdx(i); setColetaTipoEstojoPicker(true) }],
+                                        ["Material do estojo",   p.coletaMaterialEstojo,   () => { setColetaActivePieceIdx(i); setColetaMaterialEstojoPicker(true) }],
+                                      ] as [string, string, () => void][]).map(([label, value, open]) => (
+                                        <div key={label} className="flex flex-col">
+                                          <label className="mb-1.5 flex-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#8d7854] leading-tight">{label}</label>
+                                          <button type="button" onClick={open}
+                                            className="flex h-11 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-white px-3 text-left transition active:bg-[#f0e8d0]">
+                                            <span className={`truncate text-[13px] ${value ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>{value || "Selecionar…"}</span>
+                                            <ChevronRight className="ml-1 h-4 w-4 shrink-0 text-[#b89a58]" />
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+
+                                    {/* Lacre de saída */}
+                                    <LacreInput
+                                      label="Lacre de Saída (coleta)"
+                                      slotKey={`coleta-${i}-lacre`}
+                                      value={p.coletaLacreSaida}
+                                      onChange={v => updateColeta(i, "coletaLacreSaida", v)}
+                                      allPhotoUrls={coletaPhotoUrls}
+                                      onCapture={handleColetaPhotoCapture}
+                                      onRemove={handleColetaPhotoRemove}
+                                      onView={setViewerPhoto}
+                                      placeholder="Nº do lacre de saída"
+                                    />
+
+                                    {/* Fotos */}
+                                    <div>
+                                      <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.14em] text-[#8d7854]">Fotos</label>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <PhotoSlot slotKey={`coleta-${i}-material`}   label="Material coletado"  photoUrl={coletaPhotoUrls.get(`coleta-${i}-material`)}   onCapture={handleColetaPhotoCapture} onRemove={handleColetaPhotoRemove} onView={setViewerPhoto} />
+                                        <PhotoSlot slotKey={`coleta-${i}-emb-frente`} label="Embalagem (frente)" photoUrl={coletaPhotoUrls.get(`coleta-${i}-emb-frente`)} onCapture={handleColetaPhotoCapture} onRemove={handleColetaPhotoRemove} onView={setViewerPhoto} />
+                                        <PhotoSlot slotKey={`coleta-${i}-emb-verso`}  label="Embalagem (verso)"  photoUrl={coletaPhotoUrls.get(`coleta-${i}-emb-verso`)}  onCapture={handleColetaPhotoCapture} onRemove={handleColetaPhotoRemove} onView={setViewerPhoto} />
+                                      </div>
+                                    </div>
+
+                                    {/* Botão Salvar */}
+                                    <button type="button"
+                                      onClick={() => { updateColeta(i, "coletaSalva", true); setColetaActivePieceIdx(null) }}
+                                      className="w-full rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-3.5 text-sm font-black tracking-[0.16em] text-[#f0d08a] shadow-[0_8px_20px_rgba(0,0,0,.25)] transition hover:brightness-110">
+                                      SALVAR COLETA
+                                    </button>
+
+                                  </div>
+                                )}
+                              </>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -813,12 +1023,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 type="button"
                                 onClick={() => {
                                   setConfirmDeleteRep(false)
-                                  setExamType(null)
-                                  setRepMinimized(false)
-                                  setSavedPieces([])
-                                  setWeaponType(null)
-                                  setWeapons([])
-                                  setPieceFormOpen(false)
+                                  resetFullExam()
                                 }}
                                 className="flex-1 rounded-2xl border-2 border-[#b03030] bg-[linear-gradient(180deg,#8b2020_0%,#5c1515_100%)] py-4 text-sm font-black uppercase tracking-[0.12em] text-[#ffd4d4] active:brightness-90"
                               >
@@ -2985,7 +3190,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               { nome: ".32 S&W Long",         nominal: ".32 S&W Long",              mm:"7,97 mm", dMin:7.85, dMax:8.10, aMin:11, aMax:16, mMin:5.0,  mMax:7.0  },
                               { nome: ".380 ACP / 9mm Kurz",  nominal: ".380 ACP / 9mm Curto",      mm:"9,02 mm", dMin:8.70, dMax:9.10, aMin:8,  aMax:11, mMin:5.0,  mMax:7.5  },
                               { nome: "9mm Luger / 9×19mm",   nominal: "9mm Luger",                 mm:"9,02 mm", dMin:8.80, dMax:9.20, aMin:11, aMax:15, mMin:6.5,  mMax:9.5  },
-                              { nome: ".38 SPL",              nominal: ".38 S&W Special",           mm:"9,07 mm", dMin:9.00, dMax:9.20, aMin:14, aMax:18, mMin:7.5,  mMax:12.0 },
+                              { nome: ".38 SPL",              nominal: ".38 SPL",                   mm:"9,07 mm", dMin:9.00, dMax:9.20, aMin:14, aMax:18, mMin:7.5,  mMax:12.0 },
                               { nome: ".357 Magnum",          nominal: ".357 Magnum",               mm:"9,07 mm", dMin:9.00, dMax:9.20, aMin:15, aMax:22, mMin:8.0,  mMax:13.5 },
                               { nome: ".40 S&W",              nominal: ".40 S&W",                   mm:"10,17 mm",dMin:9.90, dMax:10.40, aMin:12, aMax:16, mMin:9.5, mMax:13.5 },
                               { nome: "10mm Auto",            nominal: "10mm Auto",                 mm:"10,17 mm",dMin:9.90, dMax:10.40, aMin:14, aMax:18, mMin:10.0,mMax:14.0 },
@@ -4585,6 +4790,196 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           )}
         </AnimatePresence>
 
+
+        {/* ── Picker: Qtd. Projéteis (coleta) ── */}
+        <AnimatePresence>
+          {coletaQtdProjeteisPicker && (
+            <>
+              <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setColetaQtdProjeteisPicker(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6"
+                initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
+                transition={{ type: "spring", damping: 28, stiffness: 320 }}>
+                <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
+                  <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4">
+                    <div className="text-base font-black text-[#f0d08a]">Qtd. projéteis coletados</div>
+                    <div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione ou digite abaixo</div>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto">
+                    {["1","2","3","4","5","6","7","8","9","10","12","15","20"].map(n => {
+                      const sel = (coletaActivePieceIdx !== null ? savedPieces[coletaActivePieceIdx]?.coletaQtdProjeteis : "") === n
+                      return (
+                        <button key={n} type="button"
+                          onClick={() => { if (coletaActivePieceIdx !== null) updateColeta(coletaActivePieceIdx, "coletaQtdProjeteis", n); setColetaQtdProjeteisPicker(false) }}
+                          className={`flex w-full items-center gap-3 border-b border-[#ede3ce] px-5 py-3.5 text-left transition active:bg-[#f0e8d0] ${sel ? "bg-[#f0e8d0]" : "bg-white"}`}>
+                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e]"}`}>
+                            {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                          </span>
+                          <span className={`text-[14px] font-bold ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{n}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="p-4 space-y-3">
+                    <input value={tipoMunicaoCustom} onChange={e => setTipoMunicaoCustom(e.target.value)}
+                      inputMode="numeric" placeholder="Outra quantidade"
+                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setColetaQtdProjeteisPicker(false)}
+                        className="rounded-xl border border-[#d3c4a8] bg-[#ece6da] py-3 text-sm font-bold text-[#6b5838]">Cancelar</button>
+                      <button type="button" onClick={() => { if (tipoMunicaoCustom.trim() && coletaActivePieceIdx !== null) updateColeta(coletaActivePieceIdx, "coletaQtdProjeteis", tipoMunicaoCustom.trim()); setTipoMunicaoCustom(""); setColetaQtdProjeteisPicker(false) }}
+                        className="rounded-xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-3 text-sm font-black text-[#f0d08a]">Confirmar</button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Picker: Qtd. Estojos (coleta) ── */}
+        <AnimatePresence>
+          {coletaQtdEstojosPicker && (
+            <>
+              <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setColetaQtdEstojosPicker(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6"
+                initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
+                transition={{ type: "spring", damping: 28, stiffness: 320 }}>
+                <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
+                  <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4">
+                    <div className="text-base font-black text-[#f0d08a]">Qtd. estojos coletados</div>
+                    <div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione ou digite abaixo</div>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto">
+                    {["1","2","3","4","5","6","7","8","9","10","12","15","20"].map(n => {
+                      const sel = (coletaActivePieceIdx !== null ? savedPieces[coletaActivePieceIdx]?.coletaQtdEstojos : "") === n
+                      return (
+                        <button key={n} type="button"
+                          onClick={() => { if (coletaActivePieceIdx !== null) updateColeta(coletaActivePieceIdx, "coletaQtdEstojos", n); setColetaQtdEstojosPicker(false) }}
+                          className={`flex w-full items-center gap-3 border-b border-[#ede3ce] px-5 py-3.5 text-left transition active:bg-[#f0e8d0] ${sel ? "bg-[#f0e8d0]" : "bg-white"}`}>
+                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e]"}`}>
+                            {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                          </span>
+                          <span className={`text-[14px] font-bold ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{n}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="p-4 space-y-3">
+                    <input value={tipoMunicaoCustom} onChange={e => setTipoMunicaoCustom(e.target.value)}
+                      inputMode="numeric" placeholder="Outra quantidade"
+                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setColetaQtdEstojosPicker(false)}
+                        className="rounded-xl border border-[#d3c4a8] bg-[#ece6da] py-3 text-sm font-bold text-[#6b5838]">Cancelar</button>
+                      <button type="button" onClick={() => { if (tipoMunicaoCustom.trim() && coletaActivePieceIdx !== null) updateColeta(coletaActivePieceIdx, "coletaQtdEstojos", tipoMunicaoCustom.trim()); setTipoMunicaoCustom(""); setColetaQtdEstojosPicker(false) }}
+                        className="rounded-xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-3 text-sm font-black text-[#f0d08a]">Confirmar</button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Picker: Tipo do projétil (coleta) ── */}
+        <AnimatePresence>
+          {coletaTipoProjetilPicker && (
+            <>
+              <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setColetaTipoProjetilPicker(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6" initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 320 }}>
+                <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
+                  <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4"><div className="text-base font-black text-[#f0d08a]">Tipo do projétil</div><div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione uma opção</div></div>
+                  <div className="overflow-y-auto">
+                    {["FMJ","HP","LRN","SP","BTHP","Slug","Outra"].map(opt => { const sel = coletaActivePieceIdx !== null && savedPieces[coletaActivePieceIdx]?.coletaTipoProjetil === opt; return (
+                      <button key={opt} type="button" onClick={() => { if (coletaActivePieceIdx !== null) updateColeta(coletaActivePieceIdx, "coletaTipoProjetil", sel ? "" : opt); setColetaTipoProjetilPicker(false) }}
+                        className={`flex w-full items-center gap-3 border-b border-[#ede3ce] px-5 py-3.5 text-left transition active:bg-[#f0e8d0] ${sel ? "bg-[#f0e8d0]" : "bg-white"}`}>
+                        <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e]"}`}>{sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}</span>
+                        <span className={`text-[14px] font-bold ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{opt}</span>
+                      </button>
+                    )})}
+                  </div>
+                  <div className="p-4"><button type="button" onClick={() => setColetaTipoProjetilPicker(false)} className="w-full rounded-2xl border border-[#d3c4a8] bg-[#ece6da] py-3.5 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Cancelar</button></div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Picker: Material do projétil (coleta) ── */}
+        <AnimatePresence>
+          {coletaMaterialProjetilPicker && (
+            <>
+              <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setColetaMaterialProjetilPicker(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6" initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 320 }}>
+                <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
+                  <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4"><div className="text-base font-black text-[#f0d08a]">Material do projétil</div><div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione uma opção</div></div>
+                  <div className="overflow-y-auto">
+                    {["Chumbo","Cobre (FMJ)","Liga de chumbo","Aço"].map(opt => { const sel = coletaActivePieceIdx !== null && savedPieces[coletaActivePieceIdx]?.coletaMaterialProjetil === opt; return (
+                      <button key={opt} type="button" onClick={() => { if (coletaActivePieceIdx !== null) updateColeta(coletaActivePieceIdx, "coletaMaterialProjetil", sel ? "" : opt); setColetaMaterialProjetilPicker(false) }}
+                        className={`flex w-full items-center gap-3 border-b border-[#ede3ce] px-5 py-3.5 text-left transition active:bg-[#f0e8d0] ${sel ? "bg-[#f0e8d0]" : "bg-white"}`}>
+                        <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e]"}`}>{sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}</span>
+                        <span className={`text-[14px] font-bold ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{opt}</span>
+                      </button>
+                    )})}
+                  </div>
+                  <div className="p-4"><button type="button" onClick={() => setColetaMaterialProjetilPicker(false)} className="w-full rounded-2xl border border-[#d3c4a8] bg-[#ece6da] py-3.5 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Cancelar</button></div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Picker: Tipo do estojo (coleta) ── */}
+        <AnimatePresence>
+          {coletaTipoEstojoPicker && (
+            <>
+              <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setColetaTipoEstojoPicker(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6" initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 320 }}>
+                <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
+                  <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4"><div className="text-base font-black text-[#f0d08a]">Tipo do estojo</div><div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione uma opção</div></div>
+                  <div className="overflow-y-auto">
+                    {["Cilíndrico","Flangeado","Semi-flangeado","Encaixado"].map(opt => { const sel = coletaActivePieceIdx !== null && savedPieces[coletaActivePieceIdx]?.coletaTipoEstojo === opt; return (
+                      <button key={opt} type="button" onClick={() => { if (coletaActivePieceIdx !== null) updateColeta(coletaActivePieceIdx, "coletaTipoEstojo", sel ? "" : opt); setColetaTipoEstojoPicker(false) }}
+                        className={`flex w-full items-center gap-3 border-b border-[#ede3ce] px-5 py-3.5 text-left transition active:bg-[#f0e8d0] ${sel ? "bg-[#f0e8d0]" : "bg-white"}`}>
+                        <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e]"}`}>{sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}</span>
+                        <span className={`text-[14px] font-bold ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{opt}</span>
+                      </button>
+                    )})}
+                  </div>
+                  <div className="p-4"><button type="button" onClick={() => setColetaTipoEstojoPicker(false)} className="w-full rounded-2xl border border-[#d3c4a8] bg-[#ece6da] py-3.5 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Cancelar</button></div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Picker: Material do estojo (coleta) ── */}
+        <AnimatePresence>
+          {coletaMaterialEstojoPicker && (
+            <>
+              <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setColetaMaterialEstojoPicker(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6" initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 320 }}>
+                <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
+                  <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4"><div className="text-base font-black text-[#f0d08a]">Material do estojo</div><div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione uma opção</div></div>
+                  <div className="overflow-y-auto">
+                    {["Latão","Aço","Alumínio","Latão niquelado"].map(opt => { const sel = coletaActivePieceIdx !== null && savedPieces[coletaActivePieceIdx]?.coletaMaterialEstojo === opt; return (
+                      <button key={opt} type="button" onClick={() => { if (coletaActivePieceIdx !== null) updateColeta(coletaActivePieceIdx, "coletaMaterialEstojo", sel ? "" : opt); setColetaMaterialEstojoPicker(false) }}
+                        className={`flex w-full items-center gap-3 border-b border-[#ede3ce] px-5 py-3.5 text-left transition active:bg-[#f0e8d0] ${sel ? "bg-[#f0e8d0]" : "bg-white"}`}>
+                        <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e]"}`}>{sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}</span>
+                        <span className={`text-[14px] font-bold ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{opt}</span>
+                      </button>
+                    )})}
+                  </div>
+                  <div className="p-4"><button type="button" onClick={() => setColetaMaterialEstojoPicker(false)} className="w-full rounded-2xl border border-[#d3c4a8] bg-[#ece6da] py-3.5 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Cancelar</button></div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         <PhotosScreen
           photosOpen={photosOpen}

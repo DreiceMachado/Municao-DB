@@ -147,6 +147,18 @@ export type WeaponEntry = {
   tipoEspoleta: string
   // ARMA DE PRESSÃO
   adaptadaArmaFogo: boolean | null
+  // Coleta de Padrão
+  coletaNumero: string
+  coletaRepAno: string
+  coletaMunicaoTipo: string
+  coletaQtdProjeteis: string
+  coletaQtdEstojos: string
+  coletaTipoProjetil: string
+  coletaMaterialProjetil: string
+  coletaTipoEstojo: string
+  coletaMaterialEstojo: string
+  coletaLacreSaida: string
+  coletaSalva: boolean
   // Acessórios e Embalagem
   tipoAcessorio: string[]
   lacreEntradaAcessorio: string

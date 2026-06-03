@@ -102,6 +102,11 @@ export function makeWeaponEntry(type: WeaponType): WeaponEntry {
     estadoCartucho: "", estadoEstojo: "",
     tipoPolvora: "", cor: "", tipoEspoleta: "",
     adaptadaArmaFogo: null,
+    coletaNumero: "", coletaRepAno: "", coletaMunicaoTipo: "",
+    coletaQtdProjeteis: "", coletaQtdEstojos: "",
+    coletaTipoProjetil: "", coletaMaterialProjetil: "",
+    coletaTipoEstojo: "", coletaMaterialEstojo: "",
+    coletaLacreSaida: "", coletaSalva: false,
     tipoAcessorio: [], lacreEntradaAcessorio: "", lacreSaidaAcessorio: "",
     origemAcessorio: "", materialAcessorio: {}, descricaoAcessorio: "",
   }
