@@ -31,6 +31,7 @@ import { CollapsibleCard } from "./components/ui/CollapsibleCard"
 import { PieceIcon } from "./components/ui/PieceIcon"
 import { TopTab } from "./components/ui/TopTab"
 import { PhotoSlot } from "./components/PhotoSlot"
+import { LacreInput } from "./components/LacreInput"
 import { SidebarContent } from "./components/SidebarContent"
 import { ProfilePanel } from "./components/ProfilePanel"
 import { ConfirmDialogs } from "./components/ConfirmDialogs"
@@ -1150,6 +1151,19 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       )
                     })()}
                   </div>
+
+                  {/* ── Lacre de Entrada ── */}
+                  <LacreInput
+                    label="Lacre de Entrada"
+                    slotKey="lacre-entrada-form"
+                    value={lacreNumero}
+                    onChange={setLacreNumero}
+                    allPhotoUrls={photoUrls}
+                    onCapture={handlePhotoCapture}
+                    onRemove={handlePhotoRemove}
+                    onView={setViewerPhoto}
+                    placeholder="Nº do lacre de entrada"
+                  />
 
                   {/* ── Campos base ── */}
                   {!(["PROJÉTIL","PÓLVORA","ESPOLETA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && <div className="space-y-5">
@@ -4230,43 +4244,79 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <div className="mb-4 border-b border-[#d3c3a4] pb-2 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
                       Imagens
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setPhotosOpen(true)}
-                      className="w-full overflow-hidden rounded-2xl border-2 border-[#d3c4a8] bg-[#fbf8f3] shadow-sm active:bg-[#ece6da]"
-                    >
-                      {photoUrls.size > 0 ? (
-                        <>
-                          <div className="flex gap-2 overflow-x-auto p-3 pb-2">
-                            {Array.from(photoUrls.entries()).map(([k, url]) => (
-                              <img key={k} src={url} alt="" className="h-[72px] w-[72px] shrink-0 rounded-xl object-cover" />
-                            ))}
-                          </div>
-                          <div className="flex items-center justify-between border-t border-[#e8dfc8] px-4 py-3">
-                            <span className="text-xs font-bold text-[#6b5838]">
-                              {photoUrls.size} foto{photoUrls.size > 1 ? "s" : ""} adicionada{photoUrls.size > 1 ? "s" : ""}
-                            </span>
-                            <div className="flex items-center gap-1 text-[#b89a58]">
-                              <span className="text-xs font-bold">Gerenciar</span>
-                              <ChevronRight className="h-4 w-4" />
+                    {(() => {
+                      const piecePhotos = Array.from(photoUrls.entries()).filter(([k]) => k.startsWith("piece-"))
+                      const lacrePhotos = Array.from(photoUrls.entries()).filter(([k]) => k.startsWith("lacre-"))
+                      return (
+                        <div className="overflow-hidden rounded-2xl border-2 border-[#d3c4a8] bg-[#fbf8f3] shadow-sm">
+                          {/* Área principal — abre tela de fotos da peça */}
+                          <button
+                            type="button"
+                            onClick={() => setPhotosOpen(true)}
+                            className="w-full text-left active:bg-[#ece6da]"
+                          >
+                            {piecePhotos.length > 0 ? (
+                              <>
+                                <div className="flex gap-2 overflow-x-auto p-3 pb-2">
+                                  {piecePhotos.map(([k, url]) => (
+                                    <img key={k} src={url} alt="" className="h-[72px] w-[72px] shrink-0 rounded-xl object-cover" />
+                                  ))}
+                                </div>
+                                <div className="flex items-center justify-between border-t border-[#e8dfc8] px-4 py-3">
+                                  <span className="text-xs font-bold text-[#6b5838]">
+                                    {piecePhotos.length} foto{piecePhotos.length > 1 ? "s" : ""} da peça
+                                  </span>
+                                  <div className="flex items-center gap-1 text-[#b89a58]">
+                                    <span className="text-xs font-bold">Gerenciar</span>
+                                    <ChevronRight className="h-4 w-4" />
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="flex items-center gap-4 px-5 py-5">
+                                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#e8dfc8]">
+                                  <Camera className="h-7 w-7 text-[#8d7854]" />
+                                </div>
+                                <div className="text-left">
+                                  <div className="text-sm font-black uppercase tracking-[0.12em] text-[#50442f]">Adicionar fotos</div>
+                                  <div className="mt-0.5 text-xs text-[#8d7854]">Fotografias da peça periciada</div>
+                                </div>
+                                <ChevronRight className="ml-auto h-5 w-5 text-[#b89a58]" />
+                              </div>
+                            )}
+                          </button>
+
+                          {/* Rodapé — fotos de lacre com rótulos */}
+                          {lacrePhotos.length > 0 && (
+                            <div className="flex items-center gap-3 border-t border-[#e8dfc8] bg-[#fdfaf5] px-4 py-2.5">
+                              {lacrePhotos.map(([k, url]) => (
+                                <button key={k} type="button" onClick={() => setViewerPhoto(url)} className="flex shrink-0 flex-col items-center gap-1">
+                                  <img src={url} alt="lacre" className="h-9 w-9 rounded-lg border border-[#c8b47e] object-cover shadow-sm" />
+                                  <span className="text-[9px] font-black uppercase tracking-[0.1em] text-[#8d7854]">
+                                    {k.startsWith("lacre-entrada-form") ? "Lacre E." : "Lacre S."}
+                                  </span>
+                                </button>
+                              ))}
                             </div>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex items-center gap-4 px-5 py-5">
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#e8dfc8]">
-                            <Camera className="h-7 w-7 text-[#8d7854]" />
-                          </div>
-                          <div className="text-left">
-                            <div className="text-sm font-black uppercase tracking-[0.12em] text-[#50442f]">Adicionar fotos</div>
-                            <div className="mt-0.5 text-xs text-[#8d7854]">Câmera e lacres da peça</div>
-                          </div>
-                          <ChevronRight className="ml-auto h-5 w-5 text-[#b89a58]" />
+                          )}
                         </div>
-                      )}
-                    </button>
+                      )
+                    })()}
                   </div>
 
+
+                  {/* ── Lacre de Saída ── */}
+                  <LacreInput
+                    label="Lacre de Saída"
+                    slotKey="lacre-saida-form"
+                    value={lacreSaidaNumero}
+                    onChange={setLacreSaidaNumero}
+                    allPhotoUrls={photoUrls}
+                    onCapture={handlePhotoCapture}
+                    onRemove={handlePhotoRemove}
+                    onView={setViewerPhoto}
+                    placeholder="Nº do lacre de saída"
+                  />
 
                   </div>{/* end space-y-6 body */}
 
@@ -4299,14 +4349,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           weaponType={weaponType}
           activeWeapon={activeWeapon}
           photoUrls={photoUrls}
-          lacreNumero={lacreNumero}
-          lacreSaidaNumero={lacreSaidaNumero}
           onClose={() => setPhotosOpen(false)}
           onCapture={handlePhotoCapture}
           onRemove={handlePhotoRemove}
           onView={setViewerPhoto}
-          onLacreChange={setLacreNumero}
-          onLacreSaidaChange={setLacreSaidaNumero}
         />
 
         <WeaponFormProvider value={{
