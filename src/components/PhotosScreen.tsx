@@ -61,7 +61,7 @@ export function PhotosScreen({
 
           <div className="flex-1 overflow-y-auto">
             <div className="space-y-8 p-4 pb-8">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 md:gap-2">
                 {(photoSlotsByType[weaponType] ?? [])
                   .filter(slot =>
                     !(slot === "Numeração de série" && firearmTypes.includes(weaponType) && isArtesanal)

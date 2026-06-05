@@ -85,12 +85,12 @@ export function PhotoSlot({ label, slotKey, photoUrl, onCapture, onRemove, onVie
         <button
           type="button"
           onClick={() => setShowPicker(true)}
-          className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#c8b47e] bg-[#fbf8f2] active:bg-[#ece6da]"
+          className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#c8b47e] bg-[#fbf8f2] active:bg-[#ece6da] md:gap-1.5"
         >
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#e8dfc8]">
-            <Camera className="h-7 w-7 text-[#8d7854]" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#e8dfc8] md:h-9 md:w-9">
+            <Camera className="h-7 w-7 text-[#8d7854] md:h-4 md:w-4" />
           </div>
-          <span className="text-[12px] font-semibold text-[#8d7854]">Adicionar foto</span>
+          <span className="text-[12px] font-semibold text-[#8d7854] md:text-[9px]">Adicionar foto</span>
         </button>
       )}
 
