@@ -23,7 +23,8 @@ import {
 } from "lucide-react"
 
 import type { WeaponEntry, WeaponType } from "./types"
-import { recordsSeed, makeWeaponEntry } from "./data/constants"
+import { makeWeaponEntry } from "./data/constants"
+import { useLaudoDb } from "./hooks/useLaudoDb"
 import { cn } from "./utils/cn"
 import { CollapsibleSection } from "./components/ui/CollapsibleSection"
 import { CollapsibleCard } from "./components/ui/CollapsibleCard"
@@ -40,6 +41,8 @@ import { AllPickers } from "./components/AllPickers"
 
 
 export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: () => void }) {
+  const { laudos: laudosDB, salvarForm, salvarPecas, salvarFotoNoBanco, removerFotoNoBanco } = useLaudoDb()
+
   const [menuOpen, setMenuOpen] = useState(false)
   const [weaponType, setWeaponType] = useState<WeaponType | null>(null)
   const [showGroupFirearms, setShowGroupFirearms] = useState(false)
@@ -131,6 +134,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setSavedPieces(prev => prev.map((p, i) => i === idx ? { ...p, [field]: value } : p))
 
   useEffect(() => { setAcessoriosEditando(false) }, [activeWeaponIdx])
+
+  // Auto-salva o formulário no banco local sempre que mudar (debounced dentro do hook)
+  useEffect(() => { salvarForm(form) }, [form])
   const [fieldHelper, setFieldHelper] = useState<{ title: string; text: string } | null>(null)
   const HelpBtn = ({ title, text }: { title: string; text: string }) => (
     <span
@@ -155,11 +161,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
         next.set(key, url)
         return next
       })
+      salvarFotoNoBanco(key, url)
     }
     reader.readAsDataURL(file)
   }
-  const handlePhotoRemove = (key: string) =>
+  const handlePhotoRemove = (key: string) => {
     setPhotoUrls(prev => { const n = new Map(prev); n.delete(key); return n })
+    removerFotoNoBanco(key)
+  }
 
   const activeWeapon = weapons[activeWeaponIdx] ?? null
 
@@ -195,11 +204,15 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
   const savePiece = () => {
     if (!activeWeapon) return
+    let novaLista: WeaponEntry[]
     if (editingPieceIdx !== null) {
-      setSavedPieces(prev => prev.map((p, i) => i === editingPieceIdx ? { ...activeWeapon } : p))
+      novaLista = savedPieces.map((p, i) => i === editingPieceIdx ? { ...activeWeapon } : p)
+      setSavedPieces(novaLista)
     } else {
-      setSavedPieces(prev => [...prev, { ...activeWeapon }])
+      novaLista = [...savedPieces, { ...activeWeapon }]
+      setSavedPieces(novaLista)
     }
+    salvarPecas(novaLista)
     resetPieceForm()
   }
 
@@ -235,7 +248,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   }
 
   const filteredRecords = useMemo(() => {
-    return recordsSeed.filter((item) => {
+    return laudosDB.filter((item) => {
       const numberOk =
         !numberFilter ||
         item.number.toLowerCase().includes(numberFilter.toLowerCase()) ||
@@ -244,7 +257,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       const unitOk = !unitFilter || item.unit.toLowerCase().includes(unitFilter.toLowerCase())
       return numberOk && yearOk && unitOk
     })
-  }, [numberFilter, yearFilter])
+  }, [laudosDB, numberFilter, yearFilter])
 
   const handleField =
     (field: keyof typeof form) =>
