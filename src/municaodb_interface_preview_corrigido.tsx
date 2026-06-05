@@ -386,9 +386,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[#8e7340]/40">
                       {([
                         [<Database className="h-6 w-6" />, String(laudosDB.length), "Laudos salvos"],
-                        [<CircleDot className="h-6 w-6" />, "29", "Calibres"],
-                        [<Building2 className="h-6 w-6" />, "21", "Fabricantes"],
-                        [<Wifi className="h-6 w-6" />, "—", "Sincronizados"],
+                        [<CircleDot className="h-6 w-6" />, "0", "Calibres"],
+                        [<Building2 className="h-6 w-6" />, "0", "Fabricantes"],
+                        [<Wifi className="h-6 w-6" />, "0", "Sincronizados"],
                       ] as [React.ReactNode, string, string][]).map(([icn, value, label], i) => (
                         <div key={i} className="p-5">
                           <div className="mb-3 w-fit rounded-2xl border border-[#8e7340] bg-[#0f1e39] p-3 text-[#f0d08a]">{icn}</div>
@@ -474,9 +474,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <div className="grid grid-cols-2 divide-x divide-y divide-[#8e7340]/40">
                       {([
                         [<Database className="h-5 w-5" />, String(laudosDB.length), "Laudos salvos"],
-                        [<CircleDot className="h-5 w-5" />, "29", "Calibres"],
-                        [<Building2 className="h-5 w-5" />, "21", "Fabricantes"],
-                        [<Wifi className="h-5 w-5" />, "—", "Sincronizados"],
+                        [<CircleDot className="h-5 w-5" />, "0", "Calibres"],
+                        [<Building2 className="h-5 w-5" />, "0", "Fabricantes"],
+                        [<Wifi className="h-5 w-5" />, "0", "Sincronizados"],
                       ] as [React.ReactNode, string, string][]).map(([icn, value, label], i) => (
                         <div key={i} className="flex items-center gap-3 px-4 py-4">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#8e7340] bg-[#0f1e39] text-[#f0d08a]">{icn}</div>
@@ -565,10 +565,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <p className="mt-0.5 text-[12px] text-[#eadab0]">Calibres, fabricantes e tipos cadastrados</p>
                   </div>
                   {([
-                    { title: "Calibres",        count: "29", desc: "Calibres cadastrados no sistema",    icon: null },
-                    { title: "Fabricantes",      count: "21", desc: "Fabricantes de armas e munições",    icon: null },
-                    { title: "Tipos de munição", count: "12", desc: "Tipos e subtipos de munição",        icon: null },
-                    { title: "Sincronizados",    count: "—",  desc: "Laudos enviados para o servidor",   icon: <Wifi className="h-5 w-5 text-[#f0d08a]" /> },
+                    { title: "Calibres",        count: "0", desc: "Calibres cadastrados no sistema",    icon: null },
+                    { title: "Fabricantes",      count: "0", desc: "Fabricantes de armas e munições",    icon: null },
+                    { title: "Tipos de munição", count: "0", desc: "Tipos e subtipos de munição",        icon: null },
+                    { title: "Sincronizados",    count: "0", desc: "Laudos enviados para o servidor",   icon: <Wifi className="h-5 w-5 text-[#f0d08a]" /> },
                   ]).map((card) => (
                     <div key={card.title} className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
                       <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4 flex items-center justify-between">
@@ -5378,7 +5378,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           profileView={profileView}
           setProfileView={setProfileView}
           onLogout={onLogout}
-          laudos={laudosDB}
         />
         </WeaponFormProvider>
 

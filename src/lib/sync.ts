@@ -1,5 +1,5 @@
 import { db } from "./db"
-import { supabase, supabaseDisponivel } from "./supabase"
+import { supabase, supabaseAtivo } from "./supabase"
 
 // ── Estado público do sync ────────────────────────────────────────────────────
 
@@ -37,7 +37,7 @@ async function temInternet(): Promise<boolean> {
 // ── Sincronização principal ───────────────────────────────────────────────────
 
 export async function sincronizar(): Promise<void> {
-  if (!supabaseDisponivel()) return
+  if (!supabaseAtivo) return
   if (_status === "syncing") return
   if (!(await temInternet())) { setStatus("offline"); return }
 

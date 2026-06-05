@@ -2,6 +2,7 @@ import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Eye, EyeOff, Lock, Mail, AlertCircle, ShieldCheck, User, ChevronLeft, BadgeCheck } from "lucide-react"
 import logoBalisticaDB from "../../assets/logo-balisticaDB.png"
+import { supabase, supabaseAtivo } from "../../lib/supabase"
 
 interface LoginProps {
   onLogin: () => void
@@ -162,8 +163,32 @@ function LoginScreen({ onLogin, onBack }: { onLogin: () => void; onBack: () => v
     if (!senha.trim()) { setErro("Informe a senha de acesso."); return }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setErro("Formato de e-mail inválido."); return }
     setErro(""); setLoading(true)
-    await new Promise(r => setTimeout(r, 1000))
+
+    // Modo offline — Supabase não configurado
+    if (!supabaseAtivo || !supabase) {
+      setLoading(false)
+      onLogin()
+      return
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: senha,
+    })
+
     setLoading(false)
+
+    if (error) {
+      if (error.message.includes("Invalid login")) {
+        setErro("E-mail ou senha incorretos.")
+      } else if (error.message.includes("Email not confirmed")) {
+        setErro("Confirme seu e-mail antes de entrar.")
+      } else {
+        setErro("Erro ao entrar. Tente novamente.")
+      }
+      return
+    }
+
     onLogin()
   }
 
@@ -284,10 +309,40 @@ function RegisterScreen({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
     if (senha.length < 6) { setErro("A senha deve ter ao menos 6 caracteres."); return }
     if (senha !== confirma) { setErro("As senhas não coincidem."); return }
     setErro(""); setLoading(true)
-    await new Promise(r => setTimeout(r, 1200))
+
+    // Modo offline — Supabase não configurado
+    if (!supabaseAtivo || !supabase) {
+      setLoading(false)
+      setSucesso(true)
+      await new Promise(r => setTimeout(r, 1500))
+      onSuccess()
+      return
+    }
+
+    const { error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password: senha,
+      options: {
+        data: {
+          nome: nome.trim(),
+          matricula: matricula.trim(),
+        },
+      },
+    })
+
     setLoading(false)
+
+    if (error) {
+      if (error.message.includes("already registered")) {
+        setErro("Este e-mail já está cadastrado.")
+      } else {
+        setErro("Erro ao criar conta. Tente novamente.")
+      }
+      return
+    }
+
     setSucesso(true)
-    await new Promise(r => setTimeout(r, 1800))
+    await new Promise(r => setTimeout(r, 1500))
     onSuccess()
   }
 

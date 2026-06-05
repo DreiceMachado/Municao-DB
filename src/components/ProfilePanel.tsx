@@ -1,16 +1,40 @@
+import { useEffect, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { ChevronLeft, FileText, LogOut, Shield } from "lucide-react"
-import type { ProfileView, RecordItem } from "../types"
+import { ChevronLeft, LogOut, Shield } from "lucide-react"
+import type { ProfileView } from "../types"
+import { supabase, supabaseAtivo } from "../lib/supabase"
 
 type Props = {
   profileView: ProfileView
   setProfileView: (view: ProfileView) => void
   onLogout: () => void
-  laudos: RecordItem[]
 }
 
-export function ProfilePanel({ profileView, setProfileView, onLogout, laudos }: Props) {
+export function ProfilePanel({ profileView, setProfileView, onLogout }: Props) {
   const open = !!profileView
+  const [nome, setNome]   = useState("Perito Responsável")
+  const [email, setEmail] = useState("")
+  const [iniciais, setIniciais] = useState("PC")
+
+  useEffect(() => {
+    if (!supabaseAtivo || !supabase) return
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      const n = user.user_metadata?.nome as string | undefined
+      const e = user.email ?? ""
+      if (n) {
+        setNome(n)
+        // iniciais: até 2 primeiras letras das palavras do nome
+        const partes = n.trim().split(" ").filter(Boolean)
+        setIniciais(
+          partes.length >= 2
+            ? (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
+            : partes[0]?.slice(0, 2).toUpperCase() ?? "PC"
+        )
+      }
+      setEmail(e)
+    })
+  }, [])
 
   return (
     <>
@@ -58,53 +82,17 @@ export function ProfilePanel({ profileView, setProfileView, onLogout, laudos }: 
               {/* Card do perito */}
               <div className="rounded-3xl border border-[#d3c4a8] bg-white p-5 text-center shadow-sm">
                 <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] ring-4 ring-[#f0d08a]/20">
-                  <span className="text-lg font-black text-[#f0d08a]">PC</span>
+                  <span className="text-lg font-black text-[#f0d08a]">{iniciais}</span>
                 </div>
-                <div className="text-sm font-black text-[#1d2433]">Perito Responsável</div>
-                <div className="mt-0.5 text-xs text-[#8d7854]">perito@policiacientifica.pr.gov.br</div>
+                <div className="text-sm font-black text-[#1d2433]">{nome}</div>
+                <div className="mt-0.5 text-xs text-[#8d7854]">{email || "—"}</div>
                 <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#e8dfc8] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-[#6b5838]">
                   <Shield className="h-3 w-3" />
                   Polícia Científica do Paraná
                 </div>
               </div>
 
-              {/* Laudos registrados */}
-              <div className="overflow-hidden rounded-3xl border border-[#d3c4a8] bg-white shadow-sm">
-                <div className="flex items-center justify-between border-b border-[#e8dfc8] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-3.5">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-[#f0d08a]/70" />
-                    <span className="text-sm font-black text-[#f0d08a]">Meus laudos</span>
-                  </div>
-                  <span className="rounded-full bg-[#f0d08a]/15 px-2.5 py-0.5 text-xs font-black text-[#f0d08a]">
-                    {laudos.length}
-                  </span>
-                </div>
-
-                {laudos.length === 0 ? (
-                  <div className="px-5 py-8 text-center text-sm text-[#8d7854]">
-                    Nenhum laudo registrado ainda.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-[#e8dfc8]">
-                    {laudos.map((item) => (
-                      <div key={item.id} className="flex items-start justify-between gap-3 px-5 py-4">
-                        <div className="min-w-0">
-                          <div className="text-sm font-black text-[#1d2433]">
-                            {item.number}/{item.year}
-                          </div>
-                          <div className="mt-0.5 text-xs text-[#8d7854] truncate">{item.unit}</div>
-                          <div className="mt-0.5 text-xs text-[#b0a090] truncate">{item.model || "—"}</div>
-                        </div>
-                        <span className="shrink-0 rounded-full border border-[#d8c59b] bg-[#f2e4bc] px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-[#5b4a2e]">
-                          rascunho
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Sair */}
+{/* Sair */}
               <button
                 type="button"
                 onClick={() => { setProfileView(null); onLogout() }}
