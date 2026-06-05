@@ -1,24 +1,39 @@
 import logo from "../assets/logo.png"
 import {
   BarChart3,
-  Building2,
   Crosshair,
-  Database,
   FolderKanban,
   LayoutDashboard,
   Settings,
-  Target,
   User2,
 } from "lucide-react"
 import { cn } from "../utils/cn"
+import type { Section } from "./BottomTabBar"
 
 type Props = {
+  activeSection: Section
+  onSectionChange: (s: Section) => void
   onOpenProfile: () => void
 }
 
-export function SidebarContent({ onOpenProfile }: Props) {
+export function SidebarContent({ activeSection, onSectionChange, onOpenProfile }: Props) {
   const item = "flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-[17px] font-medium transition"
   const icon = "h-5 w-5"
+
+  const navItem = (id: Section, label: string, Icon: React.ElementType) => (
+    <button
+      onClick={() => onSectionChange(id)}
+      className={cn(
+        item,
+        activeSection === id
+          ? "bg-[#d7b76f]/12 text-[#f4dda2] shadow-inner shadow-[#d7b76f]/10"
+          : "text-[#f3e8c3] hover:bg-[#d7b76f]/10"
+      )}
+    >
+      <Icon className={icon} />
+      {label}
+    </button>
+  )
 
   return (
     <div className="flex h-full flex-col">
@@ -45,47 +60,12 @@ export function SidebarContent({ onOpenProfile }: Props) {
         </div>
 
         <div className="space-y-2">
-          <button className={cn(item, "text-[#f3e8c3] hover:bg-[#d7b76f]/10")}>
-            <LayoutDashboard className={icon} />
-            Início
-          </button>
-
-          <button className={cn(item, "bg-[#d7b76f]/12 text-[#f4dda2] shadow-inner shadow-[#d7b76f]/10")}>
-            <Crosshair className={icon} />
-            Exames de Armas
-          </button>
-
-          <button className={cn(item, "text-[#f3e8c3] hover:bg-[#d7b76f]/10")}>
-            <FolderKanban className={icon} />
-            Registros
-          </button>
-
-          <button className={cn(item, "text-[#f3e8c3] hover:bg-[#d7b76f]/10")}>
-            <BarChart3 className={icon} />
-            Estatísticas
-          </button>
+          {navItem("inicio",    "Início",          LayoutDashboard)}
+          {navItem("exames",    "Exames de Armas", Crosshair)}
+          {navItem("registros", "Registros",       FolderKanban)}
+          {navItem("dados",     "Dados",           BarChart3)}
         </div>
 
-        <div className="mb-3 mt-7 text-xs font-bold uppercase tracking-[0.32em] text-[#b89a58]">
-          Referência
-        </div>
-
-        <div className="space-y-2">
-          <button className={cn(item, "text-[#f3e8c3] hover:bg-[#d7b76f]/10")}>
-            <Database className={icon} />
-            Base de Dados
-          </button>
-
-          <button className={cn(item, "text-[#f3e8c3] hover:bg-[#d7b76f]/10")}>
-            <Target className={icon} />
-            Calibres
-          </button>
-
-          <button className={cn(item, "text-[#f3e8c3] hover:bg-[#d7b76f]/10")}>
-            <Building2 className={icon} />
-            Fabricantes
-          </button>
-        </div>
       </div>
 
       <div className="mt-auto border-t border-[#8e7340]/60">

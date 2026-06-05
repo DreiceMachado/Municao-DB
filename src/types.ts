@@ -190,4 +190,4 @@ export type ExamForm = {
   observacoes: string
 }
 
-export type ProfileView = null | "main" | "changeEmail" | "changePassword"
+export type ProfileView = null | "main"

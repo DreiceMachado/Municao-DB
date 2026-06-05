@@ -19,12 +19,14 @@ import {
   Plus,
   Search,
   User2,
+  Wifi,
   X,
 } from "lucide-react"
 
-import type { WeaponEntry, WeaponType } from "./types"
+import type { WeaponEntry, WeaponType, ProfileView } from "./types"
 import { makeWeaponEntry } from "./data/constants"
 import { useLaudoDb } from "./hooks/useLaudoDb"
+import { BottomTabBar, type Section } from "./components/BottomTabBar"
 import { cn } from "./utils/cn"
 import { CollapsibleSection } from "./components/ui/CollapsibleSection"
 import { CollapsibleCard } from "./components/ui/CollapsibleCard"
@@ -42,6 +44,7 @@ import { AllPickers } from "./components/AllPickers"
 
 export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: () => void }) {
   const { laudos: laudosDB, salvarForm, salvarPecas, salvarFotoNoBanco, removerFotoNoBanco } = useLaudoDb()
+  const [activeSection, setActiveSection] = useState<Section>("exames")
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [weaponType, setWeaponType] = useState<WeaponType | null>(null)
@@ -135,8 +138,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
   useEffect(() => { setAcessoriosEditando(false) }, [activeWeaponIdx])
 
-  // Auto-salva o formulário no banco local sempre que mudar (debounced dentro do hook)
-  useEffect(() => { salvarForm(form) }, [form])
+  // Auto-salva só quando o perito preencheu algum campo significativo
+  useEffect(() => {
+    if (form.examNumber.trim() || form.expert.trim() !== "Perito responsável") {
+      salvarForm(form)
+    }
+  }, [form])
   const [fieldHelper, setFieldHelper] = useState<{ title: string; text: string } | null>(null)
   const HelpBtn = ({ title, text }: { title: string; text: string }) => (
     <span
@@ -149,7 +156,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     >?</span>
   )
 
-  const [profileView, setProfileView] = useState<null | "main" | "changeEmail" | "changePassword">(null)
+  const [profileView, setProfileView] = useState<ProfileView>(null)
   // Profile email/password states are now local to ProfilePanel component
 
   const handlePhotoCapture = (key: string, file: File) => {
@@ -297,7 +304,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
   const sidebarDesktop = (
     <aside className="hidden w-[300px] shrink-0 border-r border-[#8e7340] bg-[linear-gradient(180deg,#0d1a31_0%,#11203c_58%,#0b1730_100%)] xl:block">
-      <SidebarContent onOpenProfile={() => setProfileView("main")} />
+      <SidebarContent
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+        onOpenProfile={() => setProfileView("main")}
+      />
     </aside>
   )
 
@@ -309,6 +320,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
         <header className="border-b-[3px] border-[#b79248] bg-[linear-gradient(180deg,#13233f_0%,#10203b_100%)] shadow-[0_12px_28px_rgba(0,0,0,.28)]">
           <div className="border-b border-[#8e7340]/70 px-4 py-2.5 lg:px-8">
             <div className="flex items-center justify-between gap-4">
+              {/* ── Esquerda: menu + logo (mobile) / logo (desktop) ── */}
               <div className="flex items-center gap-2 lg:hidden">
                 <button
                   onClick={() => setMenuOpen(true)}
@@ -343,11 +355,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                 </div>
               </div>
 
-              <div className="hidden overflow-hidden rounded-2xl border-2 border-[#8e7340] shadow-[0_6px_18px_rgba(0,0,0,.22)] lg:flex">
-                <TopTab label="Registros" />
-                <TopTab label="Calibres" />
-                <TopTab label="Fabricantes" />
-              </div>
+              {/* ── Direita: botão de perfil (mobile + desktop) ── */}
+              <button
+                onClick={() => setProfileView("main")}
+                className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] transition active:bg-[#1a2c4f] hover:bg-[#1a2c4f]"
+              >
+                <User2 className="h-5 w-5" />
+              </button>
             </div>
           </div>
         </header>
@@ -355,147 +369,224 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
         <div className="mx-auto flex max-w-[1800px]">
           {sidebarDesktop}
 
-          <main className="flex-1 px-4 py-5 lg:px-8 lg:py-6 xl:px-10">
+          <main className="flex-1 px-4 py-5 pb-36 lg:px-8 lg:py-6 xl:px-10 xl:pb-6">
             <div className="grid gap-6 max-w-[1060px] mx-auto">
-              <section className="space-y-6">
-                <div className="rounded-[28px] border border-[#8e7340] bg-[linear-gradient(180deg,rgba(20,35,63,.92)_0%,rgba(11,23,48,.96)_100%)] p-6 shadow-[0_18px_44px_rgba(0,0,0,.24)]">
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                    <div>
-                      <h2 className="text-xl font-black tracking-tight text-[#f0d08a] md:text-2xl">
-                        Cadastro e gestão de exames em armas
-                      </h2>
-                      <p className="mt-2 max-w-3xl text-[15px] text-[#eadab0]">
-                      </p>
-                    </div>
+              {/* ── INÍCIO ─────────────────────────────────────────── */}
+              {activeSection === "inicio" && (
+                <section className="space-y-6">
+                  <div className="rounded-2xl border border-[#8e7340] bg-[linear-gradient(180deg,rgba(20,35,63,.92)_0%,rgba(11,23,48,.96)_100%)] px-4 py-3 shadow-[0_6px_16px_rgba(0,0,0,.18)]">
+                    <h2 className="text-base font-black tracking-tight text-[#f0d08a] md:text-lg">Início</h2>
+                    <p className="mt-0.5 text-[12px] text-[#eadab0]">Visão geral do sistema</p>
+                  </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setWeaponType(null)
-                          setWeapons([])
-                          setSavedPieces([])
-                          setExamType(null)
-                          setRepMinimized(false)
-                          setTypePickerOpen(true)
-                        }}
-                        className="flex h-12 items-center gap-2 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] px-6 text-sm font-black tracking-wide text-[#1d2433] shadow transition hover:brightness-105"
-                      >
+                  <div className="rounded-[26px] border border-[#8e7340] bg-[linear-gradient(180deg,#14233f_0%,#0b1730_100%)] shadow-[0_16px_40px_rgba(0,0,0,.24)] overflow-hidden">
+                    <div className="border-b border-[#8e7340]/60 px-5 py-3">
+                      <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#ccb780]">Painel</span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[#8e7340]/40">
+                      {([
+                        [<Database className="h-6 w-6" />, String(laudosDB.length), "Laudos salvos"],
+                        [<CircleDot className="h-6 w-6" />, "29", "Calibres"],
+                        [<Building2 className="h-6 w-6" />, "21", "Fabricantes"],
+                        [<Wifi className="h-6 w-6" />, "—", "Sincronizados"],
+                      ] as [React.ReactNode, string, string][]).map(([icn, value, label], i) => (
+                        <div key={i} className="p-5">
+                          <div className="mb-3 w-fit rounded-2xl border border-[#8e7340] bg-[#0f1e39] p-3 text-[#f0d08a]">{icn}</div>
+                          <div className="text-4xl font-extrabold tracking-tight text-[#f0d08a]">{value}</div>
+                          <div className="mt-1 text-sm text-[#eadab0]">{label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                    <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
+                      <h3 className="text-xl font-black text-[#f0d08a]">Laudos recentes</h3>
+                    </div>
+                    <div className="space-y-3 p-5 text-[#26221b]">
+                      {laudosDB.slice(0, 5).map((item) => (
+                        <button key={item.id} onClick={() => setActiveSection("registros")}
+                          className="flex w-full items-center justify-between rounded-2xl border border-[#d9ccb2] bg-[#fbf8f3] px-4 py-3 text-left transition hover:border-[#ac8d50]">
+                          <div>
+                            <div className="text-base font-black tracking-tight">{item.number}/{item.year}</div>
+                            <div className="text-xs font-bold uppercase tracking-[0.14em] text-[#67583d]">{item.unit}</div>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-[#b89a58]" />
+                        </button>
+                      ))}
+                      {laudosDB.length === 0 && (
+                        <div className="rounded-2xl border border-dashed border-[#cab88d] bg-[#fbf8f3] px-4 py-8 text-center text-[#6e614d]">
+                          Nenhum laudo salvo ainda. Vá em <strong>Exames</strong> para criar.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* ── EXAMES ─────────────────────────────────────────── */}
+              {activeSection === "exames" && (
+                <section className="space-y-6">
+                  <div className="rounded-2xl border border-[#8e7340] bg-[linear-gradient(180deg,rgba(20,35,63,.92)_0%,rgba(11,23,48,.96)_100%)] px-4 py-3 shadow-[0_6px_16px_rgba(0,0,0,.18)]">
+                    <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                      <div>
+                        <h2 className="text-base font-black tracking-tight text-[#f0d08a] md:text-lg">Exames de Armas</h2>
+                        <p className="mt-0.5 text-[12px] text-[#eadab0]">Cadastro e gestão de exames em andamento</p>
+                      </div>
+                      <button type="button"
+                        onClick={() => { setWeaponType(null); setWeapons([]); setSavedPieces([]); setExamType(null); setRepMinimized(false); setTypePickerOpen(true) }}
+                        className="flex h-12 items-center gap-2 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] px-6 text-sm font-black tracking-wide text-[#1d2433] shadow transition hover:brightness-105">
                         + NOVA REP
                       </button>
                     </div>
                   </div>
-                </div>
 
-                <div className="grid gap-6">
+                  <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                    <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
+                      <h3 className="text-xl font-black text-[#f0d08a]">Laudos em rascunho</h3>
+                    </div>
+                    <div className="space-y-3 p-5 text-[#26221b]">
+                      {laudosDB.length === 0 && (
+                        <div className="rounded-2xl border border-dashed border-[#cab88d] bg-[#fbf8f3] px-4 py-6 text-center text-sm font-medium text-[#6e614d]">
+                          Nenhum exame em rascunho
+                        </div>
+                      )}
+                      {laudosDB.map((item) => (
+                        <div key={item.id} className="flex w-full flex-col rounded-2xl border border-[#d9ccb2] bg-[#fbf8f3] px-4 py-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <div className="text-xl font-black tracking-tight">{item.number}/{item.year}</div>
+                              <div className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-[#67583d]">{item.unit}</div>
+                            </div>
+                            <span className="rounded-full border border-[#d8c59b] bg-[#f2e4bc] px-3 py-1 text-xs font-bold tracking-[0.16em] text-[#5b4a2e]">rascunho</span>
+                          </div>
+                          <div className="mt-2 text-sm text-[#6a5c45]">{item.expert}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Painel de estatísticas — visível só no mobile */}
+                  <div className="xl:hidden rounded-[26px] border border-[#8e7340] bg-[linear-gradient(180deg,#14233f_0%,#0b1730_100%)] shadow-[0_16px_40px_rgba(0,0,0,.24)] overflow-hidden">
+                    <div className="border-b border-[#8e7340]/60 px-5 py-3">
+                      <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#ccb780]">Painel</span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-y divide-[#8e7340]/40">
+                      {([
+                        [<Database className="h-5 w-5" />, String(laudosDB.length), "Laudos salvos"],
+                        [<CircleDot className="h-5 w-5" />, "29", "Calibres"],
+                        [<Building2 className="h-5 w-5" />, "21", "Fabricantes"],
+                        [<Wifi className="h-5 w-5" />, "—", "Sincronizados"],
+                      ] as [React.ReactNode, string, string][]).map(([icn, value, label], i) => (
+                        <div key={i} className="flex items-center gap-3 px-4 py-4">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#8e7340] bg-[#0f1e39] text-[#f0d08a]">{icn}</div>
+                          <div>
+                            <div className="text-xl font-extrabold tracking-tight text-[#f0d08a]">{value}</div>
+                            <div className="text-[10px] text-[#eadab0]">{label}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* ── REGISTROS ──────────────────────────────────────── */}
+              {activeSection === "registros" && (
+                <section className="space-y-6">
+                  <div className="rounded-2xl border border-[#8e7340] bg-[linear-gradient(180deg,rgba(20,35,63,.92)_0%,rgba(11,23,48,.96)_100%)] px-4 py-3 shadow-[0_6px_16px_rgba(0,0,0,.18)]">
+                    <h2 className="text-base font-black tracking-tight text-[#f0d08a] md:text-lg">Registros</h2>
+                    <p className="mt-0.5 text-[12px] text-[#eadab0]">Histórico de laudos salvos</p>
+                  </div>
+
                   <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
                     <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
                       <h3 className="text-xl font-black text-[#f0d08a]">Buscar</h3>
                     </div>
-
                     <div className="space-y-4 p-5 text-[#27231c] lg:grid lg:grid-cols-4 lg:gap-4 lg:items-end lg:space-y-0">
                       <div>
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.16em] text-[#6b5838]">
-                          Número
-                        </label>
-                        <input
-                          value={numberFilter}
-                          onChange={(e) => setNumberFilter(e.target.value)}
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.16em] text-[#6b5838]">Número</label>
+                        <input value={numberFilter} onChange={(e) => setNumberFilter(e.target.value)}
                           className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                          placeholder="Digite número, tipo ou modelo"
-                        />
+                          placeholder="Digite número, tipo ou modelo" />
                       </div>
-
                       <div>
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.16em] text-[#6b5838]">
-                          Ano
-                        </label>
-                        <input
-                          value={yearFilter}
-                          onChange={(e) => setYearFilter(e.target.value)}
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.16em] text-[#6b5838]">Ano</label>
+                        <input value={yearFilter} onChange={(e) => setYearFilter(e.target.value)}
                           className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                          placeholder="2026"
-                        />
+                          placeholder="2026" />
                       </div>
-
                       <div>
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.16em] text-[#6b5838]">
-                          Unidade
-                        </label>
-                        <input
-                          value={unitFilter}
-                          onChange={(e) => setUnitFilter(e.target.value)}
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.16em] text-[#6b5838]">Unidade</label>
+                        <input value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)}
                           className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                          placeholder="Ex: NPC Curitiba"
-                        />
+                          placeholder="Ex: NPC Curitiba" />
                       </div>
-
                       <button className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] text-sm font-black tracking-[0.16em] text-[#f8e3b3] shadow-[0_10px_18px_rgba(66,50,24,.22)]">
-                        <Search className="h-4 w-4" />
-                        BUSCAR
+                        <Search className="h-4 w-4" />BUSCAR
                       </button>
                     </div>
                   </div>
 
-                  {/* <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f7f1e5] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                  <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f7f1e5] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
                     <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
-                      <h3 className="text-xl font-black text-[#f0d08a]">Exames de Armas Registrados</h3>
+                      <h3 className="text-xl font-black text-[#f0d08a]">Laudos Registrados</h3>
                     </div>
-
                     <div className="space-y-4 p-5 text-[#26221b]">
                       {filteredRecords.map((item) => (
-                        <button
-                          key={item.id}
-                          className="flex w-full flex-col rounded-2xl border border-[#d9ccb2] bg-[#fbf8f3] px-4 py-4 text-left transition hover:border-[#ac8d50] hover:shadow-[0_10px_24px_rgba(0,0,0,.08)]"
-                        >
+                        <button key={item.id}
+                          className="flex w-full flex-col rounded-2xl border border-[#d9ccb2] bg-[#fbf8f3] px-4 py-4 text-left transition hover:border-[#ac8d50] hover:shadow-[0_10px_24px_rgba(0,0,0,.08)]">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
                               <div className="text-2xl font-black tracking-tight">{item.number}/{item.year}</div>
-                              <div className="mt-1 text-sm font-bold uppercase tracking-[0.18em] text-[#67583d]">
-                                {item.type}
-                              </div>
+                              <div className="mt-1 text-sm font-bold uppercase tracking-[0.18em] text-[#67583d]">{item.type}</div>
                             </div>
-                            <span className="rounded-full border border-[#d8c59b] bg-[#f2e4bc] px-3 py-1 text-xs font-bold tracking-[0.16em] text-[#5b4a2e]">
-                              {item.unit}
-                            </span>
+                            <span className="rounded-full border border-[#d8c59b] bg-[#f2e4bc] px-3 py-1 text-xs font-bold tracking-[0.16em] text-[#5b4a2e]">{item.unit}</span>
                           </div>
-
                           <div className="mt-2 text-base text-[#40362a]">{item.model}</div>
-                          <div className="mt-3 text-sm text-[#6a5c45]">Atualizado em {item.updatedAt}</div>
+                          <div className="mt-3 text-sm text-[#6a5c45]">Perito: {item.expert}</div>
                         </button>
                       ))}
-
                       {filteredRecords.length === 0 && (
                         <div className="rounded-2xl border border-dashed border-[#cab88d] bg-[#fbf8f3] px-4 py-8 text-center text-[#6e614d]">
-                          Nenhum exame encontrado com os filtros informados.
+                          Nenhum registro encontrado.
                         </div>
                       )}
                     </div>
-                  </div> */}
-                </div>
+                  </div>
+                </section>
+              )}
 
-                <div className="rounded-[26px] border border-[#8e7340] bg-[linear-gradient(180deg,#14233f_0%,#0b1730_100%)] shadow-[0_16px_40px_rgba(0,0,0,.24)] overflow-hidden">
-                  <div className="border-b border-[#8e7340]/60 px-5 py-3">
-                    <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#ccb780]">Painel</span>
+              {/* ── DADOS ──────────────────────────────────────────── */}
+              {activeSection === "dados" && (
+                <section className="space-y-6">
+                  <div className="rounded-2xl border border-[#8e7340] bg-[linear-gradient(180deg,rgba(20,35,63,.92)_0%,rgba(11,23,48,.96)_100%)] px-4 py-3 shadow-[0_6px_16px_rgba(0,0,0,.18)]">
+                    <h2 className="text-base font-black tracking-tight text-[#f0d08a] md:text-lg">Dados de Referência</h2>
+                    <p className="mt-0.5 text-[12px] text-[#eadab0]">Calibres, fabricantes e tipos cadastrados</p>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[#8e7340]/40">
-                    {([
-                      [<Database className="h-6 w-6" />, "198", "Registros periciais"],
-                      [<CircleDot className="h-6 w-6" />, "29",  "Calibres cadastrados"],
-                      [<Building2 className="h-6 w-6" />, "21", "Fabricantes"],
-                      [<Crosshair className="h-6 w-6" />, "70", "Armas vinculadas"],
-                    ] as [React.ReactNode, string, string][]).map(([icon, value, label], i) => (
-                      <div key={i} className="p-5">
-                        <div className="mb-3 w-fit rounded-2xl border border-[#8e7340] bg-[#0f1e39] p-3 text-[#f0d08a]">
-                          {icon}
+                  {([
+                    { title: "Calibres",        count: "29", desc: "Calibres cadastrados no sistema",    icon: null },
+                    { title: "Fabricantes",      count: "21", desc: "Fabricantes de armas e munições",    icon: null },
+                    { title: "Tipos de munição", count: "12", desc: "Tipos e subtipos de munição",        icon: null },
+                    { title: "Sincronizados",    count: "—",  desc: "Laudos enviados para o servidor",   icon: <Wifi className="h-5 w-5 text-[#f0d08a]" /> },
+                  ]).map((card) => (
+                    <div key={card.title} className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                      <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {card.icon}
+                          <h3 className="text-xl font-black text-[#f0d08a]">{card.title}</h3>
                         </div>
-                        <div className="text-4xl font-extrabold tracking-tight text-[#f0d08a]">{value}</div>
-                        <div className="mt-1 text-sm text-[#eadab0]">{label}</div>
+                        <span className="rounded-full bg-[#f0d08a]/15 px-3 py-1 text-xs font-black text-[#f0d08a]">{card.count}</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </section>
+                      <div className="px-5 py-6 text-center text-[#6e614d]">
+                        <p className="text-sm">{card.desc}</p>
+                        <p className="mt-2 text-xs text-[#9e8c6e]">Em desenvolvimento</p>
+                      </div>
+                    </div>
+                  ))}
+                </section>
+              )}
+
             </div>
           </main>
         </div>
@@ -560,7 +651,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
               initial={{ y: 80, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 80, opacity: 0 }}
-              className="fixed bottom-6 left-4 right-4 z-40 mx-auto max-w-sm"
+              className="fixed bottom-20 left-4 right-4 z-40 mx-auto max-w-sm xl:bottom-6"
             >
               <button
                 type="button"
@@ -583,6 +674,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* ── Bottom Tab Bar (mobile) — oculta quando tela cheia está aberta ── */}
+        {!typePickerOpen && !(examType !== null && !repMinimized) && !photosOpen && !profileView && (
+          <BottomTabBar active={activeSection} onChange={setActiveSection} />
+        )}
 
         {/* ── Menu Mobile ── */}
         <AnimatePresence>
@@ -609,7 +705,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </button>
                   </div>
                   <div className="flex-1 overflow-y-auto">
-                    <SidebarContent onOpenProfile={() => { setMenuOpen(false); setProfileView("main") }} />
+                    <SidebarContent
+                      activeSection={activeSection}
+                      onSectionChange={(s) => { setActiveSection(s); setMenuOpen(false) }}
+                      onOpenProfile={() => { setMenuOpen(false); setProfileView("main") }}
+                    />
                   </div>
                 </div>
               </motion.aside>
@@ -5278,6 +5378,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           profileView={profileView}
           setProfileView={setProfileView}
           onLogout={onLogout}
+          laudos={laudosDB}
         />
         </WeaponFormProvider>
 

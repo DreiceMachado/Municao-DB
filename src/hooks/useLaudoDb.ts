@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { db, listarLaudos, salvarFoto, removerFoto } from "../lib/db"
 import type { Laudo } from "../lib/db"
 import type { WeaponEntry, WeaponType, RecordItem } from "../types"
+import { generateId } from "../lib/uuid"
 
 type FormState = {
   examNumber: string
@@ -28,13 +29,25 @@ function laudoToRecordItem(l: Laudo): RecordItem {
 }
 
 export function useLaudoDb() {
-  const [laudoLocalId] = useState(() => crypto.randomUUID())
+  const [laudoLocalId] = useState(() => generateId())
   const [laudos, setLaudos] = useState<RecordItem[]>([])
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Carrega a lista de laudos ao montar
+  // Carrega laudos ao montar, removendo rascunhos vazios criados automaticamente
   useEffect(() => {
-    listarLaudos().then((lista) => setLaudos(lista.map(laudoToRecordItem)))
+    async function init() {
+      // Remove entradas sem número e sem perito preenchido (criadas pelo auto-save prematuro)
+      const todos = await db.laudos.toArray()
+      const vazios = todos.filter(
+        (l) => !l.examNumber?.trim() && (!l.expert?.trim() || l.expert === "Perito responsável")
+      )
+      if (vazios.length > 0) {
+        await Promise.all(vazios.map((l) => db.laudos.delete(l.id!)))
+      }
+      const lista = await listarLaudos()
+      setLaudos(lista.map(laudoToRecordItem))
+    }
+    init()
   }, [])
 
   // Atualiza a lista após qualquer mudança
@@ -83,7 +96,7 @@ export function useLaudoDb() {
       const agora = new Date().toISOString()
       for (const piece of pieces) {
         await db.armas.add({
-          localId: crypto.randomUUID(),
+          localId: generateId(),
           laudoLocalId,
           tipo: piece.type as WeaponType,
           dadosJson: JSON.stringify(piece),

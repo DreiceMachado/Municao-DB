@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie"
 import type { WeaponType, WeaponEntry, ExamForm } from "../types"
+import { generateId } from "./uuid"
 
 // ── Laudo (perícia completa) ──────────────────────────────────────────────────
 
@@ -138,7 +139,7 @@ export async function salvarFoto(
   if (anterior) await db.fotos.delete(anterior.id!)
 
   await db.fotos.add({
-    localId: crypto.randomUUID(),
+    localId: generateId(),
     laudoLocalId,
     armaLocalId,
     slotLabel,
