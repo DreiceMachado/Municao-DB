@@ -82,18 +82,19 @@ CREATE TABLE lacres (
 -- ────────────────────────────────────────────────────────────
 
 CREATE TABLE pecas (
-  id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  laudo_id  UUID NOT NULL REFERENCES laudos (id) ON DELETE CASCADE,
-  tipo      TEXT NOT NULL CHECK (tipo IN (
-              'REVÓLVER', 'PISTOLA', 'ESPINGARDA', 'CARABINA',
-              'FUZIL', 'METRALHADORA',
-              'PROJÉTIL', 'ESTOJO', 'CARTUCHO',
-              'FACA',
-              'ARMA DE PRESSÃO', 'ARMA DE ANTECARGA',
-              'PÓLVORA', 'ESPOLETA', 'CARREGADOR'
-            )),
-  ordem     INTEGER NOT NULL DEFAULT 0,
-  criado_em TIMESTAMPTZ DEFAULT now()
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  laudo_id    UUID NOT NULL REFERENCES laudos (id) ON DELETE CASCADE,
+  tipo        TEXT NOT NULL CHECK (tipo IN (
+                'REVÓLVER', 'PISTOLA', 'ESPINGARDA', 'CARABINA',
+                'FUZIL', 'METRALHADORA',
+                'PROJÉTIL', 'ESTOJO', 'CARTUCHO',
+                'FACA',
+                'ARMA DE PRESSÃO', 'ARMA DE ANTECARGA',
+                'PÓLVORA', 'ESPOLETA', 'CARREGADOR'
+              )),
+  destinacao  TEXT CHECK (destinacao IN ('LIBERADO', 'CONSUMIDO')),
+  ordem       INTEGER NOT NULL DEFAULT 0,
+  criado_em   TIMESTAMPTZ DEFAULT now()
 );
 
 

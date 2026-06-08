@@ -159,6 +159,8 @@ export type WeaponEntry = {
   coletaMaterialEstojo: string
   coletaLacreSaida: string
   coletaSalva: boolean
+  // Destinação
+  destinacao: "LIBERADO" | "CONSUMIDO" | ""
   // Acessórios e Embalagem
   tipoAcessorio: string[]
   lacreEntradaAcessorio: string
