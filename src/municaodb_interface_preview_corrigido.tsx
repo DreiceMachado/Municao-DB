@@ -10,6 +10,7 @@ import {
   CircleDot,
   Crosshair,
   Database,
+  Link2,
   MapPin,
   Menu,
   Microscope,
@@ -4517,24 +4518,47 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                           {/* Lacre de Entrada */}
                           <div className="border-t border-[#ede3ce] pt-4">
-                            <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Lacre de Entrada</p>
-                            <input value={String(activeWeapon?.lacreEntradaAcessorio ?? "")} onChange={handleWeaponField("lacreEntradaAcessorio" as any)}
-                              className="mb-4 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45]"
-                              placeholder="Nº do lacre de entrada" />
-                            <div className="grid grid-cols-2 gap-3">
-                              {([
-                                { key: "emb_ent_f", label: "Lacre Ent. (Frente)" },
-                                { key: "emb_ent_v", label: "Lacre Ent. (Verso)" },
-                              ] as const).map((p) => {
-                                const photoKey = `acc_${p.key}_${activeWeaponIdx}`
-                                return (
-                                  <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
-                                    photoUrl={photoUrls.get(photoKey)}
-                                    onCapture={handlePhotoCapture} onRemove={handlePhotoRemove}
-                                    onView={(url) => setViewerPhoto(url)} />
-                                )
-                              })}
+                            <div className="mb-3 flex items-center justify-between">
+                              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Lacre de Entrada</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const ativo = activeWeapon?.lacreEntradaMesmoDaPeca
+                                  setWeaponDirect("lacreEntradaMesmoDaPeca" as any, !ativo)
+                                  if (!ativo) setWeaponDirect("lacreEntradaAcessorio" as any, lacreNumero)
+                                }}
+                                className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] transition ${
+                                  activeWeapon?.lacreEntradaMesmoDaPeca
+                                    ? "bg-[#d4a843] text-white"
+                                    : "bg-[#f0e8d5] text-[#8d7854] hover:bg-[#e8d9b8]"
+                                }`}
+                              >
+                                <Link2 className="h-3 w-3" />
+                                Mesmo lacre da peça
+                              </button>
                             </div>
+                            <input
+                              value={String(activeWeapon?.lacreEntradaAcessorio ?? "")}
+                              onChange={handleWeaponField("lacreEntradaAcessorio" as any)}
+                              disabled={!!activeWeapon?.lacreEntradaMesmoDaPeca}
+                              className="mb-4 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] disabled:opacity-50"
+                              placeholder="Nº do lacre de entrada" />
+                            {!activeWeapon?.lacreEntradaMesmoDaPeca && (
+                              <div className="grid grid-cols-2 gap-3">
+                                {([
+                                  { key: "emb_ent_f", label: "Lacre Ent. (Frente)" },
+                                  { key: "emb_ent_v", label: "Lacre Ent. (Verso)" },
+                                ] as const).map((p) => {
+                                  const photoKey = `acc_${p.key}_${activeWeaponIdx}`
+                                  return (
+                                    <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
+                                      photoUrl={photoUrls.get(photoKey)}
+                                      onCapture={handlePhotoCapture} onRemove={handlePhotoRemove}
+                                      onView={(url) => setViewerPhoto(url)} />
+                                  )
+                                })}
+                              </div>
+                            )}
                           </div>
 
                           {/* Fotos do material */}
@@ -4558,24 +4582,47 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                           {/* Lacre de Saída */}
                           <div className="border-t border-[#ede3ce] pt-4">
-                            <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Lacre de Saída</p>
-                            <input value={String(activeWeapon?.lacreSaidaAcessorio ?? "")} onChange={handleWeaponField("lacreSaidaAcessorio" as any)}
-                              className="mb-4 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45]"
-                              placeholder="Nº do lacre de saída" />
-                            <div className="grid grid-cols-2 gap-3">
-                              {([
-                                { key: "emb_sai_f", label: "Lacre Saí. (Frente)" },
-                                { key: "emb_sai_v", label: "Lacre Saí. (Verso)" },
-                              ] as const).map((p) => {
-                                const photoKey = `acc_${p.key}_${activeWeaponIdx}`
-                                return (
-                                  <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
-                                    photoUrl={photoUrls.get(photoKey)}
-                                    onCapture={handlePhotoCapture} onRemove={handlePhotoRemove}
-                                    onView={(url) => setViewerPhoto(url)} />
-                                )
-                              })}
+                            <div className="mb-3 flex items-center justify-between">
+                              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Lacre de Saída</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const ativo = activeWeapon?.lacreSaidaMesmoDaPeca
+                                  setWeaponDirect("lacreSaidaMesmoDaPeca" as any, !ativo)
+                                  if (!ativo) setWeaponDirect("lacreSaidaAcessorio" as any, lacreSaidaNumero)
+                                }}
+                                className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] transition ${
+                                  activeWeapon?.lacreSaidaMesmoDaPeca
+                                    ? "bg-[#d4a843] text-white"
+                                    : "bg-[#f0e8d5] text-[#8d7854] hover:bg-[#e8d9b8]"
+                                }`}
+                              >
+                                <Link2 className="h-3 w-3" />
+                                Mesmo lacre da peça
+                              </button>
                             </div>
+                            <input
+                              value={String(activeWeapon?.lacreSaidaAcessorio ?? "")}
+                              onChange={handleWeaponField("lacreSaidaAcessorio" as any)}
+                              disabled={!!activeWeapon?.lacreSaidaMesmoDaPeca}
+                              className="mb-4 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] disabled:opacity-50"
+                              placeholder="Nº do lacre de saída" />
+                            {!activeWeapon?.lacreSaidaMesmoDaPeca && (
+                              <div className="grid grid-cols-2 gap-3">
+                                {([
+                                  { key: "emb_sai_f", label: "Lacre Saí. (Frente)" },
+                                  { key: "emb_sai_v", label: "Lacre Saí. (Verso)" },
+                                ] as const).map((p) => {
+                                  const photoKey = `acc_${p.key}_${activeWeaponIdx}`
+                                  return (
+                                    <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
+                                      photoUrl={photoUrls.get(photoKey)}
+                                      onCapture={handlePhotoCapture} onRemove={handlePhotoRemove}
+                                      onView={(url) => setViewerPhoto(url)} />
+                                  )
+                                })}
+                              </div>
+                            )}
                           </div>
 
                           {/* Botões Cancelar / Salvar */}
