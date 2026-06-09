@@ -312,6 +312,7 @@ function RegisterScreen({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
 
     // Modo offline — Supabase não configurado
     if (!supabaseAtivo || !supabase) {
+      localStorage.setItem("balisticadb_nome_perito", nome.trim())
       setLoading(false)
       setSucesso(true)
       await new Promise(r => setTimeout(r, 1500))
@@ -335,9 +336,17 @@ function RegisterScreen({ onBack, onSuccess }: { onBack: () => void; onSuccess: 
     if (error) {
       if (error.message.includes("already registered")) {
         setErro("Este e-mail já está cadastrado.")
-      } else {
-        setErro("Erro ao criar conta. Tente novamente.")
+        return
       }
+      // Conta criada mas e-mail de confirmação falhou (servidor sem SMTP)
+      // A conta existe no banco — confirmar via SQL e fazer login
+      if (error.status === 500 || error.message.includes("sending confirmation")) {
+        setSucesso(true)
+        await new Promise(r => setTimeout(r, 1500))
+        onSuccess()
+        return
+      }
+      setErro("Erro ao criar conta. Tente novamente.")
       return
     }
 

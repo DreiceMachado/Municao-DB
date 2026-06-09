@@ -10,6 +10,7 @@ import {
   CircleDot,
   Crosshair,
   Database,
+  Link2,
   MapPin,
   Menu,
   Microscope,
@@ -24,6 +25,7 @@ import {
 } from "lucide-react"
 
 import type { WeaponEntry, WeaponType, ProfileView } from "./types"
+import { supabase, supabaseAtivo } from "./lib/supabase"
 import { makeWeaponEntry } from "./data/constants"
 import { useLaudoDb } from "./hooks/useLaudoDb"
 import { BottomTabBar, type Section } from "./components/BottomTabBar"
@@ -36,6 +38,7 @@ import { PhotoSlot } from "./components/PhotoSlot"
 import { LacreInput } from "./components/LacreInput"
 import { SidebarContent } from "./components/SidebarContent"
 import { ProfilePanel } from "./components/ProfilePanel"
+import { LaudoDetailPanel } from "./components/LaudoDetailPanel"
 import { ConfirmDialogs } from "./components/ConfirmDialogs"
 import { PhotosScreen } from "./components/PhotosScreen"
 import { WeaponFormProvider } from "./context/WeaponFormContext"
@@ -43,8 +46,32 @@ import { AllPickers } from "./components/AllPickers"
 
 
 export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: () => void }) {
-  const { laudos: laudosDB, salvarForm, salvarPecas, salvarFotoNoBanco, removerFotoNoBanco } = useLaudoDb()
+  const { laudos: laudosDB, salvarForm, finalizarLaudo, salvarPecas, salvarFotoNoBanco, removerFotoNoBanco } = useLaudoDb()
+  const [salvouExame, setSalvouExame] = useState(false)
   const [activeSection, setActiveSection] = useState<Section>("exames")
+  const [nomePerito, setNomePerito] = useState("Perito responsável")
+
+  // Busca nome do perito logado para preencher o campo expert automaticamente
+  useEffect(() => {
+    async function carregarNome() {
+      if (supabaseAtivo && supabase) {
+        const { data: { user } } = await supabase.auth.getUser()
+        const nome = user?.user_metadata?.nome as string | undefined
+        if (nome?.trim()) {
+          setNomePerito(nome.trim())
+          setForm(f => ({ ...f, expert: nome.trim() }))
+          return
+        }
+      }
+      // Fallback: tenta localStorage (salvo no cadastro offline)
+      const salvo = localStorage.getItem("balisticadb_nome_perito")
+      if (salvo) {
+        setNomePerito(salvo)
+        setForm(f => ({ ...f, expert: salvo }))
+      }
+    }
+    carregarNome()
+  }, [])
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [weaponType, setWeaponType] = useState<WeaponType | null>(null)
@@ -61,7 +88,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     caseNumber: "",
     unit: "Núcleo de Polícia Científica",
     expert: "Perito responsável",
-    date: "26/03/2026",
+    date: new Date().toLocaleDateString("pt-BR"),
     observacoes: "",
   })
 
@@ -138,9 +165,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
   useEffect(() => { setAcessoriosEditando(false) }, [activeWeaponIdx])
 
-  // Auto-salva só quando o perito preencheu algum campo significativo
+  // Auto-salva só quando o número do exame estiver preenchido
   useEffect(() => {
-    if (form.examNumber.trim() || form.expert.trim() !== "Perito responsável") {
+    if (form.examNumber.trim()) {
       salvarForm(form)
     }
   }, [form])
@@ -157,6 +184,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   )
 
   const [profileView, setProfileView] = useState<ProfileView>(null)
+  const [selectedLaudoId, setSelectedLaudoId] = useState<string | null>(null)
   // Profile email/password states are now local to ProfilePanel component
 
   const handlePhotoCapture = (key: string, file: File) => {
@@ -178,6 +206,30 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   }
 
   const activeWeapon = weapons[activeWeaponIdx] ?? null
+
+  const handleSalvarExame = async () => {
+    await finalizarLaudo(form, savedPieces)
+    setSalvouExame(true)
+    // Reseta todo o estado do formulário e fecha o exame
+    setExamType(null)
+    setRepMinimized(false)
+    setSavedPieces([])
+    setWeapons([])
+    setWeaponType(null)
+    setActiveWeaponIdx(0)
+    setPieceFormOpen(false)
+    setTypePickerOpen(false)
+    setForm({
+      examNumber: "",
+      examYear: String(new Date().getFullYear()),
+      caseNumber: "",
+      unit: "Núcleo de Polícia Científica",
+      expert: nomePerito,
+      date: new Date().toLocaleDateString("pt-BR"),
+      observacoes: "",
+    })
+    setTimeout(() => setSalvouExame(false), 2500)
+  }
 
   const resetPieceForm = () => {
     setWeaponType(null)
@@ -358,9 +410,17 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
               {/* ── Direita: botão de perfil (mobile + desktop) ── */}
               <button
                 onClick={() => setProfileView("main")}
-                className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a] transition active:bg-[#1a2c4f] hover:bg-[#1a2c4f]"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#8e7340] bg-[#12213d] text-[#f0d08a] transition active:bg-[#1a2c4f] hover:bg-[#1a2c4f]"
               >
-                <User2 className="h-5 w-5" />
+                {nomePerito && nomePerito !== "Perito responsável" ? (
+                  <span className="text-xs font-black leading-none">
+                    {nomePerito.trim().split(" ").filter(Boolean).length >= 2
+                      ? (nomePerito.trim().split(" ")[0][0] + nomePerito.trim().split(" ").filter(Boolean).slice(-1)[0][0]).toUpperCase()
+                      : nomePerito.trim().slice(0, 2).toUpperCase()}
+                  </span>
+                ) : (
+                  <User2 className="h-5 w-5" />
+                )}
               </button>
             </div>
           </div>
@@ -452,7 +512,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       )}
                       {laudosDB.map((item) => (
-                        <div key={item.id} className="flex w-full flex-col rounded-2xl border border-[#d9ccb2] bg-[#fbf8f3] px-4 py-4">
+                        <button key={item.id} onClick={() => setSelectedLaudoId(item.id)} className="flex w-full flex-col rounded-2xl border border-[#d9ccb2] bg-[#fbf8f3] px-4 py-4 text-left transition hover:border-[#ac8d50] active:brightness-95">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
                               <div className="text-xl font-black tracking-tight">{item.number}/{item.year}</div>
@@ -461,7 +521,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             <span className="rounded-full border border-[#d8c59b] bg-[#f2e4bc] px-3 py-1 text-xs font-bold tracking-[0.16em] text-[#5b4a2e]">rascunho</span>
                           </div>
                           <div className="mt-2 text-sm text-[#6a5c45]">{item.expert}</div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -535,7 +595,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <div className="space-y-4 p-5 text-[#26221b]">
                       {filteredRecords.map((item) => (
                         <button key={item.id}
-                          className="flex w-full flex-col rounded-2xl border border-[#d9ccb2] bg-[#fbf8f3] px-4 py-4 text-left transition hover:border-[#ac8d50] hover:shadow-[0_10px_24px_rgba(0,0,0,.08)]">
+                          onClick={() => setSelectedLaudoId(item.id)}
+                          className="flex w-full flex-col rounded-2xl border border-[#d9ccb2] bg-[#fbf8f3] px-4 py-4 text-left transition hover:border-[#ac8d50] hover:shadow-[0_10px_24px_rgba(0,0,0,.08)] active:brightness-95">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
                               <div className="text-2xl font-black tracking-tight">{item.number}/{item.year}</div>
@@ -1100,8 +1161,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       className="flex-1 rounded-2xl border-2 border-[#b03030] bg-[linear-gradient(180deg,#8b2020_0%,#5c1515_100%)] py-4 text-sm font-black tracking-[0.14em] text-[#ffd4d4] shadow-[0_8px_20px_rgba(120,20,20,.30)] transition active:brightness-95">
                       EXCLUIR
                     </button>
-                    <button className="flex-[2] rounded-2xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] py-4 text-sm font-black tracking-[0.18em] text-[#f8e3b3] shadow-[0_12px_24px_rgba(66,50,24,.22)] transition active:brightness-95">
-                      SALVAR EXAME
+                    <button
+                      onClick={handleSalvarExame}
+                      disabled={salvouExame}
+                      className="flex-[2] rounded-2xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] py-4 text-sm font-black tracking-[0.18em] text-[#f8e3b3] shadow-[0_12px_24px_rgba(66,50,24,.22)] transition active:brightness-95 disabled:opacity-70">
+                      {salvouExame ? "SALVO ✓" : "SALVAR EXAME"}
                     </button>
                   </div>
 
@@ -1628,13 +1692,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               Número de série — estado
                               <HelpBtn title="Número de série" text="Indica a condição em que o número de série se encontra na arma. LEGÍVEL: completamente visível. PARCIAL: parte dos algarismos visível. SUPRIMIDO: intencionalmente removido ou apagado. NÃO APARENTE: não localizado no exame visual." />
                             </label>
-                            <div className="grid grid-cols-4 gap-2">
+                            <div className="grid grid-cols-2 gap-2">
                               {(["LEGÍVEL", "PARCIAL", "SUPRIMIDO", "NÃO APARENTE"]).map(est => (
                                 <button
                                   key={est}
                                   type="button"
                                   onClick={() => setWeaponDirect("serialEstado", est)}
-                                  className={`rounded-xl border-2 py-2.5 text-xs font-black tracking-[0.1em] transition active:scale-[.97] ${
+                                  className={`rounded-xl border-2 py-2.5 text-xs font-black tracking-[0.08em] transition active:scale-[.97] ${
                                     activeWeapon?.serialEstado === est
                                       ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a]"
                                       : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
@@ -4005,7 +4069,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                   key={est}
                                   type="button"
                                   onClick={() => setWeaponDirect("serialEstado", est)}
-                                  className={`rounded-xl border-2 py-2.5 text-xs font-black tracking-[0.1em] transition active:scale-[.97] ${
+                                  className={`rounded-xl border-2 py-2.5 text-xs font-black tracking-[0.08em] transition active:scale-[.97] ${
                                     activeWeapon?.serialEstado === est
                                       ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a]"
                                       : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
@@ -4454,24 +4518,47 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                           {/* Lacre de Entrada */}
                           <div className="border-t border-[#ede3ce] pt-4">
-                            <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Lacre de Entrada</p>
-                            <input value={String(activeWeapon?.lacreEntradaAcessorio ?? "")} onChange={handleWeaponField("lacreEntradaAcessorio" as any)}
-                              className="mb-4 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45]"
-                              placeholder="Nº do lacre de entrada" />
-                            <div className="grid grid-cols-2 gap-3">
-                              {([
-                                { key: "emb_ent_f", label: "Lacre Ent. (Frente)" },
-                                { key: "emb_ent_v", label: "Lacre Ent. (Verso)" },
-                              ] as const).map((p) => {
-                                const photoKey = `acc_${p.key}_${activeWeaponIdx}`
-                                return (
-                                  <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
-                                    photoUrl={photoUrls.get(photoKey)}
-                                    onCapture={handlePhotoCapture} onRemove={handlePhotoRemove}
-                                    onView={(url) => setViewerPhoto(url)} />
-                                )
-                              })}
+                            <div className="mb-3 flex items-center justify-between">
+                              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Lacre de Entrada</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const ativo = activeWeapon?.lacreEntradaMesmoDaPeca
+                                  setWeaponDirect("lacreEntradaMesmoDaPeca" as any, !ativo)
+                                  if (!ativo) setWeaponDirect("lacreEntradaAcessorio" as any, lacreNumero)
+                                }}
+                                className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] transition ${
+                                  activeWeapon?.lacreEntradaMesmoDaPeca
+                                    ? "bg-[#d4a843] text-white"
+                                    : "bg-[#f0e8d5] text-[#8d7854] hover:bg-[#e8d9b8]"
+                                }`}
+                              >
+                                <Link2 className="h-3 w-3" />
+                                Mesmo lacre da peça
+                              </button>
                             </div>
+                            <input
+                              value={String(activeWeapon?.lacreEntradaAcessorio ?? "")}
+                              onChange={handleWeaponField("lacreEntradaAcessorio" as any)}
+                              disabled={!!activeWeapon?.lacreEntradaMesmoDaPeca}
+                              className="mb-4 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] disabled:opacity-50"
+                              placeholder="Nº do lacre de entrada" />
+                            {!activeWeapon?.lacreEntradaMesmoDaPeca && (
+                              <div className="grid grid-cols-2 gap-3">
+                                {([
+                                  { key: "emb_ent_f", label: "Lacre Ent. (Frente)" },
+                                  { key: "emb_ent_v", label: "Lacre Ent. (Verso)" },
+                                ] as const).map((p) => {
+                                  const photoKey = `acc_${p.key}_${activeWeaponIdx}`
+                                  return (
+                                    <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
+                                      photoUrl={photoUrls.get(photoKey)}
+                                      onCapture={handlePhotoCapture} onRemove={handlePhotoRemove}
+                                      onView={(url) => setViewerPhoto(url)} />
+                                  )
+                                })}
+                              </div>
+                            )}
                           </div>
 
                           {/* Fotos do material */}
@@ -4495,24 +4582,47 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                           {/* Lacre de Saída */}
                           <div className="border-t border-[#ede3ce] pt-4">
-                            <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Lacre de Saída</p>
-                            <input value={String(activeWeapon?.lacreSaidaAcessorio ?? "")} onChange={handleWeaponField("lacreSaidaAcessorio" as any)}
-                              className="mb-4 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45]"
-                              placeholder="Nº do lacre de saída" />
-                            <div className="grid grid-cols-2 gap-3">
-                              {([
-                                { key: "emb_sai_f", label: "Lacre Saí. (Frente)" },
-                                { key: "emb_sai_v", label: "Lacre Saí. (Verso)" },
-                              ] as const).map((p) => {
-                                const photoKey = `acc_${p.key}_${activeWeaponIdx}`
-                                return (
-                                  <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
-                                    photoUrl={photoUrls.get(photoKey)}
-                                    onCapture={handlePhotoCapture} onRemove={handlePhotoRemove}
-                                    onView={(url) => setViewerPhoto(url)} />
-                                )
-                              })}
+                            <div className="mb-3 flex items-center justify-between">
+                              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Lacre de Saída</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const ativo = activeWeapon?.lacreSaidaMesmoDaPeca
+                                  setWeaponDirect("lacreSaidaMesmoDaPeca" as any, !ativo)
+                                  if (!ativo) setWeaponDirect("lacreSaidaAcessorio" as any, lacreSaidaNumero)
+                                }}
+                                className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] transition ${
+                                  activeWeapon?.lacreSaidaMesmoDaPeca
+                                    ? "bg-[#d4a843] text-white"
+                                    : "bg-[#f0e8d5] text-[#8d7854] hover:bg-[#e8d9b8]"
+                                }`}
+                              >
+                                <Link2 className="h-3 w-3" />
+                                Mesmo lacre da peça
+                              </button>
                             </div>
+                            <input
+                              value={String(activeWeapon?.lacreSaidaAcessorio ?? "")}
+                              onChange={handleWeaponField("lacreSaidaAcessorio" as any)}
+                              disabled={!!activeWeapon?.lacreSaidaMesmoDaPeca}
+                              className="mb-4 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] disabled:opacity-50"
+                              placeholder="Nº do lacre de saída" />
+                            {!activeWeapon?.lacreSaidaMesmoDaPeca && (
+                              <div className="grid grid-cols-2 gap-3">
+                                {([
+                                  { key: "emb_sai_f", label: "Lacre Saí. (Frente)" },
+                                  { key: "emb_sai_v", label: "Lacre Saí. (Verso)" },
+                                ] as const).map((p) => {
+                                  const photoKey = `acc_${p.key}_${activeWeaponIdx}`
+                                  return (
+                                    <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
+                                      photoUrl={photoUrls.get(photoKey)}
+                                      onCapture={handlePhotoCapture} onRemove={handlePhotoRemove}
+                                      onView={(url) => setViewerPhoto(url)} />
+                                  )
+                                })}
+                              </div>
+                            )}
                           </div>
 
                           {/* Botões Cancelar / Salvar */}
@@ -4877,6 +4987,31 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     onView={setViewerPhoto}
                     placeholder="Nº do lacre de saída"
                   />
+
+                  {/* ── Destinação da peça ── */}
+                  <div className="rounded-2xl border border-[#d3c3a4] bg-[#fdf8f0] p-4">
+                    <label className="mb-3 block text-sm font-black uppercase tracking-[0.14em] text-[#6b5838]">
+                      Destinação da peça
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["LIBERADO", "CONSUMIDO"] as const).map(dest => (
+                        <button
+                          key={dest}
+                          type="button"
+                          onClick={() => setWeaponDirect("destinacao", activeWeapon?.destinacao === dest ? "" : dest)}
+                          className={`rounded-xl border-2 py-3 text-sm font-black tracking-[0.12em] transition active:scale-[.97] ${
+                            activeWeapon?.destinacao === dest
+                              ? dest === "LIBERADO"
+                                ? "border-[#4a9e6a] bg-[linear-gradient(180deg,#1a3d2a_0%,#0f2a1c_100%)] text-[#7de0a8]"
+                                : "border-[#c05050] bg-[linear-gradient(180deg,#3d1a1a_0%,#2a0f0f_100%)] text-[#f0a0a0]"
+                              : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                          }`}
+                        >
+                          {dest}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
                   </div>{/* end space-y-6 body */}
 
@@ -5378,6 +5513,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           profileView={profileView}
           setProfileView={setProfileView}
           onLogout={onLogout}
+        />
+
+        <LaudoDetailPanel
+          laudoId={selectedLaudoId}
+          onClose={() => setSelectedLaudoId(null)}
         />
         </WeaponFormProvider>
 

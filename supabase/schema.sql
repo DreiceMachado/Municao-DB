@@ -36,7 +36,7 @@ CREATE TABLE fabricantes (
 CREATE TABLE peritos (
   id          UUID PRIMARY KEY REFERENCES auth.users (id) ON DELETE CASCADE,
   nome        TEXT NOT NULL,
-  matricula   TEXT UNIQUE NOT NULL,
+  matricula   TEXT,
   cargo       TEXT,
   unidade     TEXT,
   criado_em   TIMESTAMPTZ DEFAULT now()
@@ -82,18 +82,19 @@ CREATE TABLE lacres (
 -- ────────────────────────────────────────────────────────────
 
 CREATE TABLE pecas (
-  id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  laudo_id  UUID NOT NULL REFERENCES laudos (id) ON DELETE CASCADE,
-  tipo      TEXT NOT NULL CHECK (tipo IN (
-              'REVÓLVER', 'PISTOLA', 'ESPINGARDA', 'CARABINA',
-              'FUZIL', 'METRALHADORA',
-              'PROJÉTIL', 'ESTOJO', 'CARTUCHO',
-              'FACA',
-              'ARMA DE PRESSÃO', 'ARMA DE ANTECARGA',
-              'PÓLVORA', 'ESPOLETA', 'CARREGADOR'
-            )),
-  ordem     INTEGER NOT NULL DEFAULT 0,
-  criado_em TIMESTAMPTZ DEFAULT now()
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  laudo_id    UUID NOT NULL REFERENCES laudos (id) ON DELETE CASCADE,
+  tipo        TEXT NOT NULL CHECK (tipo IN (
+                'REVÓLVER', 'PISTOLA', 'ESPINGARDA', 'CARABINA',
+                'FUZIL', 'METRALHADORA',
+                'PROJÉTIL', 'ESTOJO', 'CARTUCHO',
+                'FACA',
+                'ARMA DE PRESSÃO', 'ARMA DE ANTECARGA',
+                'PÓLVORA', 'ESPOLETA', 'CARREGADOR'
+              )),
+  destinacao  TEXT CHECK (destinacao IN ('LIBERADO', 'CONSUMIDO')),
+  ordem       INTEGER NOT NULL DEFAULT 0,
+  criado_em   TIMESTAMPTZ DEFAULT now()
 );
 
 

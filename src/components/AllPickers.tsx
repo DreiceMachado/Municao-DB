@@ -80,6 +80,8 @@ export function AllPickers(props: PickersProps) {
   const { fieldHelper, clearFieldHelper } = useWeaponForm()
   const [calibreCustomInput, setCalibreCustomInput] = useState("")
   const [calibreAntecargaCustom, setCalibreAntecargaCustom] = useState("")
+  const [miraOutroText, setMiraOutroText] = useState("")
+  const [miraOutroOpen, setMiraOutroOpen] = useState(false)
   const close = props.onClose
 
   const materialOptions = (): string[] => {
@@ -114,53 +116,56 @@ export function AllPickers(props: PickersProps) {
   }
 
   const miraOptions = () => {
-    const base = [{ l: "Ponto vermelho (red dot)", d: "Mira óptica com ponto luminoso; sem aumento" }, { l: "Telescópica", d: "Luneta com aumento óptico" }, { l: "Sem mira", d: "Mira ausente ou removida" }, { l: "Indeterminada", d: "Não foi possível determinar" }]
+    const outro = { l: "Outro", d: "Especifique o tipo de mira" }
+    const redDot = { l: "Ponto vermelho (red dot)", d: "Mira óptica com ponto luminoso; sem aumento" }
+    const telescopica = { l: "Telescópica", d: "Luneta com aumento óptico" }
     if (weapon.type === "REVÓLVER" || weapon.type === "PISTOLA") return [
       { l: "Aberta fixada", d: "Mira dianteira e alça traseira fixas, sem regulagem" },
       { l: "Aberta regulável", d: "Alça traseira com ajuste de elevação e/ou deriva" },
-      ...base.slice(0,1),
+      redDot,
       { l: "Noturna (tritium)", d: "Miras com insertos de trítio para visibilidade noturna" },
       { l: "Laser", d: "Mira laser acoplada ou integrada" },
       { l: "Holográfica", d: "Mira holográfica de visão aberta" },
-      ...base.slice(1),
+      telescopica,
+      outro,
     ]
     if (weapon.type === "ESPINGARDA") return [
       { l: "Bead (pérola frontal)", d: "Ponto metálico ou plástico na extremidade do cano" },
       { l: "Aberta", d: "Mira dianteira e alça traseira" },
       { l: "Ghost ring", d: "Anel traseiro largo de resposta rápida" },
-      ...base,
+      redDot, telescopica, outro,
     ]
     if (weapon.type === "CARABINA") return [
-      { l: "Aberta", d: "Mira dianteira e alça traseira" }, ...base,
+      { l: "Aberta", d: "Mira dianteira e alça traseira" },
+      redDot, telescopica,
       { l: "Holográfica", d: "Mira holográfica de visão aberta" },
       { l: "Colimador", d: "Colimador reflex de visão aberta" },
       { l: "Noturna (NVG/tritium)", d: "Para uso em condições de baixa luminosidade" },
       { l: "BUIS (ferro de reserva)", d: "Mira de ferro dobrável de backup" },
+      outro,
     ]
     if (weapon.type === "FUZIL") return [
       { l: "Aberta (ferro)", d: "Mira dianteira e alça traseira padrão" },
-      ...base.slice(0,2),
+      redDot, telescopica,
       { l: "Holográfica", d: "EOTech e similares; visão aberta" },
       { l: "ACOG", d: "Advanced Combat Optical Gunsight; aumento fixo 4x" },
       { l: "Colimador", d: "Colimador reflex" },
       { l: "Noturna / NVG", d: "Compatível com visão noturna" },
       { l: "BUIS (ferro de reserva)", d: "Mira de ferro dobrável de backup" },
-      ...base.slice(2),
+      outro,
     ]
     if (weapon.type === "METRALHADORA") return [
       { l: "Aberta", d: "Mira dianteira e alça traseira" },
       { l: "Óptica", d: "Mira óptica acoplada" },
-      ...base.slice(0,1), ...base.slice(2),
+      redDot, outro,
     ]
     if (weapon.type === "ARMA DE ANTECARGA") return [
       { l: "Alzas abertas (alça + dianteira)", d: "Mira de alça traseira e ponto frontal fixos; padrão histórico" },
       { l: "Alzas abertas reguláveis", d: "Alça traseira com ajuste de elevação; usada em rifles de precisão antigos" },
       { l: "Mira de vôo (tangent sight)", d: "Alça graduada deslizante para diferentes distâncias" },
-      { l: "Telescópica", d: "Luneta com aumento óptico; usada em rifles de longo alcance" },
-      { l: "Sem mira", d: "Mira ausente ou removida" },
-      { l: "Indeterminada", d: "Não foi possível determinar" },
+      telescopica, outro,
     ]
-    return [{ l: "Indeterminada", d: "Não foi possível determinar" }]
+    return [outro]
   }
 
   const carregadorOptions = () => {
@@ -493,14 +498,65 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Tipo de mira" onClose={() => close("mira")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {miraOptions().map(({ l, d }, idx, arr) => (
-                  <PickerItem key={l} label={l} desc={d} selected={(weapon.tipoMira ?? []).includes(l)} last={idx === arr.length - 1}
-                    onSelect={() => {
-                      const cur = weapon.tipoMira ?? []
-                      const nxt = cur.includes(l) ? cur.filter(i => i !== l) : [...cur, l]
-                      setDirect("tipoMira", nxt)
-                    }} />
-                ))}
+                {miraOptions().map(({ l, d }, idx, arr) => {
+                  if (l === "Outro") {
+                    const temOutro = (weapon.tipoMira ?? []).some(m => !miraOptions().slice(0, -1).find(o => o.l === m))
+                    return (
+                      <div key="outro" className={`py-4 ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
+                        <button type="button"
+                          onClick={() => setMiraOutroOpen(v => !v)}
+                          className="flex w-full items-center gap-4 text-left">
+                          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${miraOutroOpen || temOutro ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"}`}>
+                            {(miraOutroOpen || temOutro) && checkSvg}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className={`text-[15px] font-semibold leading-tight ${miraOutroOpen || temOutro ? "text-[#4b3b21]" : "text-[#7a6540]"}`}>Outro</div>
+                            <div className="mt-0.5 text-[12px] text-[#a08c68] leading-snug">Especifique o tipo de mira</div>
+                          </div>
+                        </button>
+                        {miraOutroOpen && (
+                          <div className="mt-3 flex gap-2 pl-10">
+                            <input
+                              value={miraOutroText}
+                              onChange={e => setMiraOutroText(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === "Enter" && miraOutroText.trim()) {
+                                  const cur = weapon.tipoMira ?? []
+                                  setDirect("tipoMira", [...cur, miraOutroText.trim()])
+                                  setMiraOutroText("")
+                                  setMiraOutroOpen(false)
+                                }
+                              }}
+                              className="h-10 flex-1 rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-[14px] outline-none transition focus:border-[#9e7f45]"
+                              placeholder="Digite o tipo de mira…"
+                              autoFocus
+                            />
+                            <button type="button"
+                              disabled={!miraOutroText.trim()}
+                              onClick={() => {
+                                if (!miraOutroText.trim()) return
+                                const cur = weapon.tipoMira ?? []
+                                setDirect("tipoMira", [...cur, miraOutroText.trim()])
+                                setMiraOutroText("")
+                                setMiraOutroOpen(false)
+                              }}
+                              className="h-10 rounded-xl bg-[#7d6334] px-4 text-[13px] font-black text-white disabled:opacity-40">
+                              OK
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }
+                  return (
+                    <PickerItem key={l} label={l} desc={d} selected={(weapon.tipoMira ?? []).includes(l)} last={idx === arr.length - 1}
+                      onSelect={() => {
+                        const cur = weapon.tipoMira ?? []
+                        const nxt = cur.includes(l) ? cur.filter(i => i !== l) : [...cur, l]
+                        setDirect("tipoMira", nxt)
+                      }} />
+                  )
+                })}
               </div>
             </motion.div>
           </>
