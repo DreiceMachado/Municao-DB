@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 var __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
     plugins: [react()],
+    base: "./", // necessário para o Capacitor carregar assets corretamente
     server: {
         host: true,
     },
