@@ -36,7 +36,7 @@ CREATE TABLE fabricantes (
 CREATE TABLE peritos (
   id          UUID PRIMARY KEY REFERENCES auth.users (id) ON DELETE CASCADE,
   nome        TEXT NOT NULL,
-  matricula   TEXT UNIQUE NOT NULL,
+  matricula   TEXT,
   cargo       TEXT,
   unidade     TEXT,
   criado_em   TIMESTAMPTZ DEFAULT now()

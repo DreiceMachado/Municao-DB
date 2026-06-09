@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import BalisticaDB from './municaodb_interface_preview_corrigido'
 import { Login } from './components/login/login'
 import { supabase, supabaseAtivo } from './lib/supabase'
+import { iniciarMonitorDeRede } from './lib/sync'
 import './index.css'
 
 function App() {
@@ -19,12 +20,14 @@ function App() {
     // Verifica se já existe uma sessão salva no dispositivo
     supabase.auth.getSession().then(({ data: { session } }) => {
       setLoggedIn(!!session)
+      if (session) iniciarMonitorDeRede()
     })
 
     // Escuta mudanças de autenticação (login, logout, token expirado)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setLoggedIn(!!session)
+        if (session) iniciarMonitorDeRede()
       }
     )
 

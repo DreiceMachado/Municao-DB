@@ -23,15 +23,28 @@ function setStatus(s: SyncStatus) {
 // ── Verificar conectividade ───────────────────────────────────────────────────
 
 async function temInternet(): Promise<boolean> {
-  // Tenta usar a API do Capacitor Network se disponível
   try {
     const { Network } = await import("@capacitor/network")
     const status = await Network.getStatus()
     return status.connected
   } catch {
-    // Fallback para browser: testa navigator.onLine
     return navigator.onLine
   }
+}
+
+// ── Garante que o perito existe na tabela peritos ─────────────────────────────
+
+async function garantirPerito(): Promise<string | null> {
+  if (!supabase) return null
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data } = await supabase.from("peritos").select("id").eq("id", user.id).single()
+  if (!data) {
+    const nome = (user.user_metadata?.nome as string) || user.email || "Perito"
+    await supabase.from("peritos").insert({ id: user.id, nome })
+  }
+  return user.id
 }
 
 // ── Sincronização principal ───────────────────────────────────────────────────
@@ -43,7 +56,8 @@ export async function sincronizar(): Promise<void> {
 
   setStatus("syncing")
   try {
-    await sincronizarLaudos()
+    const peritoId = await garantirPerito()
+    await sincronizarLaudos(peritoId)
     await sincronizarArmas()
     await sincronizarFotos()
     setStatus("idle")
@@ -53,24 +67,28 @@ export async function sincronizar(): Promise<void> {
   }
 }
 
-async function sincronizarLaudos() {
+async function sincronizarLaudos(peritoId: string | null) {
   const pendentes = await db.laudos.where("syncStatus").equals("pending").toArray()
   for (const laudo of pendentes) {
-    const payload = {
+    const payload: Record<string, unknown> = {
       local_id:      laudo.localId,
-      exam_number:   laudo.examNumber,
-      exam_year:     laudo.examYear,
-      unit:          laudo.unit,
+      numero_exame:  laudo.examNumber,
+      ano_exame:     laudo.examYear,
+      unidade:       laudo.unit,
       expert:        laudo.expert,
-      date:          laudo.date,
+      data_pericia:  laudo.date || null,
       observacoes:   laudo.observacoes,
       status:        laudo.status,
       criado_em:     laudo.criadoEm,
       atualizado_em: laudo.atualizadoEm,
     }
+    if (peritoId) payload.perito_id = peritoId
+
     const { error } = await supabase!.from("laudos").upsert(payload, { onConflict: "local_id" })
     if (!error) {
       await db.laudos.update(laudo.id!, { syncStatus: "synced" })
+    } else {
+      console.error("[sync] laudo:", error.message)
     }
   }
 }
@@ -88,6 +106,8 @@ async function sincronizarArmas() {
     const { error } = await supabase!.from("armas").upsert(payload, { onConflict: "local_id" })
     if (!error) {
       await db.armas.update(arma.id!, { syncStatus: "synced" })
+    } else {
+      console.error("[sync] arma:", error.message)
     }
   }
 }
@@ -95,7 +115,6 @@ async function sincronizarArmas() {
 async function sincronizarFotos() {
   const pendentes = await db.fotos.where("syncStatus").equals("pending").toArray()
   for (const foto of pendentes) {
-    // Converte base64 para Blob para upload no Storage
     const base64Data = foto.imagemBase64.split(",")[1]
     const byteChars = atob(base64Data)
     const byteArr = new Uint8Array(byteChars.length)
@@ -109,9 +128,11 @@ async function sincronizarFotos() {
       .from("pericias")
       .upload(storagePath, blob, { upsert: true })
 
-    if (uploadError) continue
+    if (uploadError) {
+      console.error("[sync] foto upload:", uploadError.message)
+      continue
+    }
 
-    // Registra metadados no banco relacional
     const payload = {
       local_id:       foto.localId,
       laudo_local_id: foto.laudoLocalId,
@@ -123,6 +144,8 @@ async function sincronizarFotos() {
     const { error } = await supabase!.from("fotos").upsert(payload, { onConflict: "local_id" })
     if (!error) {
       await db.fotos.update(foto.id!, { syncStatus: "synced" })
+    } else {
+      console.error("[sync] foto meta:", error.message)
     }
   }
 }
@@ -136,9 +159,7 @@ export async function iniciarMonitorDeRede() {
       if (status.connected) sincronizar()
     })
   } catch {
-    // No browser, escuta evento nativo
     window.addEventListener("online", () => sincronizar())
   }
-  // Tenta sincronizar ao iniciar
   sincronizar()
 }
