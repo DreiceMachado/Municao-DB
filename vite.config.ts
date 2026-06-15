@@ -10,6 +10,9 @@ export default defineConfig({
   base: "./",  // necessário para o Capacitor carregar assets corretamente
   server: {
     host: true,
+    proxy: {
+      '/api': 'http://localhost:3001',
+    },
   },
   resolve: {
     alias: {

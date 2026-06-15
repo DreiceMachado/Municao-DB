@@ -11,6 +11,7 @@ import {
   Crosshair,
   Database,
   Link2,
+  Loader2,
   MapPin,
   Menu,
   Microscope,
@@ -43,6 +44,7 @@ import { ConfirmDialogs } from "./components/ConfirmDialogs"
 import { PhotosScreen } from "./components/PhotosScreen"
 import { WeaponFormProvider } from "./context/WeaponFormContext"
 import { AllPickers } from "./components/AllPickers"
+import { mapearRepGdl, type RepGdlData } from "./lib/repMapper"
 
 
 export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: () => void }) {
@@ -101,6 +103,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [typePickerOpen, setTypePickerOpen] = useState(false)
   const [examType, setExamType] = useState<"EFICIÊNCIA" | "CONSTATAÇÃO" | null>(null)
   const [repMinimized, setRepMinimized] = useState(false)
+  const [repGdlCarregando, setRepGdlCarregando] = useState(false)
+  const [repGdlErro, setRepGdlErro] = useState<string | null>(null)
   const [confirmDeleteRep, setConfirmDeleteRep] = useState(false)
   const [confirmDeleteMira, setConfirmDeleteMira] = useState(false)
   const [confirmDeleteCarregador, setConfirmDeleteCarregador] = useState(false)
@@ -186,6 +190,42 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [profileView, setProfileView] = useState<ProfileView>(null)
   const [selectedLaudoId, setSelectedLaudoId] = useState<string | null>(null)
   // Profile email/password states are now local to ProfilePanel component
+
+  const handleImportarGdl = async () => {
+    const numLimpo = form.examNumber.trim().replace(/[^0-9]/g, '')
+    if (!numLimpo) { setRepGdlErro('Digite o número da REP antes de buscar'); return }
+    setRepGdlCarregando(true)
+    setRepGdlErro(null)
+    try {
+      const res = await fetch('/api/rep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ numero: `${numLimpo}/${form.examYear}` }),
+      })
+      const dados: RepGdlData & { erro?: string } = await res.json()
+      if (!res.ok) {
+        const detalhe = (dados as any).detalhe
+        setRepGdlErro(detalhe ? `${dados.erro}: ${detalhe}` : (dados.erro ?? 'Erro desconhecido'))
+        return
+      }
+      const { form: f, pecas: p, lacres } = mapearRepGdl(dados)
+      setForm(prev => ({
+        ...prev,
+        caseNumber:  f.caseNumber  || prev.caseNumber,
+        date:        f.date        || prev.date,
+        observacoes: f.observacoes || prev.observacoes,
+      }))
+      if (p.length > 0) setSavedPieces(p)
+      if (lacres[0]) {
+        setLacreNumero(lacres[0].entrada)
+        setLacreSaidaNumero(lacres[0].saida)
+      }
+    } catch {
+      setRepGdlErro('Falha ao conectar com o servidor')
+    } finally {
+      setRepGdlCarregando(false)
+    }
+  }
 
   const handlePhotoCapture = (key: string, file: File) => {
     const reader = new FileReader()
@@ -691,6 +731,26 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </button>
                     ))}
                   </div>
+                  {/* importar do GDL */}
+                  <div className="px-4 pb-3">
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="h-px flex-1 bg-[#d3c4a8]" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9e8c6e]">ou</span>
+                      <div className="h-px flex-1 bg-[#d3c4a8]" />
+                    </div>
+                    <button type="button"
+                      onClick={() => { setTypePickerOpen(false); setExamType("EFICIÊNCIA"); setRepMinimized(false); setRepGdlErro(null) }}
+                      className="flex w-full items-center justify-between rounded-2xl border-2 border-[#8e7340] bg-[#12213d] px-5 py-4 text-left transition active:scale-[.97]">
+                      <div>
+                        <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.12em] text-[#f0d08a]">
+                          <Database className="h-4 w-4" />
+                          Importar do GDL
+                        </div>
+                        <div className="mt-1 text-xs leading-relaxed text-[#ccb780]">Preencher automaticamente a partir da REP</div>
+                      </div>
+                      <ChevronRight className="ml-3 h-5 w-5 shrink-0 text-[#f0d08a]" />
+                    </button>
+                  </div>
                   {/* cancelar */}
                   <div className="px-4 pb-5">
                     <button type="button" onClick={() => setTypePickerOpen(false)}
@@ -810,6 +870,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                 {/* conteúdo */}
                 <div className="space-y-6 p-5 md:p-8 max-w-[860px] mx-auto">
+
                   {/* Identificação */}
                   <div>
                     <div className="mb-6 border-b border-[#d3c3a4] pb-3 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
@@ -822,20 +883,32 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         <div className="relative flex-1">
                           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
                           <input value={form.examNumber} onChange={handleField("examNumber")}
+                            onKeyDown={e => e.key === 'Enter' && handleImportarGdl()}
                             placeholder="Nº REP"
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm" />
                         </div>
                         <span className="text-2xl font-black text-[#9e7f45]">/</span>
-                        <div className="relative w-28">
+                        <div className="relative shrink-0">
                           <select value={form.examYear} onChange={e => setForm(f => ({ ...f, examYear: e.target.value }))}
-                            className="h-14 w-full appearance-none rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-3 pr-8 text-[16px] text-center outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm cursor-pointer">
+                            className="h-14 w-auto appearance-none rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-3 pr-8 text-[16px] text-center outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm cursor-pointer">
                             {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 5 + i).map(y => (
                               <option key={y} value={String(y)}>{y}</option>
                             ))}
                           </select>
                           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9e7f45]" />
                         </div>
+                        <button type="button" onClick={handleImportarGdl}
+                          disabled={repGdlCarregando || !form.examNumber.trim()}
+                          className="flex h-14 items-center gap-1.5 rounded-2xl bg-[#12213d] px-4 text-[13px] font-black text-[#f0d08a] shadow-sm disabled:opacity-40 active:bg-[#1a2c4f]">
+                          {repGdlCarregando
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <Database className="h-4 w-4" />}
+                          {repGdlCarregando ? 'Buscando…' : 'Buscar'}
+                        </button>
                       </div>
+                      {repGdlErro && (
+                        <div className="mt-1.5 text-[12px] font-semibold text-red-600">{repGdlErro}</div>
+                      )}
                     </div>
 
                       <div>
