@@ -147,6 +147,17 @@ export type WeaponEntry = {
   tipoEspoleta: string
   // ARMA DE PRESSÃO
   adaptadaArmaFogo: boolean | null
+  // GDL — identificação da peça
+  idPeca: string
+  gdlPartsId: string
+  // GDL — Guia de Remessa (por peça)
+  lacreEntradaPeca: string
+  lacreSaidaPeca: string
+  dataEntradaPeca: string
+  dataLiberacaoPeca: string
+  unidadeMedida: string
+  consumidaExame: string
+  observacaoPeca: string
   // Coleta de Padrão
   coletaNumero: string
   coletaRepAno: string
@@ -188,10 +199,23 @@ export type ExamType = "EFICIÊNCIA" | "CONSTATAÇÃO"
 export type ExamForm = {
   examNumber: string
   examYear: string
+  caseNumber: string
   unit: string
   expert: string
   date: string
   observacoes: string
+  // Capa do Laudo (GDL)
+  solicitante: string
+  remetenteCidade: string
+  remetenteOrgao: string
+  naturezaExame: string
+  naturezaOcorrencia: string
+  dataEntrada: string
+  horaEntrada: string
+  enderecoExame: string
+  oficio: string
+  ipApfd: string
+  processo: string
 }
 
 export type ProfileView = null | "main"

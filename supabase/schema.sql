@@ -48,19 +48,33 @@ CREATE TABLE peritos (
 -- ────────────────────────────────────────────────────────────
 
 CREATE TABLE laudos (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  perito_id     UUID NOT NULL REFERENCES peritos (id),
-  numero_exame  TEXT,
-  ano_exame     TEXT,
-  numero_bo     TEXT,
-  tipo_exame    TEXT CHECK (tipo_exame IN ('EFICIÊNCIA', 'CONSTATAÇÃO')),
-  unidade       TEXT,
-  data_pericia  DATE,
-  observacoes   TEXT,
-  status        TEXT NOT NULL DEFAULT 'rascunho'
-                  CHECK (status IN ('rascunho', 'finalizado')),
-  criado_em     TIMESTAMPTZ DEFAULT now(),
-  atualizado_em TIMESTAMPTZ DEFAULT now()
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  local_id             TEXT UNIQUE,
+  perito_id            UUID REFERENCES peritos (id),
+  expert               TEXT,
+  numero_exame         TEXT,
+  ano_exame            TEXT,
+  numero_bo            TEXT,
+  tipo_exame           TEXT CHECK (tipo_exame IN ('EFICIÊNCIA', 'CONSTATAÇÃO')),
+  unidade              TEXT,
+  data_pericia         DATE,
+  observacoes          TEXT,
+  -- Capa do laudo (importado do GDL)
+  solicitante          TEXT,
+  remetente_cidade     TEXT,
+  remetente_orgao      TEXT,
+  natureza_exame       TEXT,
+  natureza_ocorrencia  TEXT,
+  data_entrada         TEXT,
+  hora_entrada         TEXT,
+  endereco_exame       TEXT,
+  oficio               TEXT,
+  ip_apfd              TEXT,
+  processo             TEXT,
+  status               TEXT NOT NULL DEFAULT 'rascunho'
+                         CHECK (status IN ('rascunho', 'finalizado')),
+  criado_em            TIMESTAMPTZ DEFAULT now(),
+  atualizado_em        TIMESTAMPTZ DEFAULT now()
 );
 
 
@@ -82,19 +96,29 @@ CREATE TABLE lacres (
 -- ────────────────────────────────────────────────────────────
 
 CREATE TABLE pecas (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  laudo_id    UUID NOT NULL REFERENCES laudos (id) ON DELETE CASCADE,
-  tipo        TEXT NOT NULL CHECK (tipo IN (
-                'REVÓLVER', 'PISTOLA', 'ESPINGARDA', 'CARABINA',
-                'FUZIL', 'METRALHADORA',
-                'PROJÉTIL', 'ESTOJO', 'CARTUCHO',
-                'FACA',
-                'ARMA DE PRESSÃO', 'ARMA DE ANTECARGA',
-                'PÓLVORA', 'ESPOLETA', 'CARREGADOR'
-              )),
-  destinacao  TEXT CHECK (destinacao IN ('LIBERADO', 'CONSUMIDO')),
-  ordem       INTEGER NOT NULL DEFAULT 0,
-  criado_em   TIMESTAMPTZ DEFAULT now()
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  laudo_id             UUID NOT NULL REFERENCES laudos (id) ON DELETE CASCADE,
+  tipo                 TEXT NOT NULL CHECK (tipo IN (
+                         'REVÓLVER', 'PISTOLA', 'ESPINGARDA', 'CARABINA',
+                         'FUZIL', 'METRALHADORA',
+                         'PROJÉTIL', 'ESTOJO', 'CARTUCHO',
+                         'FACA',
+                         'ARMA DE PRESSÃO', 'ARMA DE ANTECARGA',
+                         'PÓLVORA', 'ESPOLETA', 'CARREGADOR'
+                       )),
+  destinacao           TEXT CHECK (destinacao IN ('LIBERADO', 'CONSUMIDO')),
+  ordem                INTEGER NOT NULL DEFAULT 0,
+  -- Identificação GDL
+  id_peca              TEXT,
+  identificacao        TEXT,
+  quantidade           TEXT,
+  -- Guia de Remessa
+  lacre_entrada_peca   TEXT,
+  lacre_saida_peca     TEXT,
+  data_entrada_peca    TEXT,
+  data_liberacao_peca  TEXT,
+  observacao_peca      TEXT,
+  criado_em            TIMESTAMPTZ DEFAULT now()
 );
 
 
@@ -114,7 +138,7 @@ CREATE TABLE armas_fogo (
   numero_serie        TEXT,
   pais_fabricacao     TEXT,
   serial_estado       TEXT CHECK (serial_estado IN (
-                        'PRESERVADO', 'RASPADO', 'ADULTERADO', 'ILEGÍVEL', 'SEM NUMERAÇÃO'
+                        'LEGÍVEL', 'PARCIAL', 'SUPRIMIDO', 'NÃO APARENTE'
                       )),
   tipo_producao       TEXT CHECK (tipo_producao IN ('INDUSTRIAL', 'ARTESANAL')),
 
@@ -455,9 +479,12 @@ ALTER TABLE lacres   ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "perito_proprio_perfil" ON peritos
   FOR ALL USING (id = auth.uid());
 
--- Perito acessa só seus laudos
+-- Perito acessa só seus laudos (via perito_id ou local_id de qualquer usuário autenticado)
 CREATE POLICY "perito_proprios_laudos" ON laudos
-  FOR ALL USING (perito_id = auth.uid());
+  FOR ALL USING (
+    perito_id = auth.uid()
+    OR (perito_id IS NULL AND auth.uid() IS NOT NULL)
+  );
 
 -- Peças — acesso via laudo do perito
 CREATE POLICY "perito_proprias_pecas" ON pecas

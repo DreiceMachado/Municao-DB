@@ -12,6 +12,17 @@ type FormState = {
   expert: string
   date: string
   observacoes: string
+  solicitante: string
+  remetenteCidade: string
+  remetenteOrgao: string
+  naturezaExame: string
+  naturezaOcorrencia: string
+  dataEntrada: string
+  horaEntrada: string
+  enderecoExame: string
+  oficio: string
+  ipApfd: string
+  processo: string
 }
 
 function laudoToRecordItem(l: Laudo): RecordItem {

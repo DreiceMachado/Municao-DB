@@ -15,6 +15,18 @@ export interface Laudo {
   expert: string
   date: string
   observacoes: string
+  // Capa do Laudo (GDL)
+  solicitante?: string
+  remetenteCidade?: string
+  remetenteOrgao?: string
+  naturezaExame?: string
+  naturezaOcorrencia?: string
+  dataEntrada?: string
+  horaEntrada?: string
+  enderecoExame?: string
+  oficio?: string
+  ipApfd?: string
+  processo?: string
   // controle
   status: "rascunho" | "finalizado"
   syncStatus: "pending" | "synced"

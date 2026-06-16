@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import logoEscudo from "./assets/logo-escudo.png"
 import {
+  AlertCircle,
   Building2,
   Camera,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -20,6 +22,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Send,
   User2,
   Wifi,
   X,
@@ -84,7 +87,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [yearFilter, setYearFilter] = useState("2026")
   const [unitFilter, setUnitFilter] = useState("")
 
-  const [form, setForm] = useState({
+  const emptyForm = {
     examNumber: "",
     examYear: String(new Date().getFullYear()),
     caseNumber: "",
@@ -92,19 +95,38 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     expert: "Perito responsável",
     date: new Date().toLocaleDateString("pt-BR"),
     observacoes: "",
-  })
+    // Capa do Laudo
+    solicitante: "",
+    remetenteCidade: "",
+    remetenteOrgao: "",
+    naturezaExame: "",
+    naturezaOcorrencia: "",
+    dataEntrada: "",
+    horaEntrada: "",
+    enderecoExame: "",
+    oficio: "",
+    ipApfd: "",
+    processo: "",
+  }
+  const [form, setForm] = useState(emptyForm)
 
   const [weapons, setWeapons] = useState<WeaponEntry[]>([])
   const [activeWeaponIdx, setActiveWeaponIdx] = useState(0)
   const [savedPieces, setSavedPieces] = useState<WeaponEntry[]>([])
   const [editingPieceIdx, setEditingPieceIdx] = useState<number | null>(null)
   const [confirmDeletePieceIdx, setConfirmDeletePieceIdx] = useState<number | null>(null)
+  const [gdlEnviarIdx, setGdlEnviarIdx] = useState<number | null>(null)
+  const [gdlEnviando, setGdlEnviando] = useState(false)
+  const [gdlResultado, setGdlResultado] = useState<{ ok: boolean; msg: string } | null>(null)
   const [pieceFormOpen, setPieceFormOpen] = useState(false)
   const [typePickerOpen, setTypePickerOpen] = useState(false)
+  const [changePieceTypeOpen, setChangePieceTypeOpen] = useState(false)
+  const [infoGeraisOpen, setInfoGeraisOpen] = useState(false)
   const [examType, setExamType] = useState<"EFICIÊNCIA" | "CONSTATAÇÃO" | null>(null)
   const [repMinimized, setRepMinimized] = useState(false)
   const [repGdlCarregando, setRepGdlCarregando] = useState(false)
   const [repGdlErro, setRepGdlErro] = useState<string | null>(null)
+  const [gdlFotos, setGdlFotos] = useState<string[]>([])
   const [confirmDeleteRep, setConfirmDeleteRep] = useState(false)
   const [confirmDeleteMira, setConfirmDeleteMira] = useState(false)
   const [confirmDeleteCarregador, setConfirmDeleteCarregador] = useState(false)
@@ -112,6 +134,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [lacreNumero, setLacreNumero] = useState("")
   const [lacreSaidaNumero, setLacreSaidaNumero] = useState("")
   const [photoUrls, setPhotoUrls] = useState<Map<string, string>>(new Map())
+  const [photoSyncMap, setPhotoSyncMap] = useState<Record<number, number>>({})
   const [viewerPhoto, setViewerPhoto] = useState<string | null>(null)
   const [materialPickerOpen, setMaterialPickerOpen] = useState(false)
   const [formatoPickerOpen, setFormatoPickerOpen] = useState(false)
@@ -211,11 +234,24 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       const { form: f, pecas: p, lacres } = mapearRepGdl(dados)
       setForm(prev => ({
         ...prev,
-        caseNumber:  f.caseNumber  || prev.caseNumber,
-        date:        f.date        || prev.date,
-        observacoes: f.observacoes || prev.observacoes,
+        caseNumber:         f.caseNumber         || prev.caseNumber,
+        date:               f.date               || prev.date,
+        observacoes:        f.observacoes        || prev.observacoes,
+        solicitante:        f.solicitante        || prev.solicitante,
+        remetenteCidade:    f.remetenteCidade    || prev.remetenteCidade,
+        remetenteOrgao:     f.remetenteOrgao     || prev.remetenteOrgao,
+        naturezaExame:      f.naturezaExame      || prev.naturezaExame,
+        naturezaOcorrencia: f.naturezaOcorrencia || prev.naturezaOcorrencia,
+        dataEntrada:        f.dataEntrada        || prev.dataEntrada,
+        horaEntrada:        f.horaEntrada        || prev.horaEntrada,
+        enderecoExame:      f.enderecoExame      || prev.enderecoExame,
+        oficio:             f.oficio             || prev.oficio,
+        ipApfd:             f.ipApfd             || prev.ipApfd,
+        processo:           f.processo           || prev.processo,
       }))
       if (p.length > 0) setSavedPieces(p)
+      const fotos = dados.arquivos?.filter(a => a.base64).map(a => a.base64!) ?? []
+      if (fotos.length > 0) setGdlFotos(fotos)
       if (lacres[0]) {
         setLacreNumero(lacres[0].entrada)
         setLacreSaidaNumero(lacres[0].saida)
@@ -247,6 +283,52 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
   const activeWeapon = weapons[activeWeaponIdx] ?? null
 
+  // Índice único da peça sendo editada (para chaves de foto por peça)
+  const currentPhotoIdx = editingPieceIdx ?? savedPieces.length
+  const getEffectivePhotoIdx = (idx: number) => photoSyncMap[idx] ?? idx
+  const effectivePhotoIdx = getEffectivePhotoIdx(currentPhotoIdx)
+
+  const handleSyncPhoto = (pieceIdx: number, masterIdx: number) =>
+    setPhotoSyncMap(prev => ({ ...prev, [pieceIdx]: masterIdx }))
+  const handleUnsyncPhoto = (pieceIdx: number) =>
+    setPhotoSyncMap(prev => { const n = { ...prev }; delete n[pieceIdx]; return n })
+
+  const handleEnviarParaGdl = async (pieceIdx: number) => {
+    const peca = savedPieces[pieceIdx]
+    const repNumero = `${form.examNumber}/${form.examYear}`
+    setGdlEnviarIdx(null)
+    setGdlEnviando(true)
+    try {
+      const isNova = !peca.gdlPartsId
+      const endpoint = isNova ? '/api/gdl/adicionar-peca' : '/api/gdl/editar-peca'
+      const body = isNova
+        ? { rep_numero: repNumero, peca }
+        : { rep_numero: repNumero, gdl_parts_id: peca.gdlPartsId, peca }
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await resp.json()
+      if (data.ok) {
+        if (isNova && data.gdlPartsId) {
+          const novaPeca = { ...peca, gdlPartsId: data.gdlPartsId }
+          const novas = savedPieces.map((p, i) => i === pieceIdx ? novaPeca : p)
+          setSavedPieces(novas)
+          salvarPecas(novas)
+        }
+        setGdlResultado({ ok: true, msg: isNova ? 'Peça adicionada ao GDL!' : 'Peça atualizada no GDL!' })
+      } else {
+        setGdlResultado({ ok: false, msg: data.erro || 'Erro ao enviar para o GDL' })
+      }
+    } catch {
+      setGdlResultado({ ok: false, msg: 'Sem conexão com a API local' })
+    } finally {
+      setGdlEnviando(false)
+      setTimeout(() => setGdlResultado(null), 4000)
+    }
+  }
+
   const handleSalvarExame = async () => {
     await finalizarLaudo(form, savedPieces)
     setSalvouExame(true)
@@ -259,15 +341,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setActiveWeaponIdx(0)
     setPieceFormOpen(false)
     setTypePickerOpen(false)
-    setForm({
-      examNumber: "",
-      examYear: String(new Date().getFullYear()),
-      caseNumber: "",
-      unit: "Núcleo de Polícia Científica",
-      expert: nomePerito,
-      date: new Date().toLocaleDateString("pt-BR"),
-      observacoes: "",
-    })
+    setForm({ ...emptyForm, expert: nomePerito })
     setTimeout(() => setSalvouExame(false), 2500)
   }
 
@@ -321,6 +395,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setWeaponType(piece.type)
     setWeapons([{ ...piece }])
     setActiveWeaponIdx(0)
+    setLacreNumero(piece.lacreEntradaPeca ?? "")
+    setLacreSaidaNumero(piece.lacreSaidaPeca ?? "")
     setPieceFormOpen(true)
   }
 
@@ -962,12 +1038,33 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               </button>
                             </div>
                             <div className="border-t border-[#f0e8d8] bg-[#fdfaf5] px-3 py-1.5">
-                              <div className="flex flex-wrap gap-x-3 gap-y-0">
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                                {p.identificacao && <span className="text-[10px] text-[#9e8255]">Identificação: <span className="font-black text-[#50442f]">{p.identificacao}</span></span>}
                                 <span className="text-[10px] text-[#9e8255]">Série: <span className="font-black text-[#50442f]">{p.serial || <span className="italic text-[#c4ac82]">—</span>}</span></span>
                                 {p.tipoMira && p.tipoMira.length > 0 && <span className="text-[10px] text-[#9e8255]">Mira: <span className="font-black text-[#50442f]">{p.tipoMira.join(", ")}</span></span>}
                                 {p.tipoCarregador && p.tipoCarregador.length > 0 && <span className="text-[10px] text-[#9e8255]">Carregador: <span className="font-black text-[#50442f]">{p.tipoCarregador.join(", ")}{p.capacidadeCarregador ? ` · ${p.capacidadeCarregador}` : ""}</span></span>}
                               </div>
                             </div>
+
+                            {/* ── Enviar para o GDL ── */}
+                            {form.examNumber && (
+                              <button
+                                type="button"
+                                onClick={() => setGdlEnviarIdx(i)}
+                                className="flex w-full items-center gap-2 border-t border-[#e8dfc8] bg-[#fafaf5] px-3 py-2 transition active:bg-[#f0ede5]"
+                              >
+                                <Send className="h-3.5 w-3.5 shrink-0 text-[#8d7854]" />
+                                <span className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6b5838]">
+                                  Enviar para o GDL
+                                </span>
+                                {p.gdlPartsId && (
+                                  <span className="ml-auto flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.1em] text-[#4a8c4a]">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    Sincronizado
+                                  </span>
+                                )}
+                              </button>
+                            )}
 
                             {/* ── Coleta de Padrão por peça ── */}
                             {p.coletaSalva ? (
@@ -1142,6 +1239,83 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                   )}
 
+                  {/* ── Informações Gerais ── */}
+                  {(form.solicitante || form.naturezaExame || form.enderecoExame || form.oficio || form.ipApfd || form.processo) && (
+                    <div className="overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => setInfoGeraisOpen(v => !v)}
+                        className="flex h-14 w-full items-center justify-between px-4 active:bg-[#f5efe3]"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className={`h-2 w-2 rounded-full transition-colors ${infoGeraisOpen ? "bg-[#9e7f45]" : "bg-[#cdbf9e]"}`} />
+                          <span className="text-[13px] font-black uppercase tracking-[0.18em] text-[#50442f]">Informações Gerais</span>
+                        </div>
+                        <div className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${infoGeraisOpen ? "bg-[#1b2947]" : "bg-[#ece6da]"}`}>
+                          <ChevronDown className={`h-5 w-5 transition-all duration-200 ${infoGeraisOpen ? "rotate-180 text-[#f0d08a]" : "rotate-0 text-[#8d7854]"}`} />
+                        </div>
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {infoGeraisOpen && (
+                          <motion.div
+                            key="info-gerais-content"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: "easeInOut" }}
+                            className="overflow-hidden"
+                          >
+                            <div className="space-y-4 px-4 pb-4 pt-3">
+                              {/* Natureza do exame — somente leitura */}
+                              {form.naturezaExame && (
+                                <div>
+                                  <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.14em] text-[#9e8255]">Natureza do exame</label>
+                                  <div className="flex h-12 items-center rounded-xl border border-[#e0d5be] bg-[#f5f0e8] px-4 text-[13px] font-medium text-[#6b5838]">{form.naturezaExame}</div>
+                                </div>
+                              )}
+                              <div className="grid gap-4 sm:grid-cols-2">
+                                {([
+                                  ["solicitante",        "Solicitante"],
+                                  ["remetenteOrgao",     "Órgão remetente"],
+                                  ["remetenteCidade",    "Cidade remetente"],
+                                  ["naturezaOcorrencia", "Natureza da ocorrência"],
+                                  ["oficio",             "Ofício requisitante"],
+                                  ["ipApfd",             "IP / APFD"],
+                                  ["processo",           "Processo"],
+                                ] as [keyof typeof form, string][]).map(([key, label]) => (
+                                  <div key={key}>
+                                    <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.14em] text-[#9e8255]">{label}</label>
+                                    <input
+                                      value={form[key] as string}
+                                      onChange={handleField(key)}
+                                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[13px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="grid gap-4 grid-cols-[1fr_0.55fr_2fr]">
+                                {([
+                                  ["dataEntrada",  "Data de entrada"],
+                                  ["horaEntrada",  "Hora"],
+                                  ["enderecoExame","Endereço do exame"],
+                                ] as [keyof typeof form, string][]).map(([key, label]) => (
+                                  <div key={key}>
+                                    <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.14em] text-[#9e8255]">{label}</label>
+                                    <input
+                                      value={form[key] as string}
+                                      onChange={handleField(key)}
+                                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[13px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
+
                   {/* Tipo de peça */}
                   <div>
                     <div className="mb-3 border-b border-[#d3c3a4] pb-3 text-lg font-black uppercase tracking-[0.16em] text-[#50442f]">
@@ -1311,7 +1485,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         <ChevronLeft className="h-5 w-5" />
                       </button>
                       <div>
-                        <div className="text-xl font-black text-[#f0d08a]">{weaponType}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-xl font-black text-[#f0d08a]">{weaponType}</div>
+                          {activeWeapon?.idPeca && (
+                            <span className="rounded-full border border-[#f0d08a]/40 bg-[#f0d08a]/15 px-2 py-0.5 text-[10px] font-black tracking-[0.18em] text-[#f0d08a]">
+                              ID {activeWeapon.idPeca}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs uppercase tracking-[0.22em] text-[#ccb780]">
                           {editingPieceIdx !== null ? `Editando peça ${editingPieceIdx + 1}` : "Dados da peça"}
                         </div>
@@ -1333,10 +1514,25 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <div className="flex shrink-0 items-center justify-center rounded-xl bg-[#0f1e39] p-3 text-[#f0d08a]">
                       <PieceIcon type={weaponType} className="h-12 w-auto max-w-[80px]" />
                     </div>
-                    <div>
+                    {/* Tipo — clicável para trocar */}
+                    <button
+                      type="button"
+                      onClick={() => setChangePieceTypeOpen(true)}
+                      className="flex-1 text-left active:opacity-70"
+                    >
                       <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#ccb780]">Tipo de peça</div>
-                      <div className="text-lg font-black uppercase tracking-[0.1em] text-[#f0d08a]">{weaponType}</div>
-                    </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-lg font-black uppercase tracking-[0.1em] text-[#f0d08a]">{weaponType}</span>
+                        <Pencil className="h-3 w-3 text-[#f0d08a]/50" />
+                      </div>
+                    </button>
+                    {/* ID — apenas exibição */}
+                    {activeWeapon?.idPeca && (
+                      <div className="flex flex-col items-center rounded-xl border border-[#f0d08a]/30 bg-[#0f1e39] px-3 py-2 min-w-[44px]">
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#ccb780]">ID</span>
+                        <span className="text-xl font-black text-[#f0d08a]">{activeWeapon.idPeca}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-6">
@@ -1598,8 +1794,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   <LacreInput
                     label="Lacre de Entrada"
                     slotKey="lacre-entrada-form"
-                    value={lacreNumero}
-                    onChange={setLacreNumero}
+                    value={activeWeapon?.lacreEntradaPeca ?? lacreNumero}
+                    onChange={v => { setLacreNumero(v); setWeaponDirect("lacreEntradaPeca" as any, v) }}
                     allPhotoUrls={photoUrls}
                     onCapture={handlePhotoCapture}
                     onRemove={handlePhotoRemove}
@@ -3197,7 +3393,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         {/* Outros campos */}
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
-                            ...(activeWeapon?.estadoEstojo === "ÍNTEGRO" ? [["quantidade", "Quantidade", "Ex.: 3"]] : []),
+                            ...((activeWeapon?.estadoEstojo === "ÍNTEGRO" || !!activeWeapon?.quantidade) ? [["quantidade", "Quantidade", "Ex.: 3"]] : []),
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -3816,7 +4012,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
-                            ...(activeWeapon?.estadoCartucho === "ÍNTEGRO" ? [["quantidade", "Quantidade", "Ex.: 12"]] : []),
+                            ...((activeWeapon?.estadoCartucho === "ÍNTEGRO" || !!activeWeapon?.quantidade) ? [["quantidade", "Quantidade", "Ex.: 12"]] : []),
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -4598,7 +4794,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 onClick={() => {
                                   const ativo = activeWeapon?.lacreEntradaMesmoDaPeca
                                   setWeaponDirect("lacreEntradaMesmoDaPeca" as any, !ativo)
-                                  if (!ativo) setWeaponDirect("lacreEntradaAcessorio" as any, lacreNumero)
+                                  if (!ativo) setWeaponDirect("lacreEntradaAcessorio" as any, activeWeapon?.lacreEntradaPeca ?? lacreNumero)
                                 }}
                                 className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] transition ${
                                   activeWeapon?.lacreEntradaMesmoDaPeca
@@ -4622,7 +4818,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                   { key: "emb_ent_f", label: "Lacre Ent. (Frente)" },
                                   { key: "emb_ent_v", label: "Lacre Ent. (Verso)" },
                                 ] as const).map((p) => {
-                                  const photoKey = `acc_${p.key}_${activeWeaponIdx}`
+                                  const photoKey = `acc_${p.key}_${effectivePhotoIdx}`
                                   return (
                                     <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
                                       photoUrl={photoUrls.get(photoKey)}
@@ -4642,7 +4838,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 { key: "mat_ant",  label: "Mat. Anterior" },
                                 { key: "mat_post", label: "Mat. Posterior" },
                               ] as const).map((p) => {
-                                const photoKey = `acc_${p.key}_${activeWeaponIdx}`
+                                const photoKey = `acc_${p.key}_${effectivePhotoIdx}`
                                 return (
                                   <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
                                     photoUrl={photoUrls.get(photoKey)}
@@ -4662,7 +4858,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 onClick={() => {
                                   const ativo = activeWeapon?.lacreSaidaMesmoDaPeca
                                   setWeaponDirect("lacreSaidaMesmoDaPeca" as any, !ativo)
-                                  if (!ativo) setWeaponDirect("lacreSaidaAcessorio" as any, lacreSaidaNumero)
+                                  if (!ativo) setWeaponDirect("lacreSaidaAcessorio" as any, activeWeapon?.lacreSaidaPeca ?? lacreSaidaNumero)
                                 }}
                                 className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] transition ${
                                   activeWeapon?.lacreSaidaMesmoDaPeca
@@ -4686,7 +4882,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                   { key: "emb_sai_f", label: "Lacre Saí. (Frente)" },
                                   { key: "emb_sai_v", label: "Lacre Saí. (Verso)" },
                                 ] as const).map((p) => {
-                                  const photoKey = `acc_${p.key}_${activeWeaponIdx}`
+                                  const photoKey = `acc_${p.key}_${effectivePhotoIdx}`
                                   return (
                                     <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
                                       photoUrl={photoUrls.get(photoKey)}
@@ -4768,6 +4964,78 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       <button type="button" onClick={() => { if (tipoMunicaoCustom.trim()) setWeaponDirect("tipoMunicaoDisparo", tipoMunicaoCustom.trim()); setTipoMunicaoPickerOpen(false) }}
                         className="rounded-xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-3 text-sm font-black text-[#f0d08a]">Confirmar</button>
                     </div>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Picker: Trocar tipo de peça ── */}
+        <AnimatePresence>
+          {changePieceTypeOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setChangePieceTypeOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] flex items-end justify-center p-4"
+                initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}>
+                <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
+                  <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4">
+                    <div className="text-base font-black text-[#f0d08a]">Tipo de peça</div>
+                    <div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione o novo tipo</div>
+                  </div>
+                  <div className="max-h-[60vh] overflow-y-auto p-4 space-y-2">
+                    {([
+                      { label: "Armas de fogo",           types: ["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"] },
+                      { label: "Munição e componentes",   types: ["PROJÉTIL","CARTUCHO","ESTOJO","ESPOLETA","PÓLVORA","CARREGADOR"] },
+                      { label: "Outras armas",            types: ["FACA","ARMA DE PRESSÃO"] },
+                    ] as { label: string; types: WeaponType[] }[]).map(group => (
+                      <div key={group.label}>
+                        <div className="mb-1 px-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#9e8255]">{group.label}</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {group.types.map(t => (
+                            <button key={t} type="button"
+                              onClick={() => {
+                                const cur = weapons[activeWeaponIdx]
+                                const next = makeWeaponEntry(t)
+                                // Preserva campos comuns
+                                next.idPeca        = cur?.idPeca        ?? ""
+                                next.identificacao = cur?.identificacao ?? ""
+                                next.brand         = cur?.brand         ?? ""
+                                next.model         = cur?.model         ?? ""
+                                next.caliber       = cur?.caliber       ?? ""
+                                next.serial        = cur?.serial        ?? ""
+                                next.quantidade    = cur?.quantidade    ?? ""
+                                next.dataEntradaPeca   = cur?.dataEntradaPeca   ?? ""
+                                next.dataLiberacaoPeca = cur?.dataLiberacaoPeca ?? ""
+                                next.unidadeMedida     = cur?.unidadeMedida     ?? ""
+                                next.consumidaExame    = cur?.consumidaExame    ?? ""
+                                next.observacaoPeca    = cur?.observacaoPeca    ?? ""
+                                const updated = [...weapons]
+                                updated[activeWeaponIdx] = next
+                                setWeapons(updated)
+                                setWeaponType(t)
+                                setChangePieceTypeOpen(false)
+                              }}
+                              className={`rounded-xl border-2 py-2.5 text-[11px] font-black uppercase tracking-[0.06em] transition active:scale-[.96] ${
+                                weaponType === t
+                                  ? "border-[#9e7f45] bg-[#12213d] text-[#f0d08a]"
+                                  : "border-[#d3c4a8] bg-white text-[#26221b]"
+                              }`}>
+                              {t}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-4 pt-0">
+                    <button type="button" onClick={() => setChangePieceTypeOpen(false)}
+                      className="w-full rounded-2xl border border-[#d3c4a8] bg-[#ece6da] py-3.5 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838] active:brightness-95">
+                      Cancelar
+                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -4988,7 +5256,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       Imagens
                     </div>
                     {(() => {
-                      const piecePhotos = Array.from(photoUrls.entries()).filter(([k]) => k.startsWith("piece-"))
+                      const piecePhotos = Array.from(photoUrls.entries()).filter(([k]) => k.startsWith(`piece-${effectivePhotoIdx}-`))
                       const lacrePhotos = Array.from(photoUrls.entries()).filter(([k]) => k.startsWith("lacre-"))
                       return (
                         <div className="overflow-hidden rounded-2xl border-2 border-[#d3c4a8] bg-[#fbf8f3] shadow-sm">
@@ -5052,8 +5320,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   <LacreInput
                     label="Lacre de Saída"
                     slotKey="lacre-saida-form"
-                    value={lacreSaidaNumero}
-                    onChange={setLacreSaidaNumero}
+                    value={activeWeapon?.lacreSaidaPeca ?? lacreSaidaNumero}
+                    onChange={v => { setLacreSaidaNumero(v); setWeaponDirect("lacreSaidaPeca" as any, v) }}
                     allPhotoUrls={photoUrls}
                     onCapture={handlePhotoCapture}
                     onRemove={handlePhotoRemove}
@@ -5307,6 +5575,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           weaponType={weaponType}
           activeWeapon={activeWeapon}
           photoUrls={photoUrls}
+          gdlFotos={gdlFotos}
+          currentPhotoIdx={currentPhotoIdx}
+          savedPieces={savedPieces}
+          photoSyncMap={photoSyncMap}
+          onSync={handleSyncPhoto}
+          onUnsync={handleUnsyncPhoto}
           onClose={() => setPhotosOpen(false)}
           onCapture={handlePhotoCapture}
           onRemove={handlePhotoRemove}
@@ -5554,6 +5828,106 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                 </div>
               </motion.div>
             </>
+          )}
+        </AnimatePresence>
+
+        {/* ── GDL: Confirmação de envio de peça ── */}
+        <AnimatePresence>
+          {gdlEnviarIdx !== null && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[90] bg-black/45"
+                onClick={() => setGdlEnviarIdx(null)}
+              />
+              <motion.div
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 30, stiffness: 220 }}
+                className="fixed inset-x-0 bottom-0 z-[91] rounded-t-3xl bg-white"
+              >
+                <div className="px-5 pt-5 pb-3">
+                  <div className="text-base font-black uppercase tracking-[0.14em] text-[#26221b]">
+                    {savedPieces[gdlEnviarIdx]?.gdlPartsId ? "Atualizar peça no GDL" : "Adicionar peça ao GDL"}
+                  </div>
+                  <p className="mt-1 text-[12px] text-[#8d7854]">
+                    REP {form.examNumber}/{form.examYear} · Peça {gdlEnviarIdx + 1} · {savedPieces[gdlEnviarIdx]?.type}
+                  </p>
+                </div>
+                <div className="max-h-52 overflow-y-auto px-5 pb-3">
+                  <div className="space-y-1.5 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf5] p-3">
+                    {(
+                      [
+                        ["Tipo",           savedPieces[gdlEnviarIdx]?.type],
+                        ["Identificação",  savedPieces[gdlEnviarIdx]?.identificacao],
+                        ["Série",          savedPieces[gdlEnviarIdx]?.serial],
+                        ["Marca",          savedPieces[gdlEnviarIdx]?.brand],
+                        ["Modelo",         savedPieces[gdlEnviarIdx]?.model],
+                        ["Quantidade",     savedPieces[gdlEnviarIdx]?.quantidade],
+                        ["Lacre entrada",  savedPieces[gdlEnviarIdx]?.lacreEntradaPeca],
+                        ["Lacre saída",    savedPieces[gdlEnviarIdx]?.lacreSaidaPeca],
+                        ["Data entrada",   savedPieces[gdlEnviarIdx]?.dataEntradaPeca],
+                        ["Data liberação", savedPieces[gdlEnviarIdx]?.dataLiberacaoPeca],
+                        ["Observação",     savedPieces[gdlEnviarIdx]?.observacaoPeca],
+                      ] as [string, string | undefined][]
+                    )
+                      .filter(([, v]) => v)
+                      .map(([label, value]) => (
+                        <div key={label} className="flex gap-2 text-[11px]">
+                          <span className="w-28 shrink-0 font-black text-[#9e8255]">{label}</span>
+                          <span className="text-[#26221b]">{value}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 p-4">
+                  <button
+                    type="button"
+                    onClick={() => setGdlEnviarIdx(null)}
+                    className="rounded-2xl border border-[#d3c4a8] bg-[#ece6da] py-3.5 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEnviarParaGdl(gdlEnviarIdx)}
+                    className="rounded-2xl bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-3.5 text-sm font-black uppercase tracking-[0.14em] text-[#f0d08a]"
+                  >
+                    Confirmar
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── GDL: Overlay de envio em andamento ── */}
+        <AnimatePresence>
+          {gdlEnviando && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[95] flex flex-col items-center justify-center gap-4 bg-black/60"
+            >
+              <Loader2 className="h-10 w-10 animate-spin text-[#f0d08a]" />
+              <span className="text-sm font-black uppercase tracking-[0.2em] text-[#f0d08a]">Enviando ao GDL…</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── GDL: Toast de resultado ── */}
+        <AnimatePresence>
+          {gdlResultado && (
+            <motion.div
+              initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
+              className={`fixed bottom-24 inset-x-4 z-[96] flex items-center gap-3 rounded-2xl px-4 py-3 shadow-xl ${
+                gdlResultado.ok ? "bg-[#1e3d1e] text-[#a8dba8]" : "bg-[#3d1e1e] text-[#dba8a8]"
+              }`}
+            >
+              {gdlResultado.ok
+                ? <CheckCircle2 className="h-5 w-5 shrink-0" />
+                : <AlertCircle className="h-5 w-5 shrink-0" />
+              }
+              <span className="text-[13px] font-black">{gdlResultado.msg}</span>
+            </motion.div>
           )}
         </AnimatePresence>
 

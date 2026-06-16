@@ -4,17 +4,28 @@ import { makeWeaponEntry } from '../data/constants'
 export type RepGdlData = {
   rep:      Record<string, string>
   grids:    Record<string, Record<string, string>[]>
-  arquivos: { url: string; tipo: string }[]
+  arquivos: { url: string; tipo: string; base64?: string }[]
   pecas:    Record<string, string>[]
 }
 
 export type RepMapeada = {
   form: {
-    examNumber:  string
-    examYear:    string
-    caseNumber:  string
-    date:        string
-    observacoes: string
+    examNumber:       string
+    examYear:         string
+    caseNumber:       string
+    date:             string
+    observacoes:      string
+    solicitante:      string
+    remetenteCidade:  string
+    remetenteOrgao:   string
+    naturezaExame:    string
+    naturezaOcorrencia: string
+    dataEntrada:      string
+    horaEntrada:      string
+    enderecoExame:    string
+    oficio:           string
+    ipApfd:           string
+    processo:         string
   }
   pecas:  WeaponEntry[]
   lacres: { entrada: string; saida: string }[]
@@ -58,7 +69,7 @@ function extrairCalibre(identificacao: string): string {
   return m ? m[1].toUpperCase() : ''
 }
 
-function buildObservacoes(grids: RepGdlData['grids'], rep: Record<string, string>): string {
+function buildObservacoes(grids: RepGdlData['grids']): string {
   const origens: string[] = []
 
   const gridOrigens = grids['Content_RepMain_ucOrigin_gridOrigin'] ?? []
@@ -70,24 +81,37 @@ function buildObservacoes(grids: RepGdlData['grids'], rep: Record<string, string
     const orgao  = linha['Órgão']   ?? ''
     if (!numero) continue
 
+    // Ignora o que já tem campo dedicado em Informações Gerais
+    if (tipo.includes('IP') || tipo.includes('APFD')) continue
+    if (tipo.includes('PROCESSO')) continue
+    if (tipo.includes('OFÍCIO') || tipo.includes('OFICIO')) continue
+
     const ref = ano ? `${numero}/${ano}` : numero
     const local = [orgao, cidade].filter(Boolean).join(' - ')
-
-    if (tipo.includes('IP') || tipo.includes('APFD')) {
-      origens.push(`IP/APFD: ${ref}${local ? ` | ${local}` : ''}`)
-    } else if (tipo.includes('PROCESSO')) {
-      origens.push(`Processo: ${ref}${local ? ` | ${local}` : ''}`)
-    } else if (tipo.includes('OFÍCIO') || tipo.includes('OFICIO')) {
-      origens.push(`Ofício: ${ref}${local ? ` | ${local}` : ''}`)
-    } else if (tipo) {
-      origens.push(`${tipo}: ${ref}${local ? ` | ${local}` : ''}`)
-    }
+    if (tipo) origens.push(`${tipo}: ${ref}${local ? ` | ${local}` : ''}`)
   }
 
-  const solicitante = campo(rep, '$txtNameApplicant')
-  if (solicitante) origens.push(`Solicitante: ${solicitante}`)
-
   return origens.join('\n')
+}
+
+function extrairOrigens(grids: RepGdlData['grids']): { oficio: string; ipApfd: string; processo: string } {
+  let oficio = '', ipApfd = '', processo = ''
+  const gridOrigens = grids['Content_RepMain_ucOrigin_gridOrigin'] ?? []
+  for (const linha of gridOrigens) {
+    const tipo   = linha['Origem']  ?? ''
+    const numero = linha['Número']  ?? ''
+    const ano    = linha['Ano']     ?? ''
+    const cidade = linha['Cidade']  ?? ''
+    const orgao  = linha['Órgão']   ?? ''
+    if (!numero) continue
+    const ref   = ano ? `${numero}/${ano}` : numero
+    const local = [orgao, cidade].filter(Boolean).join(' — ')
+    const full  = local ? `${ref} | ${local}` : ref
+    if (tipo.includes('IP') || tipo.includes('APFD'))             ipApfd   = full
+    else if (tipo.includes('PROCESSO'))                            processo = full
+    else if (tipo.includes('OFÍCIO') || tipo.includes('OFICIO'))  oficio   = full
+  }
+  return { oficio, ipApfd, processo }
 }
 
 // ── Mapper principal ───────────────────────────────────────────
@@ -102,13 +126,31 @@ export function mapearRepGdl(dados: RepGdlData): RepMapeada {
   const [examNumber = '', examYear = ''] = numAno.split('/')
   const caseNumber  = campo(rep, '$txtCaseNumber')
   const date        = parseDateBR(campo(rep, '$hdfDateOpen'))
-  const observacoes = buildObservacoes(grids, rep)
+  const observacoes = buildObservacoes(grids)
+
+  // ── Capa do Laudo ──────────────────────────────────────────
+  const solicitante      = campo(rep, '$txtNameApplicant') || campo(rep, '$txtSendFrom')
+  const remetenteCidade  = campo(rep, '$ddlSendFromCity')
+  const remetenteOrgao   = campo(rep, '$ddlSendFromOrgan')
+  const naturezaExame    = campo(rep, '$ddlNatureExam')
+  const naturezaOcorrencia = campo(rep, '$ddlOccurrenceNature')
+  const dataEntrada      = campo(rep, '$txtDateEntry')
+  const horaEntrada      = campo(rep, '$txtHourEntry')
+  const endParts         = [
+    campo(rep, '$txtAddressExamOthers'),
+    campo(rep, '$txtAddressNumberOthers'),
+    campo(rep, '$txtAddressComplementOthers'),
+    campo(rep, '$ddlOthersCity'),
+  ].filter(Boolean)
+  const enderecoExame    = endParts.join(', ')
+  const { oficio, ipApfd, processo } = extrairOrigens(grids)
 
   // ── Peças ──────────────────────────────────────────────────
   const pecas:  WeaponEntry[]                        = []
   const lacres: { entrada: string; saida: string }[] = []
 
-  for (const peca of pecasGdl) {
+  for (let i = 0; i < pecasGdl.length; i++) {
+    const peca    = pecasGdl[i]
     const tipoGdl = campo(peca, '$ddlTypeParts')
     const tipo    = mapTipo(tipoGdl)
     if (!tipo) continue
@@ -116,30 +158,65 @@ export function mapearRepGdl(dados: RepGdlData): RepMapeada {
     const identificacao = campo(peca, '$txtIdentifyParts')
     const entry         = makeWeaponEntry(tipo)
 
-    // Campos de identificação
-    entry.identificacao = identificacao
-    entry.caliber       = extrairCalibre(identificacao)
-    entry.serial        = campo(peca, '$ctl01$txtField')  // N.º de série
-    entry.brand         = campo(peca, '$ctl02$txtField')  // Marca/fabricante
-    entry.model         = campo(peca, '$ctl03$txtField')  // Modelo (quando preenchido)
+    // ID sequencial da lista do GDL + ID interno do WebForms
+    entry.idPeca           = String(i + 1)
+    entry.gdlPartsId       = campo(peca, 'hdnPartsId')
 
-    // Quantidade
-    entry.quantidade    = campo(peca, '$txtQtdeColorParts')
+    // Campos de identificação
+    entry.identificacao    = identificacao
+    entry.caliber          = extrairCalibre(identificacao)
+    entry.serial           = campo(peca, '$ctl01$txtField')
+    entry.brand            = campo(peca, '$ctl02$txtField')
+    entry.model            = campo(peca, '$ctl03$txtField')
+    entry.quantidade       = campo(peca, '$txtQtdeColorParts')
+
+    // Grupo de cartuchos/estojos com quantidade → sempre ÍNTEGRO
+    if (tipo === 'CARTUCHO' && entry.quantidade) entry.estadoCartucho = 'ÍNTEGRO'
+    if (tipo === 'ESTOJO'   && entry.quantidade) entry.estadoEstojo   = 'ÍNTEGRO'
+
+    // Arma de fogo com número de série preenchido → industrial + legível
+    const ARMAS_FOGO: typeof tipo[] = ['REVÓLVER','PISTOLA','ESPINGARDA','CARABINA','FUZIL','METRALHADORA','ARMA DE PRESSÃO','ARMA DE ANTECARGA']
+    if (ARMAS_FOGO.includes(tipo) && entry.serial) {
+      entry.tipoProd     = 'INDUSTRIAL'
+      entry.serialEstado = 'LEGÍVEL'
+    }
+
+    // Lacres (armazenados na própria peça)
+    entry.lacreEntradaPeca  = campo(peca, '$txtSealEntryParts')
+    entry.lacreSaidaPeca    = campo(peca, '$txtSealExitParts')
+
+    // Guia de Remessa
+    entry.dataEntradaPeca   = campo(peca, '$txtDtaEntryParts')
+    entry.dataLiberacaoPeca = campo(peca, '$txtDtaLiberationParts')
+    entry.unidadeMedida     = campo(peca, '$ddlDimensionParts')
+    entry.consumidaExame    = campo(peca, '$ddlItemsConsumedExaminationParts')
+    entry.observacaoPeca    = campo(peca, '$txtObservation')
 
     pecas.push(entry)
     lacres.push({
-      entrada: campo(peca, '$txtSealEntryParts'),
-      saida:   campo(peca, '$txtSealExitParts'),
+      entrada: entry.lacreEntradaPeca,
+      saida:   entry.lacreSaidaPeca,
     })
   }
 
   return {
     form: {
-      examNumber:  examNumber.trim(),
-      examYear:    examYear.trim(),
+      examNumber:        examNumber.trim(),
+      examYear:          examYear.trim(),
       caseNumber,
       date,
       observacoes,
+      solicitante,
+      remetenteCidade,
+      remetenteOrgao,
+      naturezaExame,
+      naturezaOcorrencia,
+      dataEntrada,
+      horaEntrada,
+      enderecoExame,
+      oficio,
+      ipApfd,
+      processo,
     },
     pecas,
     lacres,

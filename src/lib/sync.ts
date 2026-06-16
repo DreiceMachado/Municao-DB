@@ -71,16 +71,28 @@ async function sincronizarLaudos(peritoId: string | null) {
   const pendentes = await db.laudos.where("syncStatus").equals("pending").toArray()
   for (const laudo of pendentes) {
     const payload: Record<string, unknown> = {
-      local_id:      laudo.localId,
-      numero_exame:  laudo.examNumber,
-      ano_exame:     laudo.examYear,
-      unidade:       laudo.unit,
-      expert:        laudo.expert,
-      data_pericia:  laudo.date || null,
-      observacoes:   laudo.observacoes,
-      status:        laudo.status,
-      criado_em:     laudo.criadoEm,
-      atualizado_em: laudo.atualizadoEm,
+      local_id:            laudo.localId,
+      numero_exame:        laudo.examNumber,
+      ano_exame:           laudo.examYear,
+      numero_bo:           laudo.caseNumber ?? null,
+      unidade:             laudo.unit,
+      expert:              laudo.expert,
+      data_pericia:        laudo.date || null,
+      observacoes:         laudo.observacoes,
+      status:              laudo.status,
+      criado_em:           laudo.criadoEm,
+      atualizado_em:       laudo.atualizadoEm,
+      solicitante:         laudo.solicitante ?? null,
+      remetente_cidade:    laudo.remetenteCidade ?? null,
+      remetente_orgao:     laudo.remetenteOrgao ?? null,
+      natureza_exame:      laudo.naturezaExame ?? null,
+      natureza_ocorrencia: laudo.naturezaOcorrencia ?? null,
+      data_entrada:        laudo.dataEntrada ?? null,
+      hora_entrada:        laudo.horaEntrada ?? null,
+      endereco_exame:      laudo.enderecoExame ?? null,
+      oficio:              laudo.oficio ?? null,
+      ip_apfd:             laudo.ipApfd ?? null,
+      processo:            laudo.processo ?? null,
     }
     if (peritoId) payload.perito_id = peritoId
 
