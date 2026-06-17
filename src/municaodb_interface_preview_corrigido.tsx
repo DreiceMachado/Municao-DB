@@ -234,22 +234,46 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       const { form: f, pecas: p, lacres } = mapearRepGdl(dados)
       setForm(prev => ({
         ...prev,
-        caseNumber:         f.caseNumber         || prev.caseNumber,
-        date:               f.date               || prev.date,
-        observacoes:        f.observacoes        || prev.observacoes,
-        solicitante:        f.solicitante        || prev.solicitante,
-        remetenteCidade:    f.remetenteCidade    || prev.remetenteCidade,
-        remetenteOrgao:     f.remetenteOrgao     || prev.remetenteOrgao,
-        naturezaExame:      f.naturezaExame      || prev.naturezaExame,
-        naturezaOcorrencia: f.naturezaOcorrencia || prev.naturezaOcorrencia,
-        dataEntrada:        f.dataEntrada        || prev.dataEntrada,
-        horaEntrada:        f.horaEntrada        || prev.horaEntrada,
-        enderecoExame:      f.enderecoExame      || prev.enderecoExame,
-        oficio:             f.oficio             || prev.oficio,
-        ipApfd:             f.ipApfd             || prev.ipApfd,
-        processo:           f.processo           || prev.processo,
+        caseNumber:         prev.caseNumber         || f.caseNumber,
+        date:               prev.date               || f.date,
+        observacoes:        prev.observacoes        || f.observacoes,
+        solicitante:        prev.solicitante        || f.solicitante,
+        remetenteCidade:    prev.remetenteCidade    || f.remetenteCidade,
+        remetenteOrgao:     prev.remetenteOrgao     || f.remetenteOrgao,
+        naturezaExame:      prev.naturezaExame      || f.naturezaExame,
+        naturezaOcorrencia: prev.naturezaOcorrencia || f.naturezaOcorrencia,
+        dataEntrada:        prev.dataEntrada        || f.dataEntrada,
+        horaEntrada:        prev.horaEntrada        || f.horaEntrada,
+        enderecoExame:      prev.enderecoExame      || f.enderecoExame,
+        oficio:             prev.oficio             || f.oficio,
+        ipApfd:             prev.ipApfd             || f.ipApfd,
+        processo:           prev.processo           || f.processo,
       }))
-      if (p.length > 0) setSavedPieces(p)
+      if (p.length > 0) {
+        setSavedPieces(prev => {
+          if (prev.length === 0) return p
+          // Mescla peças do GDL com peças existentes do BalísticaDB
+          const merged = p.map((gdlPeca, i) => {
+            // Tenta encontrar pelo gdlPartsId, senão usa posição
+            const existente = (gdlPeca.gdlPartsId
+              ? prev.find(e => e.gdlPartsId === gdlPeca.gdlPartsId)
+              : undefined) ?? prev[i]
+            if (!existente) return gdlPeca
+            // Dados do BalísticaDB têm prioridade; GDL preenche apenas campos vazios
+            return {
+              ...gdlPeca,
+              ...existente,
+              // IDs do GDL são sempre autoritativos
+              gdlPartsId: gdlPeca.gdlPartsId || existente.gdlPartsId,
+              idPeca:     gdlPeca.idPeca     || existente.idPeca,
+            }
+          })
+          // Mantém peças que o usuário adicionou que não existem no GDL
+          const gdlIds = new Set(p.map(g => g.gdlPartsId).filter(Boolean))
+          const soNoBD = prev.filter(e => e.gdlPartsId && !gdlIds.has(e.gdlPartsId))
+          return [...merged, ...soNoBD]
+        })
+      }
       const fotos = dados.arquivos?.filter(a => a.base64).map(a => a.base64!) ?? []
       if (fotos.length > 0) setGdlFotos(fotos)
       if (lacres[0]) {
@@ -295,20 +319,32 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
   const handleEnviarParaGdl = async (pieceIdx: number) => {
     const peca = savedPieces[pieceIdx]
-    const repNumero = `${form.examNumber}/${form.examYear}`
+    const numLimpo = form.examNumber.trim().replace(/[^0-9]/g, '')
+    
+    if (!numLimpo) {
+      setGdlResultado({ ok: false, msg: 'Número da REP inválido para o GDL' })
+      return
+    }
+    const repNumeroFormatado = `${numLimpo}/${form.examYear}`
     setGdlEnviarIdx(null)
     setGdlEnviando(true)
     try {
       const isNova = !peca.gdlPartsId
       const endpoint = isNova ? '/api/gdl/adicionar-peca' : '/api/gdl/editar-peca'
       const body = isNova
-        ? { rep_numero: repNumero, peca }
-        : { rep_numero: repNumero, gdl_parts_id: peca.gdlPartsId, peca }
+        ? { rep_numero: repNumeroFormatado, peca }
+        : { rep_numero: repNumeroFormatado, gdl_parts_id: peca.gdlPartsId, peca }
       const resp = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
+      
+      if (!resp.ok) {
+        const errorText = await resp.text()
+        throw new Error(errorText || `Erro do servidor: ${resp.status}`)
+      }
+
       const data = await resp.json()
       if (data.ok) {
         if (isNova && data.gdlPartsId) {
@@ -321,8 +357,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       } else {
         setGdlResultado({ ok: false, msg: data.erro || 'Erro ao enviar para o GDL' })
       }
-    } catch {
-      setGdlResultado({ ok: false, msg: 'Sem conexão com a API local' })
+    } catch (err: any) {
+      console.error('Erro GDL:', err)
+      setGdlResultado({ ok: false, msg: err.message === 'Failed to fetch' ? 'Sem conexão com a API local' : err.message })
     } finally {
       setGdlEnviando(false)
       setTimeout(() => setGdlResultado(null), 4000)
@@ -1802,6 +1839,20 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     onView={setViewerPhoto}
                     placeholder="Nº do lacre de entrada"
                   />
+
+                  {/* ── Data de Entrada ── */}
+                  <div>
+                    <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                      Data de Entrada
+                    </label>
+                    <input
+                      type="text"
+                      value={activeWeapon?.dataEntradaPeca ?? ""}
+                      onChange={handleWeaponField("dataEntradaPeca" as any)}
+                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                      placeholder="DD/MM/AAAA"
+                    />
+                  </div>
 
                   {/* ── Campos base ── */}
                   {!(["PROJÉTIL","PÓLVORA","ESPOLETA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && <div className="space-y-5">
@@ -5329,6 +5380,34 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     placeholder="Nº do lacre de saída"
                   />
 
+                  {/* ── Data de Liberação ── */}
+                  <div>
+                    <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                      Data de Liberação
+                    </label>
+                    <input
+                      type="text"
+                      value={activeWeapon?.dataLiberacaoPeca ?? ""}
+                      onChange={handleWeaponField("dataLiberacaoPeca" as any)}
+                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                      placeholder="DD/MM/AAAA"
+                    />
+                  </div>
+
+                  {/* ── Observação da Peça ── */}
+                  <div>
+                    <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                      Observação
+                    </label>
+                    <textarea
+                      value={activeWeapon?.observacaoPeca ?? ""}
+                      onChange={handleWeaponField("observacaoPeca" as any)}
+                      rows={3}
+                      className="w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 py-3 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 resize-none"
+                      placeholder="Observações sobre a peça…"
+                    />
+                  </div>
+
                   {/* ── Destinação da peça ── */}
                   <div className="rounded-2xl border border-[#d3c3a4] bg-[#fdf8f0] p-4">
                     <label className="mb-3 block text-sm font-black uppercase tracking-[0.14em] text-[#6b5838]">
@@ -5889,7 +5968,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleEnviarParaGdl(gdlEnviarIdx)}
+                                onClick={() => gdlEnviarIdx !== null && handleEnviarParaGdl(gdlEnviarIdx)}
                     className="rounded-2xl bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-3.5 text-sm font-black uppercase tracking-[0.14em] text-[#f0d08a]"
                   >
                     Confirmar

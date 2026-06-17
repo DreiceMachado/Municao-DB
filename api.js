@@ -1,15 +1,21 @@
 import fs           from 'fs'
 import path         from 'path'
 import { fileURLToPath } from 'url'
-import { exec }     from 'child_process'
+import { exec, execFile } from 'child_process'
 import { promisify } from 'util'
 import express       from 'express'
 
-const execAsync = promisify(exec)
+const execAsync     = promisify(exec)
+const execFileAsync = promisify(execFile)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT      = 3001
 const AUTOMACAO = path.join(__dirname, 'AutomaçãoREP')
 const DADOS     = path.join(AUTOMACAO, 'dados')
+
+// Garante que as pastas existam para não dar erro de "Folder not found"
+if (!fs.existsSync(DADOS)) {
+  fs.mkdirSync(DADOS, { recursive: true });
+}
 
 const app = express()
 app.use(express.json())
@@ -23,21 +29,23 @@ app.post('/api/rep', async (req, res) => {
   const numeroSeguro = numero.trim().replace(/"/g, '')
   const opts = {
     cwd:       AUTOMACAO,
-    timeout:   180_000,
+    timeout:   300_000,  // 5 min — extração pode demorar
     maxBuffer: 10 * 1024 * 1024,
     env: {
       ...process.env,
-      REP_USUARIO:      process.env.GDL_USUARIO ?? '',
-      REP_SENHA:        process.env.GDL_SENHA   ?? '',
       PYTHONIOENCODING: 'utf-8',
       PYTHONUTF8:       '1',
+      // Só sobrescreve se explicitamente configurado; senão o load_dotenv() do Python usa o .env
+      ...(process.env.GDL_USUARIO ? { REP_USUARIO: process.env.GDL_USUARIO } : {}),
+      ...(process.env.GDL_SENHA   ? { REP_SENHA:   process.env.GDL_SENHA   } : {}),
     },
   }
 
   try {
     await execAsync(`"${PYTHON}" -X utf8 main.py "${numeroSeguro}"`, opts)
   } catch (err) {
-    const detalhe = err.stderr || err.stdout || err.message
+    // stdout tem os prints do Python; stderr tem o EPIPE do driver Playwright (ruído)
+    const detalhe = err.stdout || err.stderr || err.message
     return res.status(500).json({ erro: 'Falha na extração do GDL', detalhe })
   }
 
@@ -67,14 +75,14 @@ const PYTHON = 'C:\\Users\\dreic\\AppData\\Local\\Programs\\Python\\Python313\\p
 function baseOpts() {
   return {
     cwd:       AUTOMACAO,
-    timeout:   180_000,
+    timeout:   300_000,  // 5 min
     maxBuffer: 2 * 1024 * 1024,
     env: {
       ...process.env,
-      REP_USUARIO:      process.env.GDL_USUARIO ?? '',
-      REP_SENHA:        process.env.GDL_SENHA   ?? '',
       PYTHONIOENCODING: 'utf-8',
       PYTHONUTF8:       '1',
+      ...(process.env.GDL_USUARIO ? { REP_USUARIO: process.env.GDL_USUARIO } : {}),
+      ...(process.env.GDL_SENHA   ? { REP_SENHA:   process.env.GDL_SENHA   } : {}),
     },
   }
 }
@@ -96,13 +104,13 @@ app.post('/api/gdl/adicionar-peca', async (req, res) => {
     return res.status(400).json({ ok: false, erro: 'Informe rep_numero e peca' })
   }
 
-  const repSeguro  = rep_numero.trim().replace(/"/g, '')
-  const pecaJson   = JSON.stringify(peca).replace(/"/g, '\\"')
-
+  const repSeguro = rep_numero.trim()
+  // execFileAsync não passa pelo shell — JSON chega ao Python exatamente como gerado,
+  // sem problemas de escaping de \ ou " no cmd.exe
   try {
-    await execAsync(`"${PYTHON}" -X utf8 main.py --adicionar "${repSeguro}" "${pecaJson}"`, baseOpts())
+    await execFileAsync(PYTHON, ['-X', 'utf8', 'main.py', '--adicionar', repSeguro, JSON.stringify(peca)], baseOpts())
   } catch (err) {
-    const detalhe = err.stderr || err.stdout || err.message
+    const detalhe = err.stdout || err.stderr || err.message
     return res.status(500).json({ ok: false, erro: 'Falha ao adicionar peça no GDL', detalhe })
   }
 
@@ -120,14 +128,13 @@ app.post('/api/gdl/editar-peca', async (req, res) => {
     return res.status(400).json({ ok: false, erro: 'Informe rep_numero, gdl_parts_id e peca' })
   }
 
-  const repSeguro  = rep_numero.trim().replace(/"/g, '')
-  const idSeguro   = gdl_parts_id.trim().replace(/"/g, '')
-  const pecaJson   = JSON.stringify(peca).replace(/"/g, '\\"')
+  const repSeguro = rep_numero.trim()
+  const idSeguro  = gdl_parts_id.trim()
 
   try {
-    await execAsync(`"${PYTHON}" -X utf8 main.py --editar "${repSeguro}" "${idSeguro}" "${pecaJson}"`, baseOpts())
+    await execFileAsync(PYTHON, ['-X', 'utf8', 'main.py', '--editar', repSeguro, idSeguro, JSON.stringify(peca)], baseOpts())
   } catch (err) {
-    const detalhe = err.stderr || err.stdout || err.message
+    const detalhe = err.stdout || err.stderr || err.message
     return res.status(500).json({ ok: false, erro: 'Falha ao editar peça no GDL', detalhe })
   }
 
@@ -137,6 +144,6 @@ app.post('/api/gdl/editar-peca', async (req, res) => {
   return res.json(resultado)
 })
 
-app.listen(PORT, () => {
-  console.log(`[API] http://localhost:${PORT}`)
+app.listen(PORT, '127.0.0.1', () => {
+  console.log(`[API] Servidor rodando em http://127.0.0.1:${PORT}`)
 })
