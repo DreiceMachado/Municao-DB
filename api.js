@@ -144,6 +144,32 @@ app.post('/api/gdl/editar-peca', async (req, res) => {
   return res.json(resultado)
 })
 
+// ── Excluir peça do GDL ──────────────────────────────────────────────────────
+
+app.post('/api/gdl/excluir-peca', async (req, res) => {
+  const { rep_numero, gdl_parts_id, peca } = req.body ?? {}
+  if (!rep_numero?.trim()) {
+    return res.status(400).json({ ok: false, erro: 'Informe rep_numero' })
+  }
+
+  const repSeguro = rep_numero.trim()
+  const idSeguro  = (gdl_parts_id ?? '').trim()
+  const pyArgs    = ['-X', 'utf8', 'main.py', '--excluir', repSeguro, idSeguro]
+  if (peca) pyArgs.push(JSON.stringify(peca))
+
+  try {
+    await execFileAsync(PYTHON, pyArgs, baseOpts())
+  } catch (err) {
+    const detalhe = err.stdout || err.stderr || err.message
+    return res.status(500).json({ ok: false, erro: 'Falha ao excluir peça no GDL', detalhe })
+  }
+
+  const repNome = rep_numero.trim().replace(/\//g, '-').replace(/\./g, '')
+  const resultado = lerUltimoJson(`gdl_del_${repNome}`)
+  if (!resultado) return res.status(500).json({ ok: false, erro: 'Resultado não gerado' })
+  return res.json(resultado)
+})
+
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`[API] Servidor rodando em http://127.0.0.1:${PORT}`)
 })

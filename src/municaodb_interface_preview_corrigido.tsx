@@ -437,8 +437,41 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setPieceFormOpen(true)
   }
 
-  const removeSavedPiece = (idx: number) => {
+  const removeSavedPiece = async (idx: number) => {
+    const peca = savedPieces[idx]
+
+    // Remove localmente primeiro (sempre)
     setSavedPieces(prev => prev.filter((_, i) => i !== idx))
+
+    // Exclui do GDL se a peça veio de lá (tem gdlPartsId, idPeca ou identificacao preenchida)
+    const temVinculoGdl = !!(peca.gdlPartsId || peca.idPeca || peca.identificacao)
+    const numLimpo = form.examNumber.trim().replace(/[^0-9]/g, '')
+    if (temVinculoGdl && numLimpo) {
+      const repNumeroFormatado = `${numLimpo}/${form.examYear}`
+      setGdlEnviando(true)
+      try {
+        const resp = await fetch('/api/gdl/excluir-peca', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rep_numero: repNumeroFormatado,
+            gdl_parts_id: peca.gdlPartsId ?? '',
+            peca,
+          }),
+        })
+        if (!resp.ok) {
+          const txt = await resp.text()
+          throw new Error(`Servidor retornou ${resp.status}: ${txt.slice(0, 120)}`)
+        }
+        const data = await resp.json()
+        setGdlResultado({ ok: data.ok, msg: data.ok ? 'Peça excluída do GDL!' : (data.erro || 'Erro ao excluir do GDL') })
+      } catch (err: any) {
+        setGdlResultado({ ok: false, msg: err.message === 'Failed to fetch' ? 'Sem conexão com a API local' : err.message })
+      } finally {
+        setGdlEnviando(false)
+        setTimeout(() => setGdlResultado(null), 4000)
+      }
+    }
   }
 
   const tituloMaterialAcessorio = (item: string): string => {
