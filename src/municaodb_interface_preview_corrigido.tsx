@@ -118,6 +118,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [gdlEnviarIdx, setGdlEnviarIdx] = useState<number | null>(null)
   const [gdlEnviando, setGdlEnviando] = useState(false)
   const [gdlResultado, setGdlResultado] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [atualizandoPecas, setAtualizandoPecas] = useState(false)
+  const [atualizandoPecasProgresso, setAtualizandoPecasProgresso] = useState<{ fase: string; atual: number; total: number }>({ fase: '', atual: 0, total: 0 })
   const [pieceFormOpen, setPieceFormOpen] = useState(false)
   const [typePickerOpen, setTypePickerOpen] = useState(false)
   const [changePieceTypeOpen, setChangePieceTypeOpen] = useState(false)
@@ -366,6 +368,123 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     }
   }
 
+  // ── Helpers GDL — cada operação isolada ──────────────────────────────────
+
+  const gdlAdicionarPeca = async (repNumero: string, peca: WeaponEntry): Promise<string | null> => {
+    try {
+      const resp = await fetch('/api/gdl/adicionar-peca', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rep_numero: repNumero, peca }),
+      })
+      const data = await resp.json()
+      return data.ok ? (data.gdlPartsId ?? '') : null
+    } catch {
+      return null
+    }
+  }
+
+  const gdlEditarPeca = async (repNumero: string, peca: WeaponEntry): Promise<boolean> => {
+    try {
+      const resp = await fetch('/api/gdl/editar-peca', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rep_numero: repNumero, gdl_parts_id: peca.gdlPartsId, peca }),
+      })
+      const data = await resp.json()
+      return data.ok === true
+    } catch {
+      return false
+    }
+  }
+
+  const gdlSincronizarExclusoes = async (repNumero: string, pecas: WeaponEntry[]): Promise<{ excluidas: number; erros: string[] }> => {
+    try {
+      const resp = await fetch('/api/gdl/sincronizar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rep_numero: repNumero, pecas }),
+      })
+      const data = await resp.json()
+      return { excluidas: data.excluidas ?? 0, erros: data.detalhesErros ?? [] }
+    } catch (err: any) {
+      return { excluidas: 0, erros: [err?.message ?? 'Erro de rede'] }
+    }
+  }
+
+  // ── Orquestrador: Adicionar novas + Editar existentes + Sincronizar exclusões ──
+
+  const handleAtualizarTodasPecasGdl = async () => {
+    const numLimpo = form.examNumber.trim().replace(/[^0-9]/g, '')
+    if (!numLimpo) {
+      setGdlResultado({ ok: false, msg: 'Número da REP inválido para o GDL' })
+      setTimeout(() => setGdlResultado(null), 3000)
+      return
+    }
+    const repNumero = `${numLimpo}/${form.examYear}`
+
+    setAtualizandoPecas(true)
+    const erros: string[] = []
+    let adicionadas = 0
+    let editadas = 0
+    let excluidas = 0
+
+    const pecasNovas     = savedPieces.filter(p => !p.gdlPartsId)
+    const pecasExistentes = savedPieces.filter(p =>  p.gdlPartsId)
+
+    // ── Fase 1: adicionar peças novas (sem gdlPartsId) ──────────────────
+    let pecasAtualizadas = [...savedPieces]
+    if (pecasNovas.length > 0) {
+      setAtualizandoPecasProgresso({ fase: 'Adicionando', atual: 0, total: pecasNovas.length })
+      for (let i = 0; i < pecasNovas.length; i++) {
+        setAtualizandoPecasProgresso({ fase: 'Adicionando', atual: i + 1, total: pecasNovas.length })
+        const novoId = await gdlAdicionarPeca(repNumero, pecasNovas[i])
+        if (novoId !== null) {
+          adicionadas++
+          if (novoId) {
+            pecasAtualizadas = pecasAtualizadas.map(p =>
+              p === pecasNovas[i] ? { ...p, gdlPartsId: novoId } : p
+            )
+          }
+        } else {
+          erros.push(`Falha ao adicionar: ${pecasNovas[i].identificacao || pecasNovas[i].type}`)
+        }
+      }
+    }
+
+    // ── Fase 2: editar peças existentes (com gdlPartsId) ────────────────
+    if (pecasExistentes.length > 0) {
+      setAtualizandoPecasProgresso({ fase: 'Editando', atual: 0, total: pecasExistentes.length })
+      for (let i = 0; i < pecasExistentes.length; i++) {
+        setAtualizandoPecasProgresso({ fase: 'Editando', atual: i + 1, total: pecasExistentes.length })
+        const ok = await gdlEditarPeca(repNumero, pecasExistentes[i])
+        if (ok) editadas++
+        else erros.push(`Falha ao editar: ${pecasExistentes[i].identificacao || pecasExistentes[i].type}`)
+      }
+    }
+
+    // ── Fase 3: sincronizar exclusões (remove do GDL o que não está no BalísticaDB) ──
+    setAtualizandoPecasProgresso({ fase: 'Sincronizando exclusões', atual: 1, total: 1 })
+    const sync = await gdlSincronizarExclusoes(repNumero, pecasAtualizadas)
+    excluidas = sync.excluidas
+    erros.push(...sync.erros)
+
+    // Persiste gdlPartsIds das peças recém-adicionadas
+    setSavedPieces(pecasAtualizadas)
+    salvarPecas(pecasAtualizadas)
+
+    setAtualizandoPecas(false)
+
+    const partes = [
+      adicionadas > 0 && `${adicionadas} adicionada(s)`,
+      editadas    > 0 && `${editadas} editada(s)`,
+      excluidas   > 0 && `${excluidas} excluída(s) do GDL`,
+    ].filter(Boolean)
+    const msg = partes.length > 0 ? partes.join(' · ') : 'GDL sincronizado'
+    setGdlResultado({ ok: erros.length === 0, msg })
+    setTimeout(() => setGdlResultado(null), 5000)
+  }
+
   const handleSalvarExame = async () => {
     await finalizarLaudo(form, savedPieces)
     setSalvouExame(true)
@@ -437,41 +556,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setPieceFormOpen(true)
   }
 
-  const removeSavedPiece = async (idx: number) => {
-    const peca = savedPieces[idx]
-
-    // Remove localmente primeiro (sempre)
-    setSavedPieces(prev => prev.filter((_, i) => i !== idx))
-
-    // Exclui do GDL se a peça veio de lá (tem gdlPartsId, idPeca ou identificacao preenchida)
-    const temVinculoGdl = !!(peca.gdlPartsId || peca.idPeca || peca.identificacao)
-    const numLimpo = form.examNumber.trim().replace(/[^0-9]/g, '')
-    if (temVinculoGdl && numLimpo) {
-      const repNumeroFormatado = `${numLimpo}/${form.examYear}`
-      setGdlEnviando(true)
-      try {
-        const resp = await fetch('/api/gdl/excluir-peca', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            rep_numero: repNumeroFormatado,
-            gdl_parts_id: peca.gdlPartsId ?? '',
-            peca,
-          }),
-        })
-        if (!resp.ok) {
-          const txt = await resp.text()
-          throw new Error(`Servidor retornou ${resp.status}: ${txt.slice(0, 120)}`)
-        }
-        const data = await resp.json()
-        setGdlResultado({ ok: data.ok, msg: data.ok ? 'Peça excluída do GDL!' : (data.erro || 'Erro ao excluir do GDL') })
-      } catch (err: any) {
-        setGdlResultado({ ok: false, msg: err.message === 'Failed to fetch' ? 'Sem conexão com a API local' : err.message })
-      } finally {
-        setGdlEnviando(false)
-        setTimeout(() => setGdlResultado(null), 4000)
-      }
-    }
+  const removeSavedPiece = (idx: number) => {
+    const novas = savedPieces.filter((_, i) => i !== idx)
+    setSavedPieces(novas)
+    salvarPecas(novas)
   }
 
   const tituloMaterialAcessorio = (item: string): string => {
@@ -1477,6 +1565,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       onClick={() => setConfirmDeleteRep(true)}
                       className="flex-1 rounded-2xl border-2 border-[#b03030] bg-[linear-gradient(180deg,#8b2020_0%,#5c1515_100%)] py-4 text-sm font-black tracking-[0.14em] text-[#ffd4d4] shadow-[0_8px_20px_rgba(120,20,20,.30)] transition active:brightness-95">
                       EXCLUIR
+                    </button>
+                    <button
+                      onClick={handleAtualizarTodasPecasGdl}
+                      disabled={atualizandoPecas || savedPieces.length === 0}
+                      className="flex-1 rounded-2xl border-2 border-[#1b3a6b] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-4 text-sm font-black tracking-[0.10em] text-[#f0d08a] shadow-[0_8px_20px_rgba(20,40,100,.30)] transition active:brightness-95 disabled:opacity-50">
+                      {atualizandoPecas ? "..." : "ATUALIZAR"}
                     </button>
                     <button
                       onClick={handleSalvarExame}
@@ -6021,6 +6115,26 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
             >
               <Loader2 className="h-10 w-10 animate-spin text-[#f0d08a]" />
               <span className="text-sm font-black uppercase tracking-[0.2em] text-[#f0d08a]">Enviando ao GDL…</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── GDL: Overlay de atualização em massa ── */}
+        <AnimatePresence>
+          {atualizandoPecas && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[95] flex flex-col items-center justify-center gap-4 bg-black/60"
+            >
+              <Loader2 className="h-10 w-10 animate-spin text-[#f0d08a]" />
+              <span className="text-sm font-black uppercase tracking-[0.2em] text-[#f0d08a]">
+                {atualizandoPecasProgresso.fase || 'Sincronizando GDL…'}
+              </span>
+              {atualizandoPecasProgresso.total > 1 && (
+                <span className="text-xs text-[#dcc17c] tracking-[0.14em]">
+                  {atualizandoPecasProgresso.atual} / {atualizandoPecasProgresso.total}
+                </span>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
