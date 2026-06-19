@@ -412,7 +412,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     }
   }
 
-  // ── Orquestrador: Adicionar novas + Editar existentes + Sincronizar exclusões ──
+  // ── Atualiza GDL em sessão única: uma chamada, um browser ───────────────────
 
   const handleAtualizarTodasPecasGdl = async () => {
     const numLimpo = form.examNumber.trim().replace(/[^0-9]/g, '')
@@ -424,65 +424,36 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     const repNumero = `${numLimpo}/${form.examYear}`
 
     setAtualizandoPecas(true)
-    const erros: string[] = []
-    let adicionadas = 0
-    let editadas = 0
-    let excluidas = 0
+    setAtualizandoPecasProgresso({ fase: 'Atualizando GDL...', atual: 1, total: 1 })
 
-    const pecasNovas     = savedPieces.filter(p => !p.gdlPartsId)
-    const pecasExistentes = savedPieces.filter(p =>  p.gdlPartsId)
+    try {
+      const resp = await fetch('/api/gdl/atualizar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rep_numero: repNumero, pecas: savedPieces }),
+      })
+      const data = await resp.json()
 
-    // ── Fase 1: adicionar peças novas (sem gdlPartsId) ──────────────────
-    let pecasAtualizadas = [...savedPieces]
-    if (pecasNovas.length > 0) {
-      setAtualizandoPecasProgresso({ fase: 'Adicionando', atual: 0, total: pecasNovas.length })
-      for (let i = 0; i < pecasNovas.length; i++) {
-        setAtualizandoPecasProgresso({ fase: 'Adicionando', atual: i + 1, total: pecasNovas.length })
-        const novoId = await gdlAdicionarPeca(repNumero, pecasNovas[i])
-        if (novoId !== null) {
-          adicionadas++
-          if (novoId) {
-            pecasAtualizadas = pecasAtualizadas.map(p =>
-              p === pecasNovas[i] ? { ...p, gdlPartsId: novoId } : p
-            )
-          }
-        } else {
-          erros.push(`Falha ao adicionar: ${pecasNovas[i].identificacao || pecasNovas[i].type}`)
-        }
+      // Persiste peças com gdlPartsIds atualizados (novos IDs capturados pelo Python)
+      if (Array.isArray(data.pecasAtualizadas)) {
+        setSavedPieces(data.pecasAtualizadas)
+        salvarPecas(data.pecasAtualizadas)
       }
+
+      const partes = [
+        data.adicionadas > 0 && `${data.adicionadas} adicionada(s)`,
+        data.editadas    > 0 && `${data.editadas} editada(s)`,
+        data.excluidas   > 0 && `${data.excluidas} excluída(s) do GDL`,
+      ].filter(Boolean)
+      const msg = partes.length > 0 ? partes.join(' · ') : 'GDL sincronizado'
+      setGdlResultado({ ok: data.ok, msg })
+    } catch (err: any) {
+      setGdlResultado({ ok: false, msg: err?.message ?? 'Erro de rede' })
+    } finally {
+      setAtualizandoPecas(false)
+      setAtualizandoPecasProgresso({ fase: '', atual: 0, total: 0 })
+      setTimeout(() => setGdlResultado(null), 5000)
     }
-
-    // ── Fase 2: editar peças existentes (com gdlPartsId) ────────────────
-    if (pecasExistentes.length > 0) {
-      setAtualizandoPecasProgresso({ fase: 'Editando', atual: 0, total: pecasExistentes.length })
-      for (let i = 0; i < pecasExistentes.length; i++) {
-        setAtualizandoPecasProgresso({ fase: 'Editando', atual: i + 1, total: pecasExistentes.length })
-        const ok = await gdlEditarPeca(repNumero, pecasExistentes[i])
-        if (ok) editadas++
-        else erros.push(`Falha ao editar: ${pecasExistentes[i].identificacao || pecasExistentes[i].type}`)
-      }
-    }
-
-    // ── Fase 3: sincronizar exclusões (remove do GDL o que não está no BalísticaDB) ──
-    setAtualizandoPecasProgresso({ fase: 'Sincronizando exclusões', atual: 1, total: 1 })
-    const sync = await gdlSincronizarExclusoes(repNumero, pecasAtualizadas)
-    excluidas = sync.excluidas
-    erros.push(...sync.erros)
-
-    // Persiste gdlPartsIds das peças recém-adicionadas
-    setSavedPieces(pecasAtualizadas)
-    salvarPecas(pecasAtualizadas)
-
-    setAtualizandoPecas(false)
-
-    const partes = [
-      adicionadas > 0 && `${adicionadas} adicionada(s)`,
-      editadas    > 0 && `${editadas} editada(s)`,
-      excluidas   > 0 && `${excluidas} excluída(s) do GDL`,
-    ].filter(Boolean)
-    const msg = partes.length > 0 ? partes.join(' · ') : 'GDL sincronizado'
-    setGdlResultado({ ok: erros.length === 0, msg })
-    setTimeout(() => setGdlResultado(null), 5000)
   }
 
   const handleSalvarExame = async () => {
@@ -1570,7 +1541,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       onClick={handleAtualizarTodasPecasGdl}
                       disabled={atualizandoPecas || savedPieces.length === 0}
                       className="flex-1 rounded-2xl border-2 border-[#1b3a6b] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-4 text-sm font-black tracking-[0.10em] text-[#f0d08a] shadow-[0_8px_20px_rgba(20,40,100,.30)] transition active:brightness-95 disabled:opacity-50">
-                      {atualizandoPecas ? "..." : "ATUALIZAR"}
+                      {atualizandoPecas ? "..." : "ATUALIZAR GDL"}
                     </button>
                     <button
                       onClick={handleSalvarExame}

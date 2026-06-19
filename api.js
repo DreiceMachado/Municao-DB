@@ -170,6 +170,50 @@ app.post('/api/gdl/excluir-peca', async (req, res) => {
   return res.json(resultado)
 })
 
+// ── Sincronizar peças do GDL com BalísticaDB (remove extras do GDL) ──────────
+app.post('/api/gdl/sincronizar', async (req, res) => {
+  const { rep_numero, pecas } = req.body ?? {}
+  if (!rep_numero?.trim() || !Array.isArray(pecas)) {
+    return res.status(400).json({ ok: false, erro: 'Informe rep_numero e pecas[]' })
+  }
+
+  const repSeguro = rep_numero.trim()
+  try {
+    await execFileAsync(PYTHON, ['-X', 'utf8', 'main.py', '--sincronizar', repSeguro, JSON.stringify(pecas)], baseOpts())
+  } catch (err) {
+    const detalhe = err.stdout || err.stderr || err.message
+    return res.status(500).json({ ok: false, erro: 'Falha ao sincronizar com GDL', detalhe })
+  }
+
+  const repNome = rep_numero.trim().replace(/\//g, '-').replace(/\./g, '')
+  const resultado = lerUltimoJson(`gdl_sync_${repNome}`)
+  if (!resultado) return res.status(500).json({ ok: false, erro: 'Resultado não gerado' })
+  return res.json(resultado)
+})
+
+// ── Atualizar tudo em uma sessão (adicionar + editar + sincronizar exclusões) ──
+app.post('/api/gdl/atualizar', async (req, res) => {
+  const { rep_numero, pecas } = req.body ?? {}
+  if (!rep_numero?.trim() || !Array.isArray(pecas)) {
+    return res.status(400).json({ ok: false, erro: 'Informe rep_numero e pecas[]' })
+  }
+
+  const repSeguro = rep_numero.trim()
+  const payload   = JSON.stringify({ pecas })
+
+  try {
+    await execFileAsync(PYTHON, ['-X', 'utf8', 'main.py', '--atualizar', repSeguro, payload], baseOpts())
+  } catch (err) {
+    const detalhe = err.stdout || err.stderr || err.message
+    return res.status(500).json({ ok: false, erro: 'Falha ao atualizar GDL', detalhe })
+  }
+
+  const repNome   = rep_numero.trim().replace(/\//g, '-').replace(/\./g, '')
+  const resultado = lerUltimoJson(`gdl_atualizar_${repNome}`)
+  if (!resultado) return res.status(500).json({ ok: false, erro: 'Resultado não gerado' })
+  return res.json(resultado)
+})
+
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`[API] Servidor rodando em http://127.0.0.1:${PORT}`)
 })
