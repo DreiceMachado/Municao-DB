@@ -1557,8 +1557,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                   <div className="space-y-6">
                   <div className="space-y-3">
-                    {/* Institucional — armas de fogo e antecarga */}
-                    {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                    {/* Institucional — armas de fogo, pressão e antecarga */}
+                    {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE PRESSÃO","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                       <div className="overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
                         <div className="border-b border-[#e8dfc8] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-4 py-3">
                           <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[#ccb780]">Vínculo da arma</div>

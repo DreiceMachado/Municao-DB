@@ -168,7 +168,27 @@ export function mapearRepGdl(dados: RepGdlData): RepMapeada {
     entry.serial           = campo(peca, '$ctl01$txtField')
     entry.brand            = campo(peca, '$ctl02$txtField')
     entry.model            = campo(peca, '$ctl03$txtField')
+    const capacidadeGdl    = campo(peca, '$ctl04$txtField')
+    if (tipo === 'REVÓLVER') {
+      entry.numCamaras     = capacidadeGdl
+    } else {
+      entry.capacidadeCarregador = capacidadeGdl
+    }
+    const serialStatusGdl  = campo(peca, '$ctl06$ddlField')
+    if (serialStatusGdl) entry.serialEstado = serialStatusGdl.toUpperCase()
+    const paisGdl          = campo(peca, '$ctl10$ddlField')
+    if (paisGdl) entry.paisFabricacao = paisGdl.toUpperCase()
     entry.quantidade       = campo(peca, '$txtQtdeColorParts')
+
+    // Para tipos sem campo "Modelo" separado no web app (ARMA DE PRESSÃO, ESTOJO, CARTUCHO,
+    // ESPOLETA, CARREGADOR, FACA), a Identificação exibida no web app é o campo 'model'.
+    // Se ctl03 chegou vazio do GDL, popula model com identificacao para manter round-trip correto.
+    const ARMAS_FOGO_COM_MODELO: typeof tipo[] = [
+      'REVÓLVER','PISTOLA','ESPINGARDA','CARABINA','FUZIL','METRALHADORA','ARMA DE ANTECARGA'
+    ]
+    if (!ARMAS_FOGO_COM_MODELO.includes(tipo) && !entry.model) {
+      entry.model = entry.identificacao
+    }
 
     // Grupo de cartuchos/estojos com quantidade → sempre ÍNTEGRO
     if (tipo === 'CARTUCHO' && entry.quantidade) entry.estadoCartucho = 'ÍNTEGRO'
