@@ -4,6 +4,7 @@ import {
   Crosshair,
   FolderKanban,
   LayoutDashboard,
+  RefreshCw,
   Settings,
   User2,
 } from "lucide-react"
@@ -62,8 +63,9 @@ export function SidebarContent({ activeSection, onSectionChange, onOpenProfile }
         <div className="space-y-2">
           {navItem("inicio",    "Início",          LayoutDashboard)}
           {navItem("exames",    "Exames de Armas", Crosshair)}
-          {navItem("registros", "Registros",       FolderKanban)}
-          {navItem("dados",     "Dados",           BarChart3)}
+          {navItem("registros",   "Registros",       FolderKanban)}
+          {navItem("sincronizar", "Sincronizar",    RefreshCw)}
+          {navItem("dados",       "Dados",          BarChart3)}
         </div>
 
       </div>

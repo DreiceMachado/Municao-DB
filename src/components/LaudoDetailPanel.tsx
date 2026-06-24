@@ -3,16 +3,54 @@ import { AnimatePresence, motion } from "framer-motion"
 import {
   ChevronLeft, ChevronDown, FileText, Package,
   CheckCircle2, XCircle, Check, X, Camera,
+  ArrowRight, Download, Pencil, Send, CircleCheck, SquarePen,
 } from "lucide-react"
-import { buscarLaudoCompleto } from "../lib/db"
+import { buscarLaudoCompleto, atualizarRepStatus } from "../lib/db"
 import type { FotoLocal } from "../lib/db"
-import type { WeaponEntry } from "../types"
+import type { WeaponEntry, RepStatus } from "../types"
+
+// ── Pipeline helpers ──────────────────────────────────────────────────────────
+
+const REP_STATUS_LABEL: Record<RepStatus, string> = {
+  importada:    "Importada",
+  editando:     "Em Edição",
+  sincronizada: "Pronta",
+  no_gdl:       "No GDL",
+}
+
+const REP_STATUS_ICON: Record<RepStatus, React.ElementType> = {
+  importada:    Download,
+  editando:     Pencil,
+  sincronizada: CircleCheck,
+  no_gdl:       Send,
+}
+
+const REP_STATUS_COLORS: Record<RepStatus, { badge: string; btn: string }> = {
+  importada:    { badge: "bg-[#3d5a8a]/15 text-[#4e7ab5]",    btn: "border-[#4e7ab5] bg-[#eef3fa] text-[#2d5a95]" },
+  editando:     { badge: "bg-[#8a6d2e]/15 text-[#b89240]",    btn: "border-[#b89240] bg-[#fdf5e6] text-[#8a6020]" },
+  sincronizada: { badge: "bg-[#2e6b3e]/15 text-[#3d9b55]",    btn: "border-[#3d9b55] bg-[#eaf5ee] text-[#1e6b3a]" },
+  no_gdl:       { badge: "bg-[#12213d]/15 text-[#8ea4c0]",    btn: "border-[#8ea4c0] bg-[#edf2f8] text-[#4e7ab5]" },
+}
+
+const NEXT_STATUS: Partial<Record<RepStatus, RepStatus>> = {
+  importada:    "editando",
+  editando:     "sincronizada",
+  sincronizada: "no_gdl",
+}
+
+const NEXT_STATUS_LABEL: Partial<Record<RepStatus, string>> = {
+  importada:    "Começar Edição",
+  editando:     "Marcar como Pronta",
+  sincronizada: "Marcar como Enviada ao GDL",
+}
 
 type LaudoCompleto = Awaited<ReturnType<typeof buscarLaudoCompleto>>
 
 type Props = {
   laudoId: string | null
   onClose: () => void
+  onRefresh?: () => void
+  onEditar?: (laudoId: string) => void
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -436,19 +474,33 @@ function PecaCard({ arma, index }: {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export function LaudoDetailPanel({ laudoId, onClose }: Props) {
+export function LaudoDetailPanel({ laudoId, onClose, onRefresh, onEditar }: Props) {
   const open = !!laudoId
   const [dados, setDados] = useState<LaudoCompleto>(null)
   const [carregando, setCarregando] = useState(false)
+  const [avancando, setAvancando] = useState(false)
+
+  const recarregar = (id: string) => {
+    setCarregando(true)
+    buscarLaudoCompleto(id).then((d) => { setDados(d); setCarregando(false) })
+  }
 
   useEffect(() => {
     if (!laudoId) { setDados(null); return }
-    setCarregando(true)
-    buscarLaudoCompleto(laudoId).then((d) => {
-      setDados(d)
-      setCarregando(false)
-    })
+    recarregar(laudoId)
   }, [laudoId])
+
+  const handleAvancarEstagio = async () => {
+    if (!dados?.laudo.localId) return
+    const atual = dados.laudo.repStatus
+    const proximo = atual ? NEXT_STATUS[atual] : "editando"
+    if (!proximo) return
+    setAvancando(true)
+    await atualizarRepStatus(dados.laudo.localId, proximo)
+    recarregar(dados.laudo.localId)
+    onRefresh?.()
+    setAvancando(false)
+  }
 
   return (
     <>
@@ -484,16 +536,40 @@ export function LaudoDetailPanel({ laudoId, onClose }: Props) {
                   className="rounded-xl border border-[#8e7340] bg-[#12213d] p-2 text-[#f0d08a]">
                   <ChevronLeft className="h-5 w-5" />
                 </button>
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="text-lg font-black text-[#f0d08a]">
                     {dados?.laudo.examNumber
                       ? `REP ${dados.laudo.examNumber}/${dados.laudo.examYear}`
                       : "Detalhes do Exame"}
                   </div>
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-[#8ea4c0]">
-                    {dados?.laudo.status === "finalizado" ? "Finalizado" : "Rascunho"}
+                  <div className="mt-1 flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-[#8ea4c0]">
+                      {dados?.laudo.repStatus
+                        ? REP_STATUS_LABEL[dados.laudo.repStatus]
+                        : dados?.laudo.status === "finalizado" ? "Finalizado" : "Em execução"}
+                    </span>
+                    {dados?.laudo.repStatus && (() => {
+                      const s = dados.laudo.repStatus!
+                      const Icon = REP_STATUS_ICON[s]
+                      return (
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${REP_STATUS_COLORS[s].badge}`}>
+                          <Icon className="h-3 w-3" />
+                          {REP_STATUS_LABEL[s]}
+                        </span>
+                      )
+                    })()}
                   </div>
                 </div>
+                {onEditar && dados && (
+                  <button
+                    type="button"
+                    onClick={() => onEditar(dados.laudo.localId)}
+                    className="shrink-0 flex items-center gap-1.5 rounded-xl border border-[#f0d08a]/40 bg-[#f0d08a]/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#f0d08a] transition hover:bg-[#f0d08a]/20 active:brightness-95"
+                  >
+                    <SquarePen className="h-3.5 w-3.5" />
+                    Editar
+                  </button>
+                )}
               </div>
             </div>
 
@@ -524,9 +600,11 @@ export function LaudoDetailPanel({ laudoId, onClose }: Props) {
                           ? "bg-[#1a6b3e]/30 text-[#7de0a8]"
                           : "bg-[#f0d08a]/15 text-[#f0d08a]"
                       }`}>
-                        {dados.laudo.status === "finalizado"
-                          ? <><CheckCircle2 className="h-3 w-3" /> Finalizado</>
-                          : <><XCircle className="h-3 w-3" /> Rascunho</>}
+                        {dados.laudo.repStatus
+                          ? <><CheckCircle2 className="h-3 w-3" /> {REP_STATUS_LABEL[dados.laudo.repStatus]}</>
+                          : dados.laudo.status === "finalizado"
+                            ? <><CheckCircle2 className="h-3 w-3" /> Finalizado</>
+                            : <><XCircle className="h-3 w-3" /> Em execução</>}
                       </span>
                     </div>
                     <div className="px-5 py-4 space-y-0">
@@ -543,6 +621,64 @@ export function LaudoDetailPanel({ laudoId, onClose }: Props) {
                       </div>
                     )}
                   </div>
+
+                  {/* Pipeline de estágio */}
+                  {(() => {
+                    const repStatus = dados.laudo.repStatus
+                    const proximo = repStatus ? NEXT_STATUS[repStatus] : "editando"
+                    const label = repStatus ? NEXT_STATUS_LABEL[repStatus] : "Iniciar Rastreamento"
+                    const colors = repStatus ? REP_STATUS_COLORS[repStatus] : REP_STATUS_COLORS["importada"]
+                    const ProximoIcon = proximo ? REP_STATUS_ICON[proximo] : ArrowRight
+                    const estagios: RepStatus[] = ["importada", "editando", "sincronizada", "no_gdl"]
+                    const idxAtual = repStatus ? estagios.indexOf(repStatus) : -1
+                    return (
+                      <div className="rounded-3xl border border-[#d3c4a8] bg-white overflow-hidden shadow-sm">
+                        <div className="bg-[#ede3ce] px-4 py-2 flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Estágio da REP</span>
+                          {repStatus && (
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${REP_STATUS_COLORS[repStatus].badge}`}>
+                              {REP_STATUS_LABEL[repStatus]}
+                            </span>
+                          )}
+                        </div>
+                        {/* Barra de progresso */}
+                        <div className="flex px-4 pt-3 pb-1 gap-1">
+                          {estagios.map((s, i) => {
+                            const Icon = REP_STATUS_ICON[s]
+                            const done = i <= idxAtual
+                            return (
+                              <div key={s} className="flex-1 flex flex-col items-center gap-1">
+                                <div className={`flex h-7 w-7 items-center justify-center rounded-full border-2 transition ${done ? "border-[#3d9b55] bg-[#3d9b55]/10 text-[#3d9b55]" : "border-[#d3c4a8] text-[#c0b090]"}`}>
+                                  <Icon className="h-3.5 w-3.5" />
+                                </div>
+                                <span className={`text-center text-[8px] font-black uppercase tracking-[0.1em] leading-tight ${done ? "text-[#3d9b55]" : "text-[#c0b090]"}`}>
+                                  {REP_STATUS_LABEL[s]}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {label && proximo && (
+                          <div className="px-4 pb-4 pt-2">
+                            <button
+                              type="button"
+                              onClick={handleAvancarEstagio}
+                              disabled={avancando}
+                              className={`flex w-full items-center justify-center gap-2 rounded-2xl border-2 py-3 text-sm font-black tracking-[0.10em] transition active:brightness-95 disabled:opacity-50 ${colors.btn}`}
+                            >
+                              <ProximoIcon className="h-4 w-4" />
+                              {avancando ? "Atualizando..." : label}
+                            </button>
+                          </div>
+                        )}
+                        {!proximo && repStatus === "no_gdl" && (
+                          <div className="px-4 pb-4 pt-1 text-center text-xs font-bold text-[#3d9b55]">
+                            ✓ Enviada ao GDL
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
 
                   {/* Peças */}
                   {dados.armas.length > 0 ? (

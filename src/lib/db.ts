@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie"
-import type { WeaponType, WeaponEntry, ExamForm } from "../types"
+import type { WeaponType, WeaponEntry, ExamForm, RepStatus } from "../types"
 import { generateId } from "./uuid"
 
 // ── Laudo (perícia completa) ──────────────────────────────────────────────────
@@ -30,6 +30,7 @@ export interface Laudo {
   // controle
   status: "rascunho" | "finalizado"
   syncStatus: "pending" | "synced"
+  repStatus?: RepStatus
   criadoEm: string
   atualizadoEm: string
 }
@@ -71,6 +72,11 @@ class MunicaoDatabase extends Dexie {
     super("municaodb")
     this.version(1).stores({
       laudos: "++id, localId, syncStatus, status, criadoEm",
+      armas:  "++id, localId, laudoLocalId, syncStatus",
+      fotos:  "++id, localId, laudoLocalId, armaLocalId, syncStatus",
+    })
+    this.version(2).stores({
+      laudos: "++id, localId, syncStatus, status, repStatus, criadoEm",
       armas:  "++id, localId, laudoLocalId, syncStatus",
       fotos:  "++id, localId, laudoLocalId, armaLocalId, syncStatus",
     })
@@ -204,4 +210,12 @@ export async function listarLaudos() {
 /** Conta quantos laudos ainda não foram sincronizados */
 export async function contarPendentes() {
   return db.laudos.where("syncStatus").equals("pending").count()
+}
+
+/** Atualiza o estágio de pipeline da REP */
+export async function atualizarRepStatus(localId: string, repStatus: RepStatus): Promise<void> {
+  const laudo = await db.laudos.where("localId").equals(localId).first()
+  if (laudo?.id != null) {
+    await db.laudos.update(laudo.id, { repStatus, atualizadoEm: new Date().toISOString() })
+  }
 }

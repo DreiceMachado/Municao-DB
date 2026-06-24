@@ -1,3 +1,5 @@
+export type RepStatus = "importada" | "editando" | "sincronizada" | "no_gdl"
+
 export type WeaponType =
   | "REVÓLVER"
   | "PISTOLA"
@@ -196,6 +198,7 @@ export type RecordItem = {
   updatedAt: string
   unit: string
   expert: string
+  repStatus?: RepStatus
 }
 
 export type ExamType = "EFICIÊNCIA" | "CONSTATAÇÃO"

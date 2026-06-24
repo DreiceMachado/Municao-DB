@@ -14,10 +14,11 @@ type Props = {
   onRemove: (key: string) => void
   onView: (url: string) => void
   placeholder?: string
+  gdlRequired?: boolean
 }
 
 export function LacreInput({
-  label, slotKey, value, onChange, allPhotoUrls, onCapture, onRemove, onView, placeholder,
+  label, slotKey, value, onChange, allPhotoUrls, onCapture, onRemove, onView, placeholder, gdlRequired,
 }: Props) {
   const cameraRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
@@ -53,7 +54,10 @@ export function LacreInput({
 
   return (
     <div>
-      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{label}</label>
+      <label className="mb-2 flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+        {label}
+        {gdlRequired && <span className="text-[#c87070] text-[13px] font-black leading-none">*</span>}
+      </label>
 
       <div className="flex gap-2">
         <input

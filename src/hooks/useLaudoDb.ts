@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react"
-import { db, listarLaudos, salvarFoto, removerFoto } from "../lib/db"
+import { db, listarLaudos, salvarFoto, removerFoto, atualizarRepStatus } from "../lib/db"
 import type { Laudo } from "../lib/db"
 import type { WeaponEntry, WeaponType, RecordItem } from "../types"
 import { generateId } from "../lib/uuid"
@@ -35,6 +35,7 @@ function laudoToRecordItem(l: Laudo): RecordItem {
     updatedAt: l.atualizadoEm,
     unit: l.unit,
     expert: l.expert,
+    repStatus: l.repStatus,
   }
 }
 
@@ -169,11 +170,14 @@ export function useLaudoDb() {
 
   return {
     laudoLocalId,
+    setLaudoLocalId,
     laudos,
     salvarForm,
     finalizarLaudo,
     salvarPecas,
     salvarFotoNoBanco,
     removerFotoNoBanco,
+    recarregarLista,
+    atualizarRepStatus,
   }
 }

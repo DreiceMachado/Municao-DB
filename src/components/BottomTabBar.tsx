@@ -1,14 +1,15 @@
-import { Crosshair, Database, FolderKanban } from "lucide-react"
+import { Crosshair, Database, FolderKanban, RefreshCw } from "lucide-react"
 import { cn } from "../utils/cn"
 
-export type Section = "inicio" | "exames" | "registros" | "dados"
+export type Section = "inicio" | "exames" | "registros" | "sincronizar" | "dados"
 
 type Tab = { id: Section; label: string; Icon: React.ElementType }
 
 const TABS: Tab[] = [
-  { id: "exames",    label: "Exames",    Icon: Crosshair    },
-  { id: "registros", label: "Registros", Icon: FolderKanban },
-  { id: "dados",     label: "Dados",     Icon: Database     },
+  { id: "exames",      label: "Exames",       Icon: Crosshair    },
+  { id: "registros",   label: "Registros",    Icon: FolderKanban },
+  { id: "sincronizar", label: "Sincronizar",  Icon: RefreshCw    },
+  { id: "dados",       label: "Dados",        Icon: Database     },
 ]
 
 type Props = {

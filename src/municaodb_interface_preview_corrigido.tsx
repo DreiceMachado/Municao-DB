@@ -24,14 +24,17 @@ import {
   Plus,
   Search,
   User2,
+  RefreshCw,
   Wifi,
+  Wand2,
   X,
 } from "lucide-react"
 
-import type { WeaponEntry, WeaponType, ProfileView } from "./types"
+import type { WeaponEntry, WeaponType, ProfileView, RepStatus } from "./types"
 import { supabase, supabaseAtivo } from "./lib/supabase"
 import { makeWeaponEntry } from "./data/constants"
 import { useLaudoDb } from "./hooks/useLaudoDb"
+import { buscarLaudoCompleto, atualizarRepStatus } from "./lib/db"
 import { BottomTabBar, type Section } from "./components/BottomTabBar"
 import { cn } from "./utils/cn"
 import { CollapsibleSection } from "./components/ui/CollapsibleSection"
@@ -52,9 +55,22 @@ import { useWeaponCatalog, useCatalogoBrands, useCatalogoModels } from "./hooks/
 import { populateCatalogDb } from "./lib/catalogDb"
 import { useLiveQuery } from "dexie-react-hooks"
 
+const _ARMAS_FOGO_GDL: WeaponType[] = ["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"]
+const _MODEL_IDENT_GDL: WeaponType[] = ["CARREGADOR","ESTOJO","CARTUCHO","ARMA DE CHOQUE"]
+
+function validarCamposGdlPeca(peca: WeaponEntry): string[] {
+  const faltando: string[] = []
+  if (!peca.dataEntradaPeca) faltando.push("Data de Entrada")
+  if (!peca.lacreEntradaPeca) faltando.push("Lacre de Entrada")
+  if (_ARMAS_FOGO_GDL.includes(peca.type) && !peca.identificacao) faltando.push("Identificação")
+  if (_MODEL_IDENT_GDL.includes(peca.type) && !peca.model) faltando.push("Identificação")
+  return faltando
+}
+
 export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: () => void }) {
-  const { laudos: laudosDB, salvarForm, finalizarLaudo, salvarPecas, salvarFotoNoBanco, removerFotoNoBanco } = useLaudoDb()
+  const { laudoLocalId, setLaudoLocalId, laudos: laudosDB, salvarForm, finalizarLaudo, salvarPecas, salvarFotoNoBanco, removerFotoNoBanco, recarregarLista } = useLaudoDb()
   const [salvouExame, setSalvouExame] = useState(false)
+  const [modoEdicao, setModoEdicao] = useState(false)
   const [activeSection, setActiveSection] = useState<Section>("exames")
   const [nomePerito, setNomePerito] = useState("Perito responsável")
 
@@ -124,6 +140,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [confirmDeletePieceIdx, setConfirmDeletePieceIdx] = useState<number | null>(null)
   const [gdlResultado, setGdlResultado] = useState<{ ok: boolean; msg: string } | null>(null)
   const [atualizandoPecas, setAtualizandoPecas] = useState(false)
+  const [enviandoLote, setEnviandoLote] = useState(false)
+  const [resultadoLote, setResultadoLote] = useState<{ ok: boolean; msg: string } | null>(null)
   const [atualizandoPecasProgresso, setAtualizandoPecasProgresso] = useState<{ fase: string; atual: number; total: number }>({ fase: '', atual: 0, total: 0 })
   const [pieceFormOpen, setPieceFormOpen] = useState(false)
   const [typePickerOpen, setTypePickerOpen] = useState(false)
@@ -288,7 +306,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           })
           // Mantém peças que o usuário adicionou que não existem no GDL
           const gdlIds = new Set(p.map(g => g.gdlPartsId).filter(Boolean))
-          const soNoBD = prev.filter(e => e.gdlPartsId && !gdlIds.has(e.gdlPartsId))
+          const soNoBD = prev.filter(e => !e.gdlPartsId || !gdlIds.has(e.gdlPartsId))
           return [...merged, ...soNoBD]
         })
       }
@@ -298,6 +316,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
         setLacreNumero(lacres[0].entrada)
         setLacreSaidaNumero(lacres[0].saida)
       }
+      // Marca a REP como "importada" no pipeline de estágios
+      await atualizarRepStatus(laudoLocalId, "importada")
+      recarregarLista()
     } catch {
       setRepGdlErro('Falha ao conectar com o servidor')
     } finally {
@@ -335,6 +356,66 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const handleUnsyncPhoto = (pieceIdx: number) =>
     setPhotoSyncMap(prev => { const n = { ...prev }; delete n[pieceIdx]; return n })
 
+  // ── Pipeline de estágios — helpers ──────────────────────────────────────────
+
+  const REP_STATUS_LABEL: Record<RepStatus, string> = {
+    importada:    "Importada",
+    editando:     "Em Edição",
+    sincronizada: "Pronta",
+    no_gdl:       "No GDL",
+  }
+
+  const REP_STATUS_BADGE: Record<RepStatus, string> = {
+    importada:    "bg-[#3d5a8a]/15 text-[#4e7ab5] border border-[#4e7ab5]/30",
+    editando:     "bg-[#8a6d2e]/15 text-[#b89240] border border-[#b89240]/30",
+    sincronizada: "bg-[#2e6b3e]/15 text-[#3d9b55] border border-[#3d9b55]/30",
+    no_gdl:       "bg-[#12213d]/15 text-[#8ea4c0] border border-[#8ea4c0]/30",
+  }
+
+  // ── Envia todas as REPs "sincronizadas" para o GDL em lote ─────────────────
+
+  const handleEnviarTodasAoGdl = async () => {
+    const sincronizadas = laudosDB.filter(l => l.repStatus === "sincronizada")
+    if (sincronizadas.length === 0) return
+    setEnviandoLote(true)
+    setResultadoLote(null)
+    let ok = 0
+    let erros = 0
+    try {
+      for (const item of sincronizadas) {
+        const completo = await buscarLaudoCompleto(item.id)
+        if (!completo) { erros++; continue }
+        const pecas = completo.armas.map(a => JSON.parse(a.dadosJson) as WeaponEntry)
+        const numLimpo = (completo.laudo.examNumber || '').replace(/[^0-9]/g, '')
+        if (!numLimpo) { erros++; continue }
+        const repNumero = `${numLimpo}/${completo.laudo.examYear}`
+        try {
+          const resp = await fetch('/api/gdl/atualizar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rep_numero: repNumero, pecas }),
+          })
+          if (resp.ok) {
+            await atualizarRepStatus(item.id, "no_gdl")
+            ok++
+          } else {
+            erros++
+          }
+        } catch {
+          erros++
+        }
+      }
+      await recarregarLista()
+      const msg = ok > 0
+        ? `${ok} REP(s) enviada(s) ao GDL${erros > 0 ? ` · ${erros} com erro` : ''}`
+        : `Erro ao enviar ${erros} REP(s)`
+      setResultadoLote({ ok: ok > 0, msg })
+    } finally {
+      setEnviandoLote(false)
+      setTimeout(() => setResultadoLote(null), 6000)
+    }
+  }
+
   // ── Atualiza GDL em sessão única: uma chamada, um browser ───────────────────
 
   const handleAtualizarTodasPecasGdl = async () => {
@@ -345,6 +426,18 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       return
     }
     const repNumero = `${numLimpo}/${form.examYear}`
+
+    const pecasInvalidas = savedPieces
+      .map((p, i) => ({ num: i + 1, tipo: p.type, brand: p.brand, faltando: validarCamposGdlPeca(p) }))
+      .filter(x => x.faltando.length > 0)
+    if (pecasInvalidas.length > 0) {
+      const p1 = pecasInvalidas[0]
+      const nome = `Peça ${p1.num}${p1.brand ? ` · ${p1.brand}` : ''} (${p1.tipo})`
+      const extra = pecasInvalidas.length > 1 ? ` e mais ${pecasInvalidas.length - 1}` : ''
+      setGdlResultado({ ok: false, msg: `${nome}${extra}: falta ${p1.faltando.join(', ')}` })
+      setTimeout(() => setGdlResultado(null), 6000)
+      return
+    }
 
     setAtualizandoPecas(true)
     setAtualizandoPecasProgresso({ fase: 'Atualizando GDL...', atual: 1, total: 1 })
@@ -380,7 +473,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   }
 
   const handleSalvarExame = async () => {
+    const idParaSincronizar = laudoLocalId
     await finalizarLaudo(form, savedPieces)
+    await atualizarRepStatus(idParaSincronizar, "sincronizada")
+    recarregarLista()
+    setModoEdicao(false)
     setSalvouExame(true)
     // Reseta todo o estado do formulário e fecha o exame
     setExamType(null)
@@ -393,6 +490,50 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setTypePickerOpen(false)
     setForm({ ...emptyForm, expert: nomePerito })
     setTimeout(() => setSalvouExame(false), 2500)
+  }
+
+  const handleEditarLaudo = async (localId: string) => {
+    const completo = await buscarLaudoCompleto(localId)
+    if (!completo) return
+    const { laudo, armas, fotosDoLaudo } = completo
+    setLaudoLocalId(localId)
+    setForm({
+      examNumber:         laudo.examNumber        ?? '',
+      examYear:           laudo.examYear          ?? '',
+      caseNumber:         laudo.caseNumber        ?? '',
+      unit:               laudo.unit              ?? '',
+      expert:             laudo.expert            ?? '',
+      date:               laudo.date              ?? '',
+      observacoes:        laudo.observacoes       ?? '',
+      solicitante:        laudo.solicitante       ?? '',
+      remetenteCidade:    laudo.remetenteCidade   ?? '',
+      remetenteOrgao:     laudo.remetenteOrgao    ?? '',
+      naturezaExame:      laudo.naturezaExame     ?? '',
+      naturezaOcorrencia: laudo.naturezaOcorrencia ?? '',
+      dataEntrada:        laudo.dataEntrada       ?? '',
+      horaEntrada:        laudo.horaEntrada       ?? '',
+      enderecoExame:      laudo.enderecoExame     ?? '',
+      oficio:             laudo.oficio            ?? '',
+      ipApfd:             laudo.ipApfd            ?? '',
+      processo:           laudo.processo          ?? '',
+    })
+    const pecas = armas.map(a => JSON.parse(a.dadosJson) as WeaponEntry)
+    setSavedPieces(pecas)
+    setWeapons([])
+    setActiveWeaponIdx(0)
+    setPieceFormOpen(false)
+    setWeaponType(null)
+    // Carrega fotos do laudo no mapa de preview
+    const fotoMap = new Map<string, string>()
+    for (const foto of fotosDoLaudo) {
+      fotoMap.set(foto.slotLabel, foto.imagemBase64)
+    }
+    setPhotoUrls(fotoMap)
+    setPhotoSyncMap({})
+    setExamType("EFICIÊNCIA")
+    setModoEdicao(true)
+    setSelectedLaudoId(null)
+    setActiveSection("exames")
   }
 
   const resetPieceForm = () => {
@@ -671,12 +812,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                   <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
                     <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
-                      <h3 className="text-xl font-black text-[#f0d08a]">Laudos em rascunho</h3>
+                      <h3 className="text-xl font-black text-[#f0d08a]">Laudos em execução</h3>
                     </div>
                     <div className="space-y-3 p-5 text-[#26221b]">
                       {laudosDB.length === 0 && (
                         <div className="rounded-2xl border border-dashed border-[#cab88d] bg-[#fbf8f3] px-4 py-6 text-center text-sm font-medium text-[#6e614d]">
-                          Nenhum exame em rascunho
+                          Nenhum exame em execução
                         </div>
                       )}
                       {laudosDB.map((item) => (
@@ -686,7 +827,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               <div className="text-xl font-black tracking-tight">{item.number}/{item.year}</div>
                               <div className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-[#67583d]">{item.unit}</div>
                             </div>
-                            <span className="rounded-full border border-[#d8c59b] bg-[#f2e4bc] px-3 py-1 text-xs font-bold tracking-[0.16em] text-[#5b4a2e]">rascunho</span>
+                            {item.repStatus
+                              ? <span className={`rounded-full px-3 py-1 text-xs font-bold tracking-[0.16em] ${REP_STATUS_BADGE[item.repStatus]}`}>{REP_STATUS_LABEL[item.repStatus]}</span>
+                              : <span className="rounded-full border border-[#d8c59b] bg-[#f2e4bc] px-3 py-1 text-xs font-bold tracking-[0.16em] text-[#5b4a2e]">Em execução</span>
+                            }
                           </div>
                           <div className="mt-2 text-sm text-[#6a5c45]">{item.expert}</div>
                         </button>
@@ -770,7 +914,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               <div className="text-2xl font-black tracking-tight">{item.number}/{item.year}</div>
                               <div className="mt-1 text-sm font-bold uppercase tracking-[0.18em] text-[#67583d]">{item.type}</div>
                             </div>
-                            <span className="rounded-full border border-[#d8c59b] bg-[#f2e4bc] px-3 py-1 text-xs font-bold tracking-[0.16em] text-[#5b4a2e]">{item.unit}</span>
+                            <div className="flex flex-col items-end gap-1.5">
+                              <span className="rounded-full border border-[#d8c59b] bg-[#f2e4bc] px-3 py-1 text-xs font-bold tracking-[0.16em] text-[#5b4a2e]">{item.unit}</span>
+                              {item.repStatus && (
+                                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] ${REP_STATUS_BADGE[item.repStatus]}`}>
+                                  {REP_STATUS_LABEL[item.repStatus]}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="mt-2 text-base text-[#40362a]">{item.model}</div>
                           <div className="mt-3 text-sm text-[#6a5c45]">Perito: {item.expert}</div>
@@ -785,6 +936,121 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   </div>
                 </section>
               )}
+
+              {/* ── SINCRONIZAR ─────────────────────────────────────── */}
+              {activeSection === "sincronizar" && (() => {
+                const porStatus = {
+                  importada:    laudosDB.filter(l => l.repStatus === "importada"),
+                  editando:     laudosDB.filter(l => l.repStatus === "editando"),
+                  sincronizada: laudosDB.filter(l => l.repStatus === "sincronizada"),
+                  no_gdl:       laudosDB.filter(l => l.repStatus === "no_gdl"),
+                }
+                const filaGdl = porStatus.sincronizada
+                return (
+                  <section className="space-y-4">
+                    <div className="rounded-2xl border border-[#8e7340] bg-[linear-gradient(180deg,rgba(20,35,63,.92)_0%,rgba(11,23,48,.96)_100%)] px-4 py-3 shadow-[0_6px_16px_rgba(0,0,0,.18)]">
+                      <h2 className="text-base font-black tracking-tight text-[#f0d08a] md:text-lg">Sincronização</h2>
+                      <p className="mt-0.5 text-[12px] text-[#eadab0]">Pipeline de estágios das REPs e envio ao GDL</p>
+                    </div>
+
+                    {/* Painel de estágios */}
+                    <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                      <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
+                        <h3 className="text-base font-black text-[#f0d08a]">Pipeline de REPs</h3>
+                        <p className="text-[11px] text-[#ccb780]">Visão geral dos estágios</p>
+                      </div>
+                      <div className="grid grid-cols-4 gap-px bg-[#d9ccb2] border-b border-[#d9ccb2]">
+                        {([
+                          { key: "importada"    as RepStatus, label: "Importadas", color: "text-[#4e7ab5]", bg: "bg-[#3d5a8a]/8" },
+                          { key: "editando"     as RepStatus, label: "Em Edição",  color: "text-[#b89240]", bg: "bg-[#8a6d2e]/8" },
+                          { key: "sincronizada" as RepStatus, label: "Prontas",    color: "text-[#3d9b55]", bg: "bg-[#2e6b3e]/8" },
+                          { key: "no_gdl"       as RepStatus, label: "No GDL",     color: "text-[#8ea4c0]", bg: "bg-[#12213d]/8" },
+                        ]).map(({ key, label, color, bg }) => (
+                          <div key={key} className={`flex h-[76px] flex-col items-center justify-center ${bg}`}>
+                            <span className={`text-2xl font-black ${color}`}>{porStatus[key].length}</span>
+                            <span className="mt-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-[#6b5838] text-center leading-tight">{label}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="px-5 py-4 text-[12px] text-[#7a6840] leading-relaxed">
+                        Abra uma REP em <strong>Registros</strong> para avançar seu estágio. Quando marcadas como <strong>Prontas</strong>, aparecem na fila abaixo para envio ao GDL.
+                      </div>
+                    </div>
+
+                    {/* Fila para GDL */}
+                    <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                      <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4 flex items-center justify-between">
+                        <div>
+                          <h3 className="text-base font-black text-[#f0d08a]">Fila para o GDL</h3>
+                          <p className="text-[11px] text-[#ccb780]">REPs marcadas como Prontas</p>
+                        </div>
+                        {filaGdl.length > 0 && (
+                          <span className="rounded-full bg-[#3d9b55]/20 px-3 py-1 text-xs font-black text-[#3d9b55]">
+                            {filaGdl.length} pronta{filaGdl.length > 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                      <div className="px-5 py-4 space-y-3">
+                        {filaGdl.length === 0 ? (
+                          <div className="rounded-2xl border border-dashed border-[#cab88d] bg-[#fbf8f3] px-4 py-8 text-center">
+                            <RefreshCw className="h-8 w-8 mx-auto mb-2 text-[#cab88d]" />
+                            <p className="text-sm text-[#6e614d]">Nenhuma REP na fila.</p>
+                            <p className="mt-1 text-xs text-[#9e8c6e]">Avance REPs para "Pronta" em Registros.</p>
+                          </div>
+                        ) : (
+                          <>
+                            {filaGdl.map(item => (
+                              <div key={item.id} className="flex items-center justify-between rounded-2xl border border-[#d9ccb2] bg-[#fbf8f3] px-4 py-3">
+                                <div>
+                                  <div className="text-base font-black text-[#26221b]">{item.number}/{item.year}</div>
+                                  <div className="text-xs text-[#6a5c45]">{item.unit || "—"}</div>
+                                </div>
+                                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${REP_STATUS_BADGE["sincronizada"]}`}>
+                                  Pronta
+                                </span>
+                              </div>
+                            ))}
+                            {resultadoLote && (
+                              <div className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-black ${resultadoLote.ok ? "bg-[#1e3d1e]/10 text-[#2d6e2d]" : "bg-[#3d1e1e]/10 text-[#8b2020]"}`}>
+                                {resultadoLote.ok ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+                                {resultadoLote.msg}
+                              </div>
+                            )}
+                            <button
+                              onClick={handleEnviarTodasAoGdl}
+                              disabled={enviandoLote}
+                              className="w-full rounded-2xl border-2 border-[#1b3a6b] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-4 text-sm font-black tracking-[0.10em] text-[#f0d08a] shadow-[0_8px_20px_rgba(20,40,100,.30)] transition active:brightness-95 disabled:opacity-50"
+                            >
+                              {enviandoLote ? "ENVIANDO..." : `ENVIAR ${filaGdl.length > 1 ? `TODAS (${filaGdl.length})` : "PARA O GDL"}`}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card — Sincronizar DB de dados */}
+                    <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                      <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4 flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f0d08a]/15">
+                          <Database className="h-5 w-5 text-[#f0d08a]" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-black text-[#f0d08a]">Sincronizar DB de Dados</h3>
+                          <p className="text-[11px] text-[#ccb780]">Atualiza o catálogo local de referência</p>
+                        </div>
+                      </div>
+                      <div className="px-5 py-5 space-y-3">
+                        <p className="text-sm text-[#6e614d]">
+                          Baixa e atualiza o catálogo local de armas, calibres e fabricantes com os dados mais recentes.
+                        </p>
+                        <button disabled className="w-full rounded-2xl border-2 border-[#a18449] bg-[#ece6da] py-4 text-sm font-black tracking-[0.10em] text-[#9e8c6e] transition disabled:opacity-60">
+                          EM DESENVOLVIMENTO
+                        </button>
+                      </div>
+                    </div>
+                  </section>
+                )
+              })()}
 
               {/* ── DADOS ──────────────────────────────────────────── */}
               {activeSection === "dados" && (
@@ -1070,12 +1336,17 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                   <PieceIcon type={p.type} className="h-4 w-auto max-w-[22px]" />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#b89a58]">{p.type}</div>
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#b89a58]">{p.type}</div>
+                                    {validarCamposGdlPeca(p).length > 0 && (
+                                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#c87070]" />
+                                    )}
+                                  </div>
                                   <div className="truncate text-[13px] font-black leading-tight text-[#26221b]">
                                     {p.brand || <span className="font-medium italic text-[#b8a070]">Não identificado</span>}
                                   </div>
                                   {p.model && p.model !== "" && (
-                                    <div className="truncate text-[11px] text-[#6b5838]">{p.model}</div> // Display model if present
+                                    <div className="truncate text-[11px] text-[#6b5838]">{p.model}</div>
                                   )}
                                 </div>
                                 <Pencil className="h-3.5 w-3.5 shrink-0 text-[#c8a96e]" />
@@ -1451,7 +1722,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       onClick={handleSalvarExame}
                       disabled={salvouExame}
                       className="flex-[2] rounded-2xl border-2 border-[#7b6236] bg-[linear-gradient(180deg,#6e572f_0%,#49391f_100%)] py-4 text-sm font-black tracking-[0.18em] text-[#f8e3b3] shadow-[0_12px_24px_rgba(66,50,24,.22)] transition active:brightness-95 disabled:opacity-70">
-                      {salvouExame ? "SALVO ✓" : "SALVAR EXAME"}
+                      {salvouExame ? (modoEdicao ? "ATUALIZADO ✓" : "SALVO ✓") : (modoEdicao ? "ATUALIZAR EXAME" : "SALVAR EXAME")}
                     </button>
                   </div>
 
@@ -1836,6 +2107,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {/* ── Lacre de Entrada ── */}
                   <LacreInput
                     label="Lacre de Entrada"
+                    gdlRequired
                     slotKey="lacre-entrada-form"
                     value={activeWeapon?.lacreEntradaPeca ?? lacreNumero}
                     onChange={v => { setLacreNumero(v); setWeaponDirect("lacreEntradaPeca" as any, v) }}
@@ -1848,8 +2120,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                   {/* ── Data de Entrada ── */}
                   <div>
-                    <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                    <label className="mb-2 flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                       Data de Entrada
+                      <span className="text-[#c87070] text-[13px] font-black leading-none">*</span>
                     </label>
                     <input
                       type="text"
@@ -1862,13 +2135,24 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                   {/* ── Campos base ── */}
                   {!(["PROJÉTIL","PÓLVORA","ESPOLETA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && <div className="space-y-5">
-                    <div className="grid gap-5 md:grid-cols-4">
+                    <div className="grid gap-5 md:grid-cols-3">
                       {/* Identificação — armas de fogo usam campo próprio; demais usam model */}
                       {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                         <div>
-                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                          <label className="mb-2 flex items-center gap-1 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             Identificação
+                            <span className="text-[#c87070] text-[13px] font-black leading-none">*</span>
                             <HelpBtn title="Identificação" text="Designação ou referência de identificação do item. Ex.: RT 627, REP 001/2025." />
+                            {(activeWeapon?.brand || activeWeapon?.model || activeWeapon?.caliber) && (
+                              <button type="button" title="Preencher com Fabricante, Modelo e Calibre" style={{ marginLeft: "6px" }}
+                                onClick={() => {
+                                  const p = [activeWeapon?.brand, activeWeapon?.model, activeWeapon?.caliber].filter(Boolean)
+                                  setWeaponDirect("identificacao" as any, p.join(' '))
+                                }}
+                                className="inline-flex h-8 w-8 md:h-6 md:w-6 items-center justify-center rounded-full bg-[#e8dfc8] text-[#7a6840] hover:bg-[#ddd0b3] active:bg-[#ccc0a0]">
+                                <Wand2 className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                              </button>
+                            )}
                           </label>
                           <input value={activeWeapon?.identificacao ?? ""} onChange={handleWeaponField("identificacao" as keyof Omit<WeaponEntry,"type">)}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
@@ -1877,8 +2161,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       )}
                       {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && !(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                         <div>
-                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                          <label className="mb-2 flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             {activeWeapon?.type === "CARTUCHO" ? "Tipo" : "Identificação"}
+                            {_MODEL_IDENT_GDL.includes(activeWeapon?.type as WeaponType) && (
+                              <span className="text-[#c87070] text-[13px] font-black leading-none">*</span>
+                            )}
                             <HelpBtn title={activeWeapon?.type === "CARTUCHO" ? "Tipo" : "Identificação"} text={
                               activeWeapon?.type === "ESTOJO" ? "Headstamp ou marcação identificadora do estojo. Ex.: CBC .38, RP 9mm." :
                               activeWeapon?.type === "CARTUCHO" ? "Tipo construtivo da munição. Ex.: FMJ (encamisado), HP (ponta oca), Slug (projétil único para espingarda)." :
@@ -1927,49 +2214,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </button>
                           </div>
 
-                          {/* Botão Preencher — aparece só quando os dois estão selecionados */}
-                          {TIPOS_COM_CATALOGO.includes(activeWeapon?.type as WeaponType) && activeWeapon?.brand && activeWeapon?.model && (
-                            <button
-                              type="button"
-                              disabled={loadingFicha}
-                              onClick={async () => {
-                                if (!activeWeapon || !activeWeapon.brand || !activeWeapon.model) return
-                                const ficha = await buscarFicha(activeWeapon.type, activeWeapon.brand, activeWeapon.model)
-                                if (!ficha) return
-                                const campos = fichaParaWeaponEntry(ficha)
-                                Object.entries(campos).forEach(([campo, valor]) => {
-                                  setWeaponDirect(campo as keyof Omit<WeaponEntry, "type">, valor as string | boolean | null | string[])
-                                })
-                              }}
-                              className="flex h-10 w-full items-center justify-between rounded-2xl border border-blue-200 bg-blue-50 px-4 text-left shadow-sm transition active:opacity-70 disabled:opacity-40"
-                            >
-                              <span className="flex items-center gap-2 text-[13px] font-medium text-blue-600">
-                                {loadingFicha ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
-                                Preencher ficha
-                              </span>
-                              <ChevronRight className="h-4 w-4 shrink-0 text-blue-300" />
-                            </button>
-                          )}
                         </>
-                      )}
-
-                      {/* Tambor sobressalente — apenas REVÓLVER */} 
-                      {activeWeapon?.type === "REVÓLVER" && (
-                        <div>
-                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            Tambor sobressalente
-                            <HelpBtn title="Tambor sobressalente" text="Tambor adicional apreendido junto com o revólver, com calibre diferente do original. Registrado como informação complementar; não altera o calibre nominal da arma." />
-                          </label>
-                          <button type="button" onClick={() => setTamborPickerOpen(true)}
-                            className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[16px] ${activeWeapon?.tamborSobressalente ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                              {activeWeapon?.tamborSobressalente
-                                ? `${activeWeapon.tamborSobressalente}${activeWeapon.tamborSobressalenteQtd ? ` · ${activeWeapon.tamborSobressalenteQtd} unid.` : ""}`
-                                : "Sem tambor sobressalente"}
-                            </span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
                       )}
 
                       {/* Cano sobressalente — apenas ESPINGARDA */}
@@ -2027,7 +2272,50 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           </button>
                         </div>
                       )}
+
+                      {/* Tambor sobressalente — apenas REVÓLVER */}
+                      {activeWeapon?.type === "REVÓLVER" && (
+                        <div>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Tambor sobressalente
+                            <HelpBtn title="Tambor sobressalente" text="Tambor adicional apreendido junto com o revólver, com calibre diferente do original. Registrado como informação complementar; não altera o calibre nominal da arma." />
+                          </label>
+                          <button type="button" onClick={() => setTamborPickerOpen(true)}
+                            className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[16px] ${activeWeapon?.tamborSobressalente ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.tamborSobressalente
+                                ? `${activeWeapon.tamborSobressalente}${activeWeapon.tamborSobressalenteQtd ? ` · ${activeWeapon.tamborSobressalenteQtd} unid.` : ""}`
+                                : "Sem tambor sobressalente"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                      )}
                     </div>
+
+                    {/* Botão Preencher ficha — aparece só quando fabricante e modelo estão selecionados */}
+                    {TIPOS_COM_CATALOGO.includes(activeWeapon?.type as WeaponType) && activeWeapon?.brand && activeWeapon?.model && (
+                      <button
+                        type="button"
+                        disabled={loadingFicha}
+                        onClick={async () => {
+                          if (!activeWeapon || !activeWeapon.brand || !activeWeapon.model) return
+                          const ficha = await buscarFicha(activeWeapon.type, activeWeapon.brand, activeWeapon.model)
+                          if (!ficha) return
+                          const campos = fichaParaWeaponEntry(ficha)
+                          Object.entries(campos).forEach(([campo, valor]) => {
+                            setWeaponDirect(campo as keyof Omit<WeaponEntry, "type">, valor as string | boolean | null | string[])
+                          })
+                        }}
+                        className="flex h-10 w-full items-center justify-between rounded-2xl border border-blue-200 bg-blue-50 px-4 text-left shadow-sm transition active:opacity-70 disabled:opacity-40"
+                      >
+                        <span className="flex items-center gap-2 text-[13px] font-medium text-blue-600">
+                          {loadingFicha ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
+                          Preencher ficha
+                        </span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-blue-300" />
+                      </button>
+                    )}
 
                     {/* Tipo de produção — apenas armas de fogo */}
                     {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
@@ -6195,6 +6483,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
         <LaudoDetailPanel
           laudoId={selectedLaudoId}
           onClose={() => setSelectedLaudoId(null)}
+          onRefresh={recarregarLista}
+          onEditar={handleEditarLaudo}
         />
         </WeaponFormProvider>
 
