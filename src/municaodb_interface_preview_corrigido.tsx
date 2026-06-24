@@ -838,28 +838,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                   </div>
 
-                  {/* Painel de estatísticas — visível só no mobile */}
-                  <div className="xl:hidden rounded-[26px] border border-[#8e7340] bg-[linear-gradient(180deg,#14233f_0%,#0b1730_100%)] shadow-[0_16px_40px_rgba(0,0,0,.24)] overflow-hidden">
-                    <div className="border-b border-[#8e7340]/60 px-5 py-3">
-                      <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#ccb780]">Painel</span>
-                    </div>
-                    <div className="grid grid-cols-2 divide-x divide-y divide-[#8e7340]/40">
-                      {([
-                        [<Database className="h-5 w-5" />, String(laudosDB.length), "Laudos salvos"],
-                        [<CircleDot className="h-5 w-5" />, "0", "Calibres"],
-                        [<Building2 className="h-5 w-5" />, "0", "Fabricantes"],
-                        [<Wifi className="h-5 w-5" />, "0", "Sincronizados"],
-                      ] as [React.ReactNode, string, string][]).map(([icn, value, label], i) => (
-                        <div key={i} className="flex items-center gap-3 px-4 py-4">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#8e7340] bg-[#0f1e39] text-[#f0d08a]">{icn}</div>
-                          <div>
-                            <div className="text-xl font-extrabold tracking-tight text-[#f0d08a]">{value}</div>
-                            <div className="text-[10px] text-[#eadab0]">{label}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </section>
               )}
 
