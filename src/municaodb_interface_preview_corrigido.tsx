@@ -1925,7 +1925,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                           {/* Botão Preencher — aparece só quando os dois estão selecionados */}
                           {TIPOS_COM_CATALOGO.includes(activeWeapon?.type as WeaponType) && activeWeapon?.brand && activeWeapon?.model && (
-                            <button // Este botão só aparece se o tipo de arma tiver ficha técnica
+                            <button
                               type="button"
                               disabled={loadingFicha}
                               onClick={async () => {
@@ -1933,22 +1933,17 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 const ficha = await buscarFicha(activeWeapon.type, activeWeapon.brand, activeWeapon.model)
                                 if (!ficha) return
                                 const campos = fichaParaWeaponEntry(ficha)
-                                // setWeaponDirect("brand", activeWeapon.brand) // Não precisa, já está setado
-                                // setWeaponDirect("model", activeWeapon.model) // Não precisa, já está setado
                                 Object.entries(campos).forEach(([campo, valor]) => {
                                   setWeaponDirect(campo as keyof Omit<WeaponEntry, "type">, valor as string | boolean | null | string[])
                                 })
                               }}
-                              className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#9e7f45] text-[15px] font-black text-white shadow-md transition hover:bg-[#7d6435] active:scale-[0.98] disabled:opacity-60"
+                              className="flex h-10 w-full items-center justify-between rounded-2xl border border-blue-200 bg-blue-50 px-4 text-left shadow-sm transition active:opacity-70 disabled:opacity-40"
                             >
-                              {loadingFicha ? (
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                              ) : (
-                                <>
-                                  <BookOpen className="h-5 w-5" />
-                                  Preencher Ficha Técnica
-                                </>
-                              )}
+                              <span className="flex items-center gap-2 text-[13px] font-medium text-blue-600">
+                                {loadingFicha ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
+                                Preencher ficha
+                              </span>
+                              <ChevronRight className="h-4 w-4 shrink-0 text-blue-300" />
                             </button>
                           )}
                         </>
