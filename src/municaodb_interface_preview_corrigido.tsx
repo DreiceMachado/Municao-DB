@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import logoEscudo from "./assets/logo-escudo.png"
 import {
   AlertCircle,
+  BookOpen,
   Building2,
   Camera,
   CheckCircle2,
@@ -47,7 +48,9 @@ import { PhotosScreen } from "./components/PhotosScreen"
 import { WeaponFormProvider } from "./context/WeaponFormContext"
 import { AllPickers } from "./components/AllPickers"
 import { mapearRepGdl, type RepGdlData } from "./lib/repMapper"
-
+import { useWeaponCatalog, useCatalogoBrands, useCatalogoModels } from "./hooks/useWeaponCatalog"
+import { populateCatalogDb } from "./lib/catalogDb"
+import { useLiveQuery } from "dexie-react-hooks"
 
 export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: () => void }) {
   const { laudos: laudosDB, salvarForm, finalizarLaudo, salvarPecas, salvarFotoNoBanco, removerFotoNoBanco } = useLaudoDb()
@@ -75,6 +78,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       }
     }
     carregarNome()
+  }, [])
+
+  // Popula o banco de dados local do catálogo na inicialização do app
+  useEffect(() => {
+    populateCatalogDb()
   }, [])
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -166,6 +174,17 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [qtdMunicaoPickerOpen, setQtdMunicaoPickerOpen] = useState(false)
   const [tipoMunicaoCustom, setTipoMunicaoCustom] = useState("")
   const [confirmDeleteAcessorios, setConfirmDeleteAcessorios] = useState(false)
+
+  // ── Catálogo de armas ────────────────────────────────────────────────────
+  const [catalogoMarcaPickerOpen, setCatalogoMarcaPickerOpen] = useState(false)
+  const [catalogoModeloPickerOpen, setCatalogoModeloPickerOpen] = useState(false)
+  const [catalogoMarcaSel, setCatalogoMarcaSel] = useState("")
+  const [catalogoModeloSel, setCatalogoModeloSel] = useState("")
+  const { buscarFicha, fichaParaWeaponEntry, loadingFicha } = useWeaponCatalog()
+  const catalogoMarcas = useLiveQuery(() => useCatalogoBrands(weaponType ?? undefined), [weaponType]) ?? []
+  const _catalogoBrand = weapons[activeWeaponIdx]?.brand
+  const catalogoModelos = useLiveQuery(() => useCatalogoModels(weaponType ?? undefined, _catalogoBrand), [weaponType, _catalogoBrand]) ?? []
+  const TIPOS_COM_CATALOGO: WeaponType[] = ["PISTOLA","REVÓLVER","ESPINGARDA","FUZIL","CARABINA","METRALHADORA"]
   const [coletaActivePieceIdx, setColetaActivePieceIdx] = useState<number | null>(null)
   const [coletaPhotoUrls, setColetaPhotoUrls] = useState<Map<string, string>>(new Map())
   const [coletaQtdProjeteisPicker, setColetaQtdProjeteisPicker] = useState(false)
@@ -1867,31 +1886,75 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             placeholder={activeWeapon?.type === "CARTUCHO" ? "Ex.: FMJ, HP, Slug…" : "Ex.: RT 627"} />
                         </div>
                       )}
-                      {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && activeWeapon?.type !== "CARREGADOR" && !(activeWeapon?.type === "CARTUCHO" && activeWeapon?.origemMunicao === "Recarga") && (
-                        <div>
-                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            Fabricante
-                            <HelpBtn title="Fabricante" text="Empresa responsável pela fabricação. Ex.: Taurus, Glock, CBC, Remington." />
-                          </label>
-                          <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
-                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                            placeholder={activeWeapon?.type === "ESTOJO" ? "Ex.: CBC, Sellier & Bellot…" : activeWeapon?.type === "CARTUCHO" ? "Ex.: CBC, Sellier & Bellot…" : "Ex.: Taurus, Glock, Colt…"} />
-                        </div>
-                      )}
-                      {/* Modelo — apenas armas de fogo */}
-                      {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
-                        <div>
-                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            Modelo
-                            <HelpBtn title="Modelo" text="Designação comercial ou nomenclatura do armamento. Ex.: GP100, M1911, AR-15." />
-                          </label>
-                          <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
-                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                            placeholder="Ex.: GP100, M1911, AR-15…" />
-                        </div>
+                      {/* Fabricante e Modelo com Catálogo Integrado */}
+                      {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA", "ESTOJO", "CARTUCHO"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                        <>
+                          {/* Picker Fabricante */}
+                          <div>
+                            <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                              Fabricante
+                              <HelpBtn title="Fabricante" text="Empresa responsável pela fabricação. Toque para selecionar a partir do catálogo ou digite manualmente." />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setCatalogoMarcaPickerOpen(true)}
+                              className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]"
+                            >
+                              <span className={`truncate text-[16px] ${activeWeapon?.brand ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>{activeWeapon?.brand || "Selecionar fabricante…"}</span>
+                              <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                            </button>
+                          </div>
+                          
+                          {/* Picker Modelo */}
+                          <div>
+                            <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                              Modelo
+                              <HelpBtn title="Modelo" text="Designação comercial ou nomenclatura. Toque para selecionar a partir do catálogo ou digite manualmente." />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => { if (activeWeapon?.brand) setCatalogoModeloPickerOpen(true) }}
+                              className={`flex h-14 w-full items-center justify-between rounded-2xl border px-4 text-left shadow-sm transition ${activeWeapon?.brand ? "border-[#cdbf9e] bg-[#fbf8f2] focus:border-[#9e7f45]" : "border-[#e0d5bc] bg-[#f5f2eb] opacity-50 cursor-not-allowed"}`}
+                            >
+                              <span className={`truncate text-[16px] ${activeWeapon?.model ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                {activeWeapon?.model || (activeWeapon?.brand ? "Selecionar modelo…" : "Selecione o fabricante primeiro")}
+                              </span>
+                              <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                            </button>
+                          </div>
+
+                          {/* Botão Preencher — aparece só quando os dois estão selecionados */}
+                          {TIPOS_COM_CATALOGO.includes(activeWeapon?.type as WeaponType) && activeWeapon?.brand && activeWeapon?.model && (
+                            <button // Este botão só aparece se o tipo de arma tiver ficha técnica
+                              type="button"
+                              disabled={loadingFicha}
+                              onClick={async () => {
+                                if (!activeWeapon || !activeWeapon.brand || !activeWeapon.model) return
+                                const ficha = await buscarFicha(activeWeapon.type, activeWeapon.brand, activeWeapon.model)
+                                if (!ficha) return
+                                const campos = fichaParaWeaponEntry(ficha)
+                                // setWeaponDirect("brand", activeWeapon.brand) // Não precisa, já está setado
+                                // setWeaponDirect("model", activeWeapon.model) // Não precisa, já está setado
+                                Object.entries(campos).forEach(([campo, valor]) => {
+                                  setWeaponDirect(campo as keyof Omit<WeaponEntry, "type">, valor as string | boolean | null | string[])
+                                })
+                              }}
+                              className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#9e7f45] text-[15px] font-black text-white shadow-md transition hover:bg-[#7d6435] active:scale-[0.98] disabled:opacity-60"
+                            >
+                              {loadingFicha ? (
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                              ) : (
+                                <>
+                                  <BookOpen className="h-5 w-5" />
+                                  Preencher Ficha Técnica
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </>
                       )}
 
-                      {/* Tambor sobressalente — apenas REVÓLVER */}
+                      {/* Tambor sobressalente — apenas REVÓLVER */} 
                       {activeWeapon?.type === "REVÓLVER" && (
                         <div>
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
@@ -5967,6 +6030,119 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           onClose={() => setSelectedLaudoId(null)}
         />
         </WeaponFormProvider>
+
+        {/* ── Catálogo — Sheet Fabricante ── */}
+        <AnimatePresence>
+          {catalogoMarcaPickerOpen && (
+            <>
+              <motion.div
+                className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setCatalogoMarcaPickerOpen(false)}
+              />
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[85vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              >
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Fabricante</span>
+                    <button type="button" onClick={() => setCatalogoMarcaPickerOpen(false)}
+                      className="rounded-full bg-[#e8dcc8] p-1.5"><X className="h-4 w-4 text-[#6b5838]" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-6">
+                  {catalogoMarcas === undefined ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-[#9e7f45]" />
+                    </div>
+                  ) : (catalogoMarcas ?? []).length === 0 ? (
+                    <p className="py-6 text-center text-[13px] text-[#a09070]">Nenhum fabricante encontrado para este tipo de arma.</p>
+                  ) : (
+                    (catalogoMarcas as string[]).map((marca: string) => (
+                      <button key={marca} type="button"
+                        onClick={() => {
+                          setWeaponDirect("brand", marca)
+                          setCatalogoMarcaSel(marca) // Ainda necessário para o título do picker de modelo
+                          setWeaponDirect("model", "") // Limpa o modelo ao trocar de fabricante
+                          setCatalogoMarcaPickerOpen(false)
+                        }}
+                        className={`flex w-full items-center justify-between border-b border-[#e0d0b0] py-3.5 text-left text-[15px] last:border-0 transition ${
+                          activeWeapon?.brand === marca ? "font-black text-[#6b5838]" : "font-medium text-[#26221b] hover:text-[#6b5838]"
+                        }`}
+                      >
+                        {marca} 
+                        {activeWeapon?.brand === marca
+                          ? <CheckCircle2 className="h-4 w-4 text-[#9e7f45]" />
+                          : <ChevronRight className="h-4 w-4 text-[#b89a58]" />}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Catálogo — Sheet Modelo ── */}
+        <AnimatePresence>
+          {catalogoModeloPickerOpen && (
+            <>
+              <motion.div
+                className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setCatalogoModeloPickerOpen(false)}
+              />
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[85vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              >
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Modelo</span>
+                      <p className="mt-0.5 text-[11px] text-[#8d7854]">{catalogoMarcaSel}</p>
+                    </div>
+                    <button type="button" onClick={() => setCatalogoModeloPickerOpen(false)}
+                      className="rounded-full bg-[#e8dcc8] p-1.5"><X className="h-4 w-4 text-[#6b5838]" /></button>
+                  </div>
+                </div> 
+                <div className="flex-1 overflow-y-auto px-4 pb-6">
+                  {catalogoModelos === undefined ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-[#9e7f45]" />
+                    </div>
+                  ) : (catalogoModelos ?? []).length === 0 ? (
+                    <p className="py-6 text-center text-[13px] text-[#a09070]">Nenhum modelo encontrado.</p>
+                  ) : (
+                    (catalogoModelos as string[]).map((modelo: string) => (
+                      <button key={modelo} type="button"
+                        onClick={() => {
+                          setWeaponDirect("model", modelo) 
+                          setCatalogoModeloSel(modelo)
+                          setCatalogoModeloPickerOpen(false)
+                        }}
+                        className={`flex w-full items-center justify-between border-b border-[#e0d0b0] py-3.5 text-left text-[15px] last:border-0 transition ${
+                          activeWeapon?.model === modelo ? "font-black text-[#6b5838]" : "font-medium text-[#26221b] hover:text-[#6b5838]"
+                        }`}
+                      >
+                        {modelo} 
+                        {activeWeapon?.model === modelo 
+                          ? <CheckCircle2 className="h-4 w-4 text-[#9e7f45]" />
+                          : <ChevronRight className="h-4 w-4 text-[#b89a58]" />}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
 
         {/* ── Visualizador de Fotos ── */}
         <AnimatePresence>
