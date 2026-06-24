@@ -184,7 +184,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const catalogoMarcas = useLiveQuery(() => useCatalogoBrands(weaponType ?? undefined), [weaponType]) ?? []
   const _catalogoBrand = weapons[activeWeaponIdx]?.brand
   const catalogoModelos = useLiveQuery(() => useCatalogoModels(weaponType ?? undefined, _catalogoBrand), [weaponType, _catalogoBrand]) ?? []
-  const TIPOS_COM_CATALOGO: WeaponType[] = ["PISTOLA","REVÓLVER","ESPINGARDA","FUZIL","CARABINA","METRALHADORA"]
+  const TIPOS_COM_CATALOGO: WeaponType[] = ["PISTOLA","PISTOLETE","REVÓLVER","GARRUCHA","ESPINGARDA","FUZIL","CARABINA","SUBMETRALHADORA"]
   const [coletaActivePieceIdx, setColetaActivePieceIdx] = useState<number | null>(null)
   const [coletaPhotoUrls, setColetaPhotoUrls] = useState<Map<string, string>>(new Map())
   const [coletaQtdProjeteisPicker, setColetaQtdProjeteisPicker] = useState(false)
@@ -1362,7 +1362,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         label: "Armas de fogo",
                         open: showGroupFirearms,
                         toggle: () => setShowGroupFirearms(o => !o),
-                        types: ["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"] as WeaponType[],
+                        types: ["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[],
                       },
                       {
                         key: "ammo",
@@ -1376,7 +1376,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         label: "Outras armas",
                         open: showGroupOthers,
                         toggle: () => setShowGroupOthers(o => !o),
-                        types: ["FACA","ARMA DE PRESSÃO"] as WeaponType[],
+                        types: ["FACA","ARMA DE PRESSÃO","ARMA DE CHOQUE"] as WeaponType[],
                       },
                     ]).map(({ key, label, open, toggle, types }) => (
                       <div key={key} className="mb-3 overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
@@ -1577,7 +1577,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   <div className="space-y-6">
                   <div className="space-y-3">
                     {/* Institucional — armas de fogo, pressão e antecarga */}
-                    {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE PRESSÃO","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                    {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE PRESSÃO","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                       <div className="overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
                         <div className="border-b border-[#e8dfc8] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-4 py-3">
                           <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[#ccb780]">Vínculo da arma</div>
@@ -1703,23 +1703,27 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         "FACA":        "Origem de coleta da faca",
                         "ARMA DE PRESSÃO":    "Origem de coleta da arma de pressão",
                         "ARMA DE ANTECARGA":  "Origem de coleta da arma de antecarga",
-                        "REVÓLVER":    "Origem de coleta do revólver",
-                        "PISTOLA":     "Origem de coleta da pistola",
-                        "ESPINGARDA":  "Origem de coleta da espingarda",
-                        "CARABINA":    "Origem de coleta da carabina",
-                        "FUZIL":       "Origem de coleta do fuzil",
-                        "METRALHADORA":"Origem de coleta da metralhadora",
-                        "PÓLVORA":     "Origem de coleta da pólvora",
-                        "ESPOLETA":    "Origem de coleta da espoleta",
-                        "CARREGADOR":  "Origem de coleta do carregador",
+                        "REVÓLVER":        "Origem de coleta do revólver",
+                        "PISTOLA":         "Origem de coleta da pistola",
+                        "PISTOLETE":       "Origem de coleta do pistolete",
+                        "GARRUCHA":        "Origem de coleta da garrucha",
+                        "ESPINGARDA":      "Origem de coleta da espingarda",
+                        "CARABINA":        "Origem de coleta da carabina",
+                        "FUZIL":           "Origem de coleta do fuzil",
+                        "METRALHADORA":    "Origem de coleta da metralhadora",
+                        "SUBMETRALHADORA": "Origem de coleta da submetralhadora",
+                        "ARMA DE CHOQUE":  "Origem de coleta da arma de choque",
+                        "PÓLVORA":         "Origem de coleta da pólvora",
+                        "ESPOLETA":        "Origem de coleta da espoleta",
+                        "CARREGADOR":      "Origem de coleta do carregador",
                       }
                       const label = origemLabel[activeWeapon?.type as WeaponType] ?? "Origem"
                       return (
                         <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-4 shadow-sm">
                           <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8d7854]">{label}</div>
-                          <div className={`grid gap-2 ${(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR","ARMA DE PRESSÃO","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "grid-cols-2" : "grid-cols-3"}`}>
+                          <div className={`grid gap-2 ${(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR","ARMA DE PRESSÃO","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "grid-cols-2" : "grid-cols-3"}`}>
                             {(
-                              (["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR","ARMA DE PRESSÃO","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
+                              (["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR","ARMA DE PRESSÃO","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
                                 ? [
                                     { id: "DELEGACIA", label: "Delegacia", Icon: Building2 },
                                     { id: "LOCAL",     label: "Local",     Icon: MapPin    },
@@ -1860,7 +1864,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {!(["PROJÉTIL","PÓLVORA","ESPOLETA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && <div className="space-y-5">
                     <div className="grid gap-5 md:grid-cols-4">
                       {/* Identificação — armas de fogo usam campo próprio; demais usam model */}
-                      {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                      {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                         <div>
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             Identificação
@@ -1871,7 +1875,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             placeholder="Ex.: RT 627, REP 001/2025…" />
                         </div>
                       )}
-                      {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && !(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                      {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && !(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                         <div>
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             {activeWeapon?.type === "CARTUCHO" ? "Tipo" : "Identificação"}
@@ -1887,7 +1891,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       )}
                       {/* Fabricante e Modelo com Catálogo Integrado */}
-                      {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA", "ESTOJO", "CARTUCHO"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                      {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA","ESTOJO","CARTUCHO"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                         <>
                           {/* Picker Fabricante */}
                           <div>
@@ -2026,7 +2030,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
 
                     {/* Tipo de produção — apenas armas de fogo */}
-                    {(["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                    {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                       <div className="rounded-2xl border border-[#d3c4a8] bg-white p-4 shadow-sm">
                         <label className="mb-3 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de produção</label>
                         <div className="flex gap-2">
@@ -2086,10 +2090,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                   placeholder={
                                     activeWeapon?.type === "REVÓLVER" ? "Ex.: TE123456" :
                                     activeWeapon?.type === "PISTOLA" ? "Ex.: T1G23456" :
+                                    activeWeapon?.type === "PISTOLETE" ? "Ex.: T1G23456" :
+                                    activeWeapon?.type === "GARRUCHA" ? "Ex.: GR123456" :
                                     activeWeapon?.type === "ESPINGARDA" ? "Ex.: SG-123456" :
                                     activeWeapon?.type === "CARABINA" ? "Ex.: CB123456" :
                                     activeWeapon?.type === "FUZIL" ? "Ex.: FZ123456" :
                                     activeWeapon?.type === "METRALHADORA" ? "Ex.: MT123456" :
+                                    activeWeapon?.type === "SUBMETRALHADORA" ? "Ex.: SM123456" :
+                                    activeWeapon?.type === "ARMA DE CHOQUE" ? "Ex.: AC123456" :
                                     "Ex.: ABC-123456"
                                   }
                                 />
@@ -2571,8 +2579,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                   )}
 
-                  {/* ── PISTOLA ── */}
-                  {activeWeapon?.type === "PISTOLA" && (
+                  {/* ── PISTOLA / PISTOLETE ── */}
+                  {(activeWeapon?.type === "PISTOLA" || activeWeapon?.type === "PISTOLETE") && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
                         <div className="mb-4">
@@ -3213,8 +3221,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                   )}
 
-                  {/* ── METRALHADORA ── */}
-                  {activeWeapon?.type === "METRALHADORA" && (
+                  {/* ── METRALHADORA / SUBMETRALHADORA ── */}
+                  {(activeWeapon?.type === "METRALHADORA" || activeWeapon?.type === "SUBMETRALHADORA") && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
                         <div className="mb-4">
@@ -4144,6 +4152,168 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                   )}
 
+                  {/* ── GARRUCHA ── */}
+                  {activeWeapon?.type === "GARRUCHA" && (
+                    <div className="space-y-4">
+                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        <div className="grid gap-5">
+                          <div>
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de canos</label>
+                            <div className="grid grid-cols-3 gap-2">
+                              {["1","2","Indeterminado"].map(v => (
+                                <button key={v} type="button"
+                                  onClick={() => setWeaponDirect("numCanos", v)}
+                                  className={`rounded-xl border-2 py-3 text-[13px] font-black uppercase tracking-wide transition active:scale-[.97] ${activeWeapon?.numCanos === v ? "border-[#9e7f45] bg-[#12213d] text-[#f0d08a]" : "border-[#d3c4a8] bg-white text-[#26221b]"}`}>
+                                  {v}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Comprimento do cano (cm)</label>
+                            <input value={activeWeapon?.compCano ?? ""} onChange={handleWeaponField("compCano")}
+                              className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                              placeholder="Ex.: 7,5" />
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Comprimento total (cm)</label>
+                            <input value={activeWeapon?.compTotal ?? ""} onChange={handleWeaponField("compTotal")}
+                              className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                              placeholder="Ex.: 15,0" />
+                          </div>
+                        </div>
+                      </CollapsibleSection>
+
+                      <CollapsibleSection title="Mecanismo de funcionamento" defaultOpen={true}>
+                        <div className="space-y-3">
+                          {[
+                            { key: "caoFuncional",     label: "Cão funcional" },
+                            { key: "gatilhoFuncional", label: "Gatilho funcional" },
+                            { key: "seguranca",        label: "Segurança presente e funcional" },
+                          ].map(({ key, label }) => (
+                            <label key={key} className="flex items-center justify-between rounded-xl border border-[#e5d9c3] bg-white px-4 py-3">
+                              <span className="text-[15px] font-medium text-[#26221b]">{label}</span>
+                              <input type="checkbox" checked={(activeWeapon as any)?.[key] ?? false}
+                                onChange={e => setWeaponDirect(key as any, e.target.checked)}
+                                className="h-5 w-5 accent-[#9e7f45]" />
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+
+                      <CollapsibleSection title="Estado de conservação" defaultOpen={false}>
+                        <div className="space-y-3">
+                          {[
+                            { key: "ferrugem",       label: "Ferrugem",         obsKey: "ferrugemObs" },
+                            { key: "desgaste",       label: "Desgaste",         obsKey: "desgasteObs" },
+                            { key: "danoEstruturais",label: "Danos estruturais", obsKey: "danoEstruturaisObs" },
+                            { key: "pecasFaltantes", label: "Peças faltantes",   obsKey: "pecasFaltantesObs" },
+                          ].map(({ key, label, obsKey }) => (
+                            <div key={key}>
+                              <label className="flex items-center justify-between rounded-xl border border-[#e5d9c3] bg-white px-4 py-3">
+                                <span className="text-[15px] font-medium text-[#26221b]">{label}</span>
+                                <input type="checkbox" checked={(activeWeapon as any)?.[key] ?? false}
+                                  onChange={e => setWeaponDirect(key as any, e.target.checked)}
+                                  className="h-5 w-5 accent-[#9e7f45]" />
+                              </label>
+                              {(activeWeapon as any)?.[key] && (
+                                <input value={(activeWeapon as any)?.[obsKey] ?? ""} onChange={handleWeaponField(obsKey as any)}
+                                  className="mt-2 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] shadow-sm"
+                                  placeholder="Observações…" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+
+                      <CollapsibleSection title="Aptidão para disparo" defaultOpen={true}>
+                        <div className="space-y-3">
+                          {[
+                            { key: "aptoDisparo",      label: "Apta para disparo" },
+                            { key: "testePercussao",   label: "Percussão funcional no teste" },
+                          ].map(({ key, label }) => (
+                            <label key={key} className="flex items-center justify-between rounded-xl border border-[#e5d9c3] bg-white px-4 py-3">
+                              <span className="text-[15px] font-medium text-[#26221b]">{label}</span>
+                              <input type="checkbox" checked={(activeWeapon as any)?.[key] ?? false}
+                                onChange={e => setWeaponDirect(key as any, e.target.checked)}
+                                className="h-5 w-5 accent-[#9e7f45]" />
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+                    </div>
+                  )}
+
+                  {/* ── ARMA DE CHOQUE ── */}
+                  {activeWeapon?.type === "ARMA DE CHOQUE" && (
+                    <div className="space-y-4">
+                      <CollapsibleSection title="Características" defaultOpen={true}>
+                        <div className="grid gap-5">
+                          <div>
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo / sistema</label>
+                            <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
+                              className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
+                              <span className={`truncate text-[16px] ${activeWeapon?.sistemaAcionamento ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                {activeWeapon?.sistemaAcionamento || "Selecionar tipo…"}
+                              </span>
+                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                            </button>
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
+                            <button type="button" onClick={() => setPaisPickerOpen(true)}
+                              className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
+                              <span className={`truncate text-[16px] ${activeWeapon?.paisFabricacao ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                {activeWeapon?.paisFabricacao || "Selecionar país…"}
+                              </span>
+                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                            </button>
+                          </div>
+                        </div>
+                      </CollapsibleSection>
+
+                      <CollapsibleSection title="Funcionamento" defaultOpen={true}>
+                        <div className="space-y-3">
+                          {[
+                            { key: "aptoDisparo",      label: "Dispositivo funcional (produz choque)" },
+                            { key: "gatilhoFuncional", label: "Gatilho / acionador funcional" },
+                            { key: "seguranca",        label: "Trava de segurança presente e funcional" },
+                          ].map(({ key, label }) => (
+                            <label key={key} className="flex items-center justify-between rounded-xl border border-[#e5d9c3] bg-white px-4 py-3">
+                              <span className="text-[15px] font-medium text-[#26221b]">{label}</span>
+                              <input type="checkbox" checked={(activeWeapon as any)?.[key] ?? false}
+                                onChange={e => setWeaponDirect(key as any, e.target.checked)}
+                                className="h-5 w-5 accent-[#9e7f45]" />
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+
+                      <CollapsibleSection title="Estado de conservação" defaultOpen={false}>
+                        <div className="space-y-3">
+                          {[
+                            { key: "danoEstruturais", label: "Danos estruturais", obsKey: "danoEstruturaisObs" },
+                            { key: "pecasFaltantes",  label: "Peças / componentes faltantes", obsKey: "pecasFaltantesObs" },
+                          ].map(({ key, label, obsKey }) => (
+                            <div key={key}>
+                              <label className="flex items-center justify-between rounded-xl border border-[#e5d9c3] bg-white px-4 py-3">
+                                <span className="text-[15px] font-medium text-[#26221b]">{label}</span>
+                                <input type="checkbox" checked={(activeWeapon as any)?.[key] ?? false}
+                                  onChange={e => setWeaponDirect(key as any, e.target.checked)}
+                                  className="h-5 w-5 accent-[#9e7f45]" />
+                              </label>
+                              {(activeWeapon as any)?.[key] && (
+                                <input value={(activeWeapon as any)?.[obsKey] ?? ""} onChange={handleWeaponField(obsKey as any)}
+                                  className="mt-2 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] shadow-sm"
+                                  placeholder="Observações…" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+                    </div>
+                  )}
+
                   {/* ── FACA ── */}
                   {activeWeapon?.type === "FACA" && (
                     <div className="space-y-4">
@@ -4718,7 +4888,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   )}
 
                   {/* ── Acessórios e Embalagem (opcional) ── */}
-                  {(["REVÓLVER", "PISTOLA", "ESPINGARDA", "CARABINA", "FUZIL", "METRALHADORA", "ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (() => {
+                  {(["REVÓLVER", "PISTOLA", "PISTOLETE", "GARRUCHA", "ESPINGARDA", "CARABINA", "FUZIL", "METRALHADORA", "SUBMETRALHADORA", "ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (() => {
                     const hasData = !!(
                       (activeWeapon?.tipoAcessorio?.length ?? 0) > 0 ||
                       activeWeapon?.lacreEntradaAcessorio ||
@@ -5080,9 +5250,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   </div>
                   <div className="max-h-[60vh] overflow-y-auto p-4 space-y-2">
                     {([
-                      { label: "Armas de fogo",           types: ["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"] },
+                      { label: "Armas de fogo",           types: ["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] },
                       { label: "Munição e componentes",   types: ["PROJÉTIL","CARTUCHO","ESTOJO","ESPOLETA","PÓLVORA","CARREGADOR"] },
-                      { label: "Outras armas",            types: ["FACA","ARMA DE PRESSÃO"] },
+                      { label: "Outras armas",            types: ["FACA","ARMA DE PRESSÃO","ARMA DE CHOQUE"] },
                     ] as { label: string; types: WeaponType[] }[]).map(group => (
                       <div key={group.label}>
                         <div className="mb-1 px-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#9e8255]">{group.label}</div>
@@ -5210,11 +5380,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     const base = ["Mira", "Coldre", "Capa", "Maletas", "Varetas", "Recipientes", "Balança", "Caixas"]
                     const t = activeWeapon?.type
                     if (t === "ARMA DE ANTECARGA") return base
-                    if (t === "REVÓLVER") return ["Mira", "Carregador", ...base.filter(i => i !== "Mira")]
-                    if (t === "PISTOLA" || t === "CARABINA") return ["Mira", "Carregador", ...base.filter(i => i !== "Mira")]
+                    if (t === "REVÓLVER" || t === "GARRUCHA") return ["Mira", "Carregador", ...base.filter(i => i !== "Mira")]
+                    if (t === "PISTOLA" || t === "PISTOLETE" || t === "CARABINA") return ["Mira", "Carregador", ...base.filter(i => i !== "Mira")]
                     if (t === "ESPINGARDA") return ["Mira", "Carregador", "Cano Sobressalente", ...base.filter(i => i !== "Mira")]
                     if (t === "FUZIL") return ["Mira", "Carregador", "Bipé", ...base.filter(i => i !== "Mira")]
                     if (t === "METRALHADORA") return ["Mira", "Carregador", "Bipé", "Cinto de munição", ...base.filter(i => i !== "Mira")]
+                    if (t === "SUBMETRALHADORA") return ["Mira", "Carregador", "Supressor", "Coronha", ...base.filter(i => i !== "Mira")]
+                    if (t === "ARMA DE CHOQUE") return ["Carregador / Bateria", "Ponteiras / Dardos", ...base.filter(i => i !== "Mira")]
                     return base
                   })().map((acc) => {
                     const selected = (activeWeapon as any)?.tipoAcessorio?.includes(acc);

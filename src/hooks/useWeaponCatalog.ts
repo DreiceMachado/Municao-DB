@@ -4,12 +4,14 @@ import { catalogDb, type CatalogWeapon as FichaCatalogo } from "../lib/catalogDb
 
 // Mapeamento de tipos do Balística → tipos do catálogo (armas_brasil.py)
 const TIPO_BALISTICADB_PARA_CATALOGO: Partial<Record<WeaponType, string>> = {
-  "PISTOLA":      "Pistola",
-  "REVÓLVER":     "Revólver",
-  "ESPINGARDA":   "Espingarda",
-  "FUZIL":        "Fuzil",
-  "CARABINA":     "Carabina",
-  "METRALHADORA": "Submetralhadora",
+  "PISTOLA":        "Pistola",
+  "PISTOLETE":      "Pistola",
+  "REVÓLVER":       "Revólver",
+  "ESPINGARDA":     "Espingarda",
+  "FUZIL":          "Fuzil",
+  "CARABINA":       "Carabina",
+  "SUBMETRALHADORA":"Submetralhadora",
+  "GARRUCHA":       "Garrucha",
 }
 
 // Exporta o tipo para ser usado em outros lugares se necessário

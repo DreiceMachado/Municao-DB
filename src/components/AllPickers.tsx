@@ -4,7 +4,7 @@ import { X } from "lucide-react"
 import { useWeaponForm } from "../context/WeaponFormContext"
 import type { WeaponType } from "../types"
 
-const FIREARMS: WeaponType[] = ["REVÓLVER", "PISTOLA", "ESPINGARDA", "CARABINA", "FUZIL", "METRALHADORA", "ARMA DE ANTECARGA"]
+const FIREARMS: WeaponType[] = ["REVÓLVER", "PISTOLA", "PISTOLETE", "GARRUCHA", "ESPINGARDA", "CARABINA", "FUZIL", "METRALHADORA", "SUBMETRALHADORA", "ARMA DE ANTECARGA"]
 
 const sheetClass = "fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
 const backdropClass = "fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
@@ -159,6 +159,32 @@ export function AllPickers(props: PickersProps) {
       { l: "Óptica", d: "Mira óptica acoplada" },
       redDot, outro,
     ]
+    if (weapon.type === "SUBMETRALHADORA") return [
+      { l: "Aberta fixada", d: "Mira dianteira e alça traseira fixas" },
+      { l: "Aberta regulável", d: "Alça traseira com ajuste de elevação e/ou deriva" },
+      redDot,
+      { l: "Holográfica", d: "Mira holográfica de visão aberta" },
+      { l: "Colimador", d: "Colimador reflex" },
+      { l: "Noturna (tritium)", d: "Insertos de trítio para uso noturno" },
+      { l: "Laser", d: "Mira laser acoplada" },
+      { l: "BUIS (ferro de reserva)", d: "Mira de ferro dobrável de backup" },
+      outro,
+    ]
+    if (weapon.type === "GARRUCHA") return [
+      { l: "Sem mira / rudimentar", d: "Sem sistema de mira formal; alinhamento visual pelo cano" },
+      { l: "Ponto frontal", d: "Apenas referência frontal fixada no cano" },
+      { l: "Aberta simples", d: "Ponto frontal e entalhe traseiro rudimentares" },
+      outro,
+    ]
+    if (weapon.type === "PISTOLETE") return [
+      { l: "Aberta fixada", d: "Mira dianteira e alça traseira fixas, sem regulagem" },
+      { l: "Aberta regulável", d: "Alça traseira com ajuste de elevação e/ou deriva" },
+      redDot,
+      { l: "Noturna (tritium)", d: "Miras com insertos de trítio para visibilidade noturna" },
+      { l: "Laser", d: "Mira laser acoplada ou integrada" },
+      outro,
+    ]
+    if (weapon.type === "ARMA DE CHOQUE") return []
     if (weapon.type === "ARMA DE ANTECARGA") return [
       { l: "Alzas abertas (alça + dianteira)", d: "Mira de alça traseira e ponto frontal fixos; padrão histórico" },
       { l: "Alzas abertas reguláveis", d: "Alça traseira com ajuste de elevação; usada em rifles de precisão antigos" },
@@ -206,6 +232,22 @@ export function AllPickers(props: PickersProps) {
       { l: "Cinta / fita de munição", d: "Alimentação por correia ou fita metálica" },
       { l: "Tambor (drum)", d: "Carregador circular de alta capacidade" },
       { l: "Caixa", d: "Carregador de caixa removível" },
+      { l: "Indeterminado", d: "Não foi possível determinar" },
+    ]
+    if (weapon.type === "SUBMETRALHADORA") return [
+      { l: "Caixa reto", d: "Carregador de caixa reto removível" },
+      { l: "Caixa curvo", d: "Carregador de caixa curvo removível" },
+      { l: "Caixa estendido", d: "Carregador de maior capacidade que o original" },
+      { l: "Tambor (drum)", d: "Carregador circular de alta capacidade" },
+      { l: "Indeterminado", d: "Não foi possível determinar" },
+    ]
+    if (weapon.type === "GARRUCHA") return [
+      { l: "Não aplicável (carga direta)", d: "Garrucha de cano tombante; carga individual por câmara" },
+      { l: "Indeterminado", d: "Não foi possível determinar" },
+    ]
+    if (weapon.type === "PISTOLETE") return [
+      { l: "Caixa padrão compacto", d: "Carregador de caixa de baixa capacidade; original do fabricante" },
+      { l: "Caixa estendido", d: "Carregador de maior capacidade" },
       { l: "Indeterminado", d: "Não foi possível determinar" },
     ]
     return [{ l: "Indeterminado", d: "Não foi possível determinar" }]
@@ -260,6 +302,34 @@ export function AllPickers(props: PickersProps) {
       { l: "Semi/automático seletivo", d: "Seletor permite alternar entre semi e automático" },
       { l: "Rajada de 3 tiros", d: "Ciclo limitado a 3 disparos por acionamento" },
       { l: "Automático contínuo", d: "Disparos contínuos sem limite de rajada" },
+      { l: "Indeterminado", d: "Sistema não pôde ser determinado" },
+    ]
+    if (weapon.type === "SUBMETRALHADORA") return [
+      { l: "Semi-automático", d: "Um disparo por acionamento do gatilho; cicla automaticamente" },
+      { l: "Automático (open bolt)", d: "Ferrolho parte da posição aberta; padrão de submetralhadoras clássicas" },
+      { l: "Automático (closed bolt)", d: "Ferrolho fecha antes do disparo; maior precisão no primeiro tiro" },
+      { l: "Semi/automático seletivo", d: "Seletor permite alternar entre semi e automático" },
+      { l: "Rajada de 3 tiros", d: "Ciclo limitado a 3 disparos por acionamento" },
+      { l: "Indeterminado", d: "Sistema não pôde ser determinado" },
+    ]
+    if (weapon.type === "GARRUCHA") return [
+      { l: "Ação simples (SA)", d: "Cão deve ser amartilhado manualmente antes de cada disparo" },
+      { l: "Ação dupla (DA)", d: "Gatilho arma e dispara o cão em um único movimento" },
+      { l: "Canos tombantes (break-action)", d: "Cano(s) tombam para baixo para carga/descarga" },
+      { l: "Percussão central", d: "Ignição por espoleta centralizada no cartucho" },
+      { l: "Indeterminado", d: "Sistema não pôde ser determinado" },
+    ]
+    if (weapon.type === "PISTOLETE") return [
+      { l: "Ação simples (SA)", d: "Cão externo amartilhado manualmente; gatilho apenas dispara" },
+      { l: "Ação dupla / ação simples (DA/SA)", d: "Primeiro disparo DA; seguintes SA" },
+      { l: "Ação dupla exclusiva (DAO)", d: "Todo disparo pelo gatilho; cão retorna ao repouso sempre" },
+      { l: "Striker-fired (percussor armado)", d: "Percussor interno parcialmente armado pelo ciclo do ferrolho" },
+      { l: "Indeterminado", d: "Sistema não pôde ser determinado" },
+    ]
+    if (weapon.type === "ARMA DE CHOQUE") return [
+      { l: "Eletrochoque direto (stun gun)", d: "Contato direto com eletrodos; descarga de alta tensão" },
+      { l: "Projétil condutor (Taser)", d: "Dispara dardos condutores por fios; alcance à distância" },
+      { l: "Bastão elétrico", d: "Bastão com eletrodos nas extremidades; uso por contato" },
       { l: "Indeterminado", d: "Sistema não pôde ser determinado" },
     ]
     if (weapon.type === "ARMA DE ANTECARGA") return [
@@ -355,10 +425,6 @@ export function AllPickers(props: PickersProps) {
       { l: "Indeterminado", d: "Calibre não pôde ser determinado" },
     ]
     if (weapon.type === "METRALHADORA") return [
-      { l: "9 mm Luger (9×19mm)", d: "Submetralhadoras; HK MP5, Uzi, INA M953" },
-      { l: ".45 ACP", d: "Thompson M1921/M1928" },
-      { l: ".40 S&W", d: "Submetralhadoras policiais modernas" },
-      { l: ".380 ACP", d: "Submetralhadoras compactas de porte" },
       { l: "5,56×45 mm NATO", d: "Metralhadoras leves; Minimi/M249" },
       { l: "7,62×51 mm NATO", d: "Metralhadoras médias; MAG58/M240" },
       { l: "7,62×39 mm", d: "RPK, PKM" },
@@ -367,6 +433,45 @@ export function AllPickers(props: PickersProps) {
       { l: "14,5×114 mm", d: "KPV; metralhadoras antiaéreas soviéticas" },
       { l: "Outro", d: "Informar calibre não listado" },
       { l: "Indeterminado", d: "Calibre não pôde ser determinado" },
+    ]
+    if (weapon.type === "SUBMETRALHADORA") return [
+      { l: "9 mm Luger (9×19mm)", d: "Mais comum; HK MP5, Uzi, INA M953, Taurus CT9" },
+      { l: ".45 ACP", d: "Thompson M1921/M1928; alta energia" },
+      { l: ".40 S&W", d: "Submetralhadoras policiais modernas" },
+      { l: ".380 ACP (9mm Curto)", d: "Submetralhadoras compactas de porte" },
+      { l: "5,7×28 mm FN", d: "FN P90; alta penetração em coletes" },
+      { l: "10 mm Auto", d: "Alta energia; uso policial especializado" },
+      { l: "Outro", d: "Informar calibre não listado" },
+      { l: "Indeterminado", d: "Calibre não pôde ser determinado" },
+    ]
+    if (weapon.type === "GARRUCHA") return [
+      { l: ".22 LR", d: "Rimfire; garruchas de pequeno porte" },
+      { l: ".22 WMR (.22 Mag)", d: "Rimfire magnum; maior energia" },
+      { l: ".25 ACP (6,35mm)", d: "Garruchas compactas de porte dissimulado" },
+      { l: ".32 ACP (7,65mm)", d: "Antigo padrão; garruchas de porte" },
+      { l: ".38 SPL", d: "Padrão policial brasileiro; garruchas de dois canos" },
+      { l: ".357 Magnum", d: "Alta energia; garruchas de maior porte" },
+      { l: ".44 Magnum", d: "Garruchas de grande porte" },
+      { l: ".45 Colt", d: "Clássico americano; garruchas históricas" },
+      { l: ".45 ACP", d: "Garruchas modernas de grande calibre" },
+      { l: ".410 Bore (2½\")", d: "Calibre de espingarda; garruchas mistas" },
+      { l: "9 mm Luger", d: "Garruchas modernas de porte" },
+      { l: "Outro", d: "Informar calibre não listado" },
+      { l: "Indeterminado", d: "Calibre não pôde ser determinado" },
+    ]
+    if (weapon.type === "PISTOLETE") return [
+      { l: ".22 LR", d: "Rimfire; pistoletes de treinamento e porte" },
+      { l: ".25 ACP (6,35mm)", d: "Pistoletes compactos de porte dissimulado" },
+      { l: ".32 ACP (7,65mm)", d: "Antigo padrão policial; pistoletes compactos" },
+      { l: ".380 ACP (9mm Curto)", d: "O mais comum em pistoletes modernos" },
+      { l: "9 mm Luger (9×19mm)", d: "Pistoletes subcompactos modernos" },
+      { l: ".40 S&W", d: "Pistoletes policiais compactos" },
+      { l: ".45 ACP", d: "Pistoletes de grande calibre" },
+      { l: "Outro", d: "Informar calibre não listado" },
+      { l: "Indeterminado", d: "Calibre não pôde ser determinado" },
+    ]
+    if (weapon.type === "ARMA DE CHOQUE") return [
+      { l: "Não aplicável", d: "Armas de choque não utilizam munição convencional" },
     ]
     if (weapon.type === "PROJÉTIL") return [
       { l: ".22 LR / .22 WMR",         d: "Ø 5,6 mm — rimfire; revólveres e pistolas de treinamento" },

@@ -99,8 +99,9 @@ CREATE TABLE pecas (
   id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   laudo_id             UUID NOT NULL REFERENCES laudos (id) ON DELETE CASCADE,
   tipo                 TEXT NOT NULL CHECK (tipo IN (
-                         'REVÓLVER', 'PISTOLA', 'ESPINGARDA', 'CARABINA',
-                         'FUZIL', 'METRALHADORA',
+                         'REVÓLVER', 'PISTOLA', 'PISTOLETE', 'GARRUCHA',
+                         'ESPINGARDA', 'CARABINA', 'FUZIL',
+                         'METRALHADORA', 'SUBMETRALHADORA', 'ARMA DE CHOQUE',
                          'PROJÉTIL', 'ESTOJO', 'CARTUCHO',
                          'FACA',
                          'ARMA DE PRESSÃO', 'ARMA DE ANTECARGA',
