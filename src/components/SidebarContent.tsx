@@ -2,6 +2,7 @@ import logo from "../assets/logo.png"
 import {
   BarChart3,
   Crosshair,
+  Download,
   FolderKanban,
   LayoutDashboard,
   RefreshCw,
@@ -64,7 +65,8 @@ export function SidebarContent({ activeSection, onSectionChange, onOpenProfile }
           {navItem("inicio",    "Início",          LayoutDashboard)}
           {navItem("exames",    "Exames de Armas", Crosshair)}
           {navItem("registros",   "Registros",       FolderKanban)}
-          {navItem("sincronizar", "Sincronizar",    RefreshCw)}
+          {navItem("importar",    "Importar REPs",   Download)}
+          {navItem("sincronizar", "Exportar",       RefreshCw)}
           {navItem("dados",       "Dados",          BarChart3)}
         </div>
 

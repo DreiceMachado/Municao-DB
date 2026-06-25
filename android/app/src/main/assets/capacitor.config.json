@@ -1,0 +1,11 @@
+{
+	"appId": "com.dreice.municaodb",
+	"appName": "MunicaoDB",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https"
+	},
+	"ios": {
+		"contentInset": "automatic"
+	}
+}

@@ -214,6 +214,23 @@ app.post('/api/gdl/atualizar', async (req, res) => {
   return res.json(resultado)
 })
 
+// ── Buscar REPs designadas (B601 + B602) no GDL ──────────────────────────────
+app.post('/api/gdl/importar-designadas', async (_req, res) => {
+  try {
+    await execFileAsync(PYTHON, ['-X', 'utf8', 'main.py', '--buscar-designadas'], {
+      ...baseOpts(),
+      timeout: 600_000, // 10 min — pode ter muitas páginas
+    })
+  } catch (err) {
+    const detalhe = err.stdout || err.stderr || err.message
+    return res.status(500).json({ ok: false, erro: 'Falha ao buscar designadas no GDL', detalhe })
+  }
+
+  const resultado = lerUltimoJson('buscar_designadas')
+  if (!resultado) return res.status(500).json({ ok: false, erro: 'Resultado não gerado' })
+  return res.json(resultado)
+})
+
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`[API] Servidor rodando em http://127.0.0.1:${PORT}`)
 })

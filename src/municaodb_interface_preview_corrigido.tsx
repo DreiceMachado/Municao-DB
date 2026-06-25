@@ -13,6 +13,7 @@ import {
   CircleDot,
   Crosshair,
   Database,
+  Download,
   Link2,
   Loader2,
   MapPin,
@@ -34,7 +35,8 @@ import type { WeaponEntry, WeaponType, ProfileView, RepStatus } from "./types"
 import { supabase, supabaseAtivo } from "./lib/supabase"
 import { makeWeaponEntry } from "./data/constants"
 import { useLaudoDb } from "./hooks/useLaudoDb"
-import { buscarLaudoCompleto, atualizarRepStatus } from "./lib/db"
+import { db, buscarLaudoCompleto, atualizarRepStatus } from "./lib/db"
+import { generateId } from "./lib/uuid"
 import { BottomTabBar, type Section } from "./components/BottomTabBar"
 import { cn } from "./utils/cn"
 import { CollapsibleSection } from "./components/ui/CollapsibleSection"
@@ -57,6 +59,7 @@ import { useLiveQuery } from "dexie-react-hooks"
 
 const _ARMAS_FOGO_GDL: WeaponType[] = ["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"]
 const _MODEL_IDENT_GDL: WeaponType[] = ["CARREGADOR","ESTOJO","CARTUCHO","ARMA DE CHOQUE"]
+const _VINCULO_GDL: WeaponType[] = ["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE PRESSÃO","ARMA DE ANTECARGA"]
 
 function validarCamposGdlPeca(peca: WeaponEntry): string[] {
   const faltando: string[] = []
@@ -64,6 +67,7 @@ function validarCamposGdlPeca(peca: WeaponEntry): string[] {
   if (!peca.lacreEntradaPeca) faltando.push("Lacre de Entrada")
   if (_ARMAS_FOGO_GDL.includes(peca.type) && !peca.identificacao) faltando.push("Identificação")
   if (_MODEL_IDENT_GDL.includes(peca.type) && !peca.model) faltando.push("Identificação")
+  if (_VINCULO_GDL.includes(peca.type) && peca.institucional === null) faltando.push("Vínculo da arma")
   return faltando
 }
 
@@ -142,6 +146,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [atualizandoPecas, setAtualizandoPecas] = useState(false)
   const [enviandoLote, setEnviandoLote] = useState(false)
   const [resultadoLote, setResultadoLote] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [importandoReps, setImportandoReps] = useState(false)
+  const [resultadoImportacao, setResultadoImportacao] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [importarFiltro, setImportarFiltro] = useState<"todas" | "pendentes" | "concluidas">("todas")
+  const [confirmandoLimpar, setConfirmandoLimpar] = useState(false)
   const [atualizandoPecasProgresso, setAtualizandoPecasProgresso] = useState<{ fase: string; atual: number; total: number }>({ fase: '', atual: 0, total: 0 })
   const [pieceFormOpen, setPieceFormOpen] = useState(false)
   const [typePickerOpen, setTypePickerOpen] = useState(false)
@@ -414,6 +422,78 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       setEnviandoLote(false)
       setTimeout(() => setResultadoLote(null), 6000)
     }
+  }
+
+  const handleImportarTodasReps = async () => {
+    setImportandoReps(true)
+    setResultadoImportacao(null)
+    try {
+      const resp = await fetch("/api/gdl/importar-designadas", { method: "POST" })
+      const data = await resp.json()
+      if (!resp.ok || !data.ok) {
+        setResultadoImportacao({ ok: false, msg: data.erro || "Erro ao buscar REPs no GDL." })
+        return
+      }
+
+      const reps: { numero: string; natureza: string }[] = data.reps ?? []
+      const agora = new Date().toISOString()
+      let novas = 0
+
+      for (const { numero, natureza } of reps) {
+        const partes = numero.replace(/\./g, "").split("/")
+        const examNumber = partes[0] ?? numero
+        const examYear   = partes[1] ?? new Date().getFullYear().toString()
+
+        // Não duplica — verifica se já existe pelo número+ano
+        const existe = await db.laudos
+          .where("examNumber").equals(examNumber)
+          .filter(l => l.examYear === examYear)
+          .first()
+        if (existe) continue
+
+        await db.laudos.add({
+          localId:           generateId(),
+          examNumber,
+          examYear,
+          caseNumber:        "",
+          unit:              "",
+          expert:            "",
+          date:              agora.slice(0, 10),
+          observacoes:       "",
+          naturezaExame:     natureza,
+          status:            "rascunho",
+          syncStatus:        "pending",
+          repStatus:         "importada",
+          criadoEm:          agora,
+          atualizadoEm:      agora,
+        })
+        novas++
+      }
+
+      await recarregarLista()
+      setResultadoImportacao({
+        ok:  true,
+        msg: novas > 0
+          ? `${novas} REP(s) nova(s) importada(s) de ${reps.length} encontrada(s).`
+          : `Nenhuma REP nova — ${reps.length} já estavam importadas.`,
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setResultadoImportacao({ ok: false, msg: `Erro: ${msg}` })
+    } finally {
+      setImportandoReps(false)
+      setTimeout(() => setResultadoImportacao(null), 8000)
+    }
+  }
+
+  const handleLimparReps = async () => {
+    const todos = await db.laudos.toArray()
+    const parasExcluir = todos.filter(
+      l => l.repStatus === "importada" || l.repStatus === "editando" || l.status === "rascunho"
+    )
+    await Promise.all(parasExcluir.map(l => db.laudos.delete(l.id!)))
+    await recarregarLista()
+    setConfirmandoLimpar(false)
   }
 
   // ── Atualiza GDL em sessão única: uma chamada, um browser ───────────────────
@@ -927,8 +1007,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                 return (
                   <section className="space-y-4">
                     <div className="rounded-2xl border border-[#8e7340] bg-[linear-gradient(180deg,rgba(20,35,63,.92)_0%,rgba(11,23,48,.96)_100%)] px-4 py-3 shadow-[0_6px_16px_rgba(0,0,0,.18)]">
-                      <h2 className="text-base font-black tracking-tight text-[#f0d08a] md:text-lg">Sincronização</h2>
-                      <p className="mt-0.5 text-[12px] text-[#eadab0]">Pipeline de estágios das REPs e envio ao GDL</p>
+                      <h2 className="text-base font-black tracking-tight text-[#f0d08a] md:text-lg">Exportar ao GDL</h2>
+                      <p className="mt-0.5 text-[12px] text-[#eadab0]">Pipeline de estágios e envio em lote</p>
                     </div>
 
                     {/* Painel de estágios */}
@@ -1005,25 +1085,174 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         )}
                       </div>
                     </div>
+                  </section>
+                )
+              })()}
 
-                    {/* Card — Sincronizar DB de dados */}
+              {/* ── IMPORTAR REPs ────────────────────────────────── */}
+              {activeSection === "importar" && (() => {
+                const fmtDate = (iso: string) => {
+                  if (!iso) return "—"
+                  const d = new Date(iso)
+                  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
+                }
+                const STATUS_CFG: Record<string, { label: string; dot: string; text: string; btn: string; btnLabel: string }> = {
+                  importada:    { label: "A Iniciar",    dot: "bg-[#4e7ab5]",  text: "text-[#4e7ab5]",  btn: "border-[#a18449] bg-[#ece6da] text-[#7a6840]", btnLabel: "EDITAR" },
+                  editando:     { label: "Em Andamento", dot: "bg-[#b89240]",  text: "text-[#b89240]",  btn: "border-[#a18449] bg-[#ece6da] text-[#7a6840]", btnLabel: "EDITAR" },
+                  sincronizada: { label: "Pronta",       dot: "bg-[#3d9b55]",  text: "text-[#3d9b55]",  btn: "border-[#a18449] bg-[#ece6da] text-[#7a6840]", btnLabel: "EDITAR" },
+                  no_gdl:       { label: "No GDL",       dot: "bg-[#8ea4c0]",  text: "text-[#8ea4c0]",  btn: "border-[#a18449] bg-[#ece6da] text-[#7a6840]", btnLabel: "VER" },
+                }
+                const repsFiltered = laudosDB.filter(l => {
+                  if (importarFiltro === "pendentes")  return l.repStatus === "importada" || l.repStatus === "editando"
+                  if (importarFiltro === "concluidas") return l.repStatus === "sincronizada" || l.repStatus === "no_gdl"
+                  return true
+                })
+                const contPendentes  = laudosDB.filter(l => l.repStatus === "importada" || l.repStatus === "editando").length
+                const contConcluidas = laudosDB.filter(l => l.repStatus === "sincronizada" || l.repStatus === "no_gdl").length
+                return (
+                  <section className="space-y-4">
+                    <div className="rounded-2xl border border-[#8e7340] bg-[linear-gradient(180deg,rgba(20,35,63,.92)_0%,rgba(11,23,48,.96)_100%)] px-4 py-3 shadow-[0_6px_16px_rgba(0,0,0,.18)]">
+                      <h2 className="text-base font-black tracking-tight text-[#f0d08a] md:text-lg">Importar REPs</h2>
+                      <p className="mt-0.5 text-[12px] text-[#eadab0]">REPs designadas para este perito</p>
+                    </div>
+
+                    {/* Card de importação */}
                     <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
                       <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4 flex items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f0d08a]/15">
-                          <Database className="h-5 w-5 text-[#f0d08a]" />
+                          <Download className="h-5 w-5 text-[#f0d08a]" />
                         </div>
                         <div>
-                          <h3 className="text-base font-black text-[#f0d08a]">Sincronizar DB de Dados</h3>
-                          <p className="text-[11px] text-[#ccb780]">Atualiza o catálogo local de referência</p>
+                          <h3 className="text-base font-black text-[#f0d08a]">Buscar no GDL</h3>
+                          <p className="text-[11px] text-[#ccb780]">Importa REPs designadas automaticamente</p>
                         </div>
                       </div>
-                      <div className="px-5 py-5 space-y-3">
-                        <p className="text-sm text-[#6e614d]">
-                          Baixa e atualiza o catálogo local de armas, calibres e fabricantes com os dados mais recentes.
-                        </p>
-                        <button disabled className="w-full rounded-2xl border-2 border-[#a18449] bg-[#ece6da] py-4 text-sm font-black tracking-[0.10em] text-[#9e8c6e] transition disabled:opacity-60">
-                          EM DESENVOLVIMENTO
+                      <div className="px-5 py-4 space-y-3">
+                        {resultadoImportacao && (
+                          <div className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-black ${resultadoImportacao.ok ? "bg-[#1e3d1e]/10 text-[#2d6e2d]" : "bg-[#3d1e1e]/10 text-[#8b2020]"}`}>
+                            {resultadoImportacao.ok
+                              ? <CheckCircle2 className="h-4 w-4 shrink-0" />
+                              : <AlertCircle className="h-4 w-4 shrink-0" />}
+                            {resultadoImportacao.msg}
+                          </div>
+                        )}
+                        <button
+                          onClick={handleImportarTodasReps}
+                          disabled={importandoReps}
+                          className="w-full rounded-2xl border-2 border-[#1b3a6b] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-3.5 text-sm font-black tracking-[0.10em] text-[#f0d08a] shadow-[0_8px_20px_rgba(20,40,100,.30)] transition active:brightness-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {importandoReps
+                            ? <><Loader2 className="h-4 w-4 animate-spin" /> BUSCANDO NO GDL...</>
+                            : <><Download className="h-4 w-4" /> IMPORTAR TODAS AS REPs</>}
                         </button>
+                      </div>
+                    </div>
+
+                    {/* Filtros + lista */}
+                    <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                      <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-3 flex items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-base font-black text-[#f0d08a]">REPs disponíveis</h3>
+                          <p className="text-[11px] text-[#ccb780]">{laudosDB.length} no total</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {confirmandoLimpar ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-black text-[#f0a08a]">Confirmar?</span>
+                              <button
+                                onClick={handleLimparReps}
+                                className="rounded-full bg-[#8b2020] px-2.5 py-0.5 text-[10px] font-black text-white"
+                              >
+                                SIM
+                              </button>
+                              <button
+                                onClick={() => setConfirmandoLimpar(false)}
+                                className="rounded-full bg-[#f0d08a]/10 px-2.5 py-0.5 text-[10px] font-black text-[#f0d08a]/70"
+                              >
+                                NÃO
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmandoLimpar(true)}
+                              className="rounded-full bg-[#8b2020]/30 px-2.5 py-0.5 text-[10px] font-black text-[#f0a08a] hover:bg-[#8b2020]/50 transition"
+                            >
+                              Limpar
+                            </button>
+                          )}
+                        <div className="flex gap-1.5 shrink-0">
+                          {([
+                            { id: "todas",      label: "Todas",     count: laudosDB.length },
+                            { id: "pendentes",  label: "Pendentes", count: contPendentes },
+                            { id: "concluidas", label: "Prontas",   count: contConcluidas },
+                          ] as const).map(tab => (
+                            <button
+                              key={tab.id}
+                              onClick={() => setImportarFiltro(tab.id)}
+                              className={cn(
+                                "rounded-full px-2.5 py-0.5 text-[10px] font-black transition",
+                                importarFiltro === tab.id
+                                  ? "bg-[#f0d08a] text-[#12213d]"
+                                  : "bg-[#f0d08a]/10 text-[#f0d08a]/70 hover:bg-[#f0d08a]/20"
+                              )}
+                            >
+                              {tab.label}{tab.count > 0 ? ` ${tab.count}` : ""}
+                            </button>
+                          ))}
+                        </div>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-[#e8dfc8]">
+                        {repsFiltered.length === 0 ? (
+                          <div className="px-5 py-10 text-center">
+                            <Package className="h-10 w-10 mx-auto mb-2 text-[#cab88d]" />
+                            <p className="text-sm font-black text-[#6e614d]">Nenhuma REP encontrada</p>
+                            <p className="mt-1 text-xs text-[#9e8c6e]">
+                              {importarFiltro === "todas"
+                                ? "Use o botão acima para importar REPs do GDL."
+                                : "Nenhuma REP neste filtro."}
+                            </p>
+                          </div>
+                        ) : repsFiltered.map(item => {
+                          const cfg = item.repStatus ? STATUS_CFG[item.repStatus] : null
+                          return (
+                            <div key={item.id} className="px-5 py-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-[15px] font-black text-[#26221b]">
+                                      REP {item.number}/{item.year}
+                                    </span>
+                                    {cfg && (
+                                      <span className={`flex items-center gap-1 text-[10px] font-black ${cfg.text}`}>
+                                        <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+                                        {cfg.label}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="mt-1 space-y-0.5">
+                                    {item.unit && (
+                                      <p className="text-[12px] text-[#6a5c45] truncate">{item.unit}</p>
+                                    )}
+                                    {item.model && item.model !== "—" && (
+                                      <p className="text-[11px] text-[#9e8c6e] truncate">BC: {item.model}</p>
+                                    )}
+                                    <p className="text-[10px] text-[#b5a07e]">Atualizado: {fmtDate(item.updatedAt)}</p>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleEditarLaudo(item.id)}
+                                  className={cn(
+                                    "shrink-0 rounded-2xl border-2 px-4 py-2.5 text-[11px] font-black tracking-[0.08em] transition active:brightness-95",
+                                    cfg ? cfg.btn : "border-[#a18449] bg-[#ece6da] text-[#7a6840]"
+                                  )}
+                                >
+                                  {cfg ? cfg.btnLabel : "EDITAR"}
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
                   </section>
@@ -1829,7 +2058,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE PRESSÃO","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                       <div className="overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
                         <div className="border-b border-[#e8dfc8] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-4 py-3">
-                          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[#ccb780]">Vínculo da arma</div>
+                          <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-[#ccb780]">
+                            Vínculo da arma
+                            <span className="text-[#c87070] text-[11px] font-black leading-none">*</span>
+                          </div>
                         </div>
                         <div className="grid grid-cols-2 divide-x divide-[#e8dfc8]">
                           {([

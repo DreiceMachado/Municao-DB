@@ -2,11 +2,12 @@ import os           from 'os'
 import fs           from 'fs'
 import path         from 'path'
 import { fileURLToPath } from 'url'
-import { execSync, exec } from 'child_process'
+import { execSync, exec, execFile } from 'child_process'
 import { promisify }  from 'util'
 import express        from 'express'
 
-const execAsync = promisify(exec)
+const execAsync     = promisify(exec)
+const execFileAsync = promisify(execFile)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT      = 3000
 const DIST      = path.join(__dirname, 'dist')
@@ -104,6 +105,48 @@ app.post('/api/rep', async (req, res) => {
 
   const conteudo = JSON.parse(fs.readFileSync(path.join(DADOS, arquivos[0]), 'utf8'))
   return res.json(conteudo)
+})
+
+// ── Helpers GDL ──────────────────────────────────────────────────────────────
+
+const PYTHON_WIN = 'C:\\Users\\dreic\\AppData\\Local\\Programs\\Python\\Python313\\python.exe'
+
+function baseOpts() {
+  return {
+    cwd:       AUTOMACAO,
+    timeout:   600_000,
+    maxBuffer: 10 * 1024 * 1024,
+    env: {
+      ...process.env,
+      PYTHONIOENCODING: 'utf-8',
+      PYTHONUTF8:       '1',
+    },
+  }
+}
+
+function lerUltimoJson(prefixo) {
+  try {
+    const arquivos = fs.readdirSync(DADOS)
+      .filter(f => f.startsWith(prefixo) && f.endsWith('.json'))
+      .sort()
+      .reverse()
+    if (!arquivos.length) return null
+    return JSON.parse(fs.readFileSync(path.join(DADOS, arquivos[0]), 'utf8'))
+  } catch { return null }
+}
+
+// ── Buscar REPs designadas (B601 + B602) no GDL ──────────────────────────────
+app.post('/api/gdl/importar-designadas', async (_req, res) => {
+  try {
+    await execFileAsync(PYTHON_WIN, ['-X', 'utf8', 'main.py', '--buscar-designadas'], baseOpts())
+  } catch (err) {
+    const detalhe = err.stdout || err.stderr || err.message
+    return res.status(500).json({ ok: false, erro: 'Falha ao buscar designadas no GDL', detalhe })
+  }
+
+  const resultado = lerUltimoJson('buscar_designadas')
+  if (!resultado) return res.status(500).json({ ok: false, erro: 'Resultado não gerado' })
+  return res.json(resultado)
 })
 
 // SPA fallback — Express 5 substituiu '*' por regex
