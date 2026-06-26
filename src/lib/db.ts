@@ -80,6 +80,11 @@ class MunicaoDatabase extends Dexie {
       armas:  "++id, localId, laudoLocalId, syncStatus",
       fotos:  "++id, localId, laudoLocalId, armaLocalId, syncStatus",
     })
+    this.version(3).stores({
+      laudos: "++id, localId, examNumber, syncStatus, status, repStatus, criadoEm",
+      armas:  "++id, localId, laudoLocalId, syncStatus",
+      fotos:  "++id, localId, laudoLocalId, armaLocalId, syncStatus",
+    })
   }
 }
 
@@ -218,4 +223,15 @@ export async function atualizarRepStatus(localId: string, repStatus: RepStatus):
   if (laudo?.id != null) {
     await db.laudos.update(laudo.id, { repStatus, atualizadoEm: new Date().toISOString() })
   }
+}
+
+/** Remove todas as REPs do banco local do app */
+export async function limparRepsLocais(): Promise<number> {
+  const count = await db.laudos.count()
+  await db.transaction("rw", db.laudos, db.armas, db.fotos, async () => {
+    await db.fotos.clear()
+    await db.armas.clear()
+    await db.laudos.clear()
+  })
+  return count
 }

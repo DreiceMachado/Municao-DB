@@ -35,7 +35,7 @@ import type { WeaponEntry, WeaponType, ProfileView, RepStatus } from "./types"
 import { supabase, supabaseAtivo } from "./lib/supabase"
 import { makeWeaponEntry } from "./data/constants"
 import { useLaudoDb } from "./hooks/useLaudoDb"
-import { db, buscarLaudoCompleto, atualizarRepStatus } from "./lib/db"
+import { db, buscarLaudoCompleto, atualizarRepStatus, limparRepsLocais } from "./lib/db"
 import { generateId } from "./lib/uuid"
 import { BottomTabBar, type Section } from "./components/BottomTabBar"
 import { cn } from "./utils/cn"
@@ -444,10 +444,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
         const examNumber = partes[0] ?? numero
         const examYear   = partes[1] ?? new Date().getFullYear().toString()
 
-        // Não duplica — verifica se já existe pelo número+ano
+        // Não duplica — verifica se já existe pelo número+ano (filter não exige índice)
         const existe = await db.laudos
-          .where("examNumber").equals(examNumber)
-          .filter(l => l.examYear === examYear)
+          .filter(l => l.examNumber === examNumber && l.examYear === examYear)
           .first()
         if (existe) continue
 
@@ -487,13 +486,16 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   }
 
   const handleLimparReps = async () => {
-    const todos = await db.laudos.toArray()
-    const parasExcluir = todos.filter(
-      l => l.repStatus === "importada" || l.repStatus === "editando" || l.status === "rascunho"
-    )
-    await Promise.all(parasExcluir.map(l => db.laudos.delete(l.id!)))
+    const removidas = await limparRepsLocais()
     await recarregarLista()
     setConfirmandoLimpar(false)
+    setResultadoImportacao({
+      ok: removidas > 0,
+      msg: removidas > 0
+        ? `${removidas} REP(s) removida(s) do app.`
+        : "Nenhuma REP encontrada para remover.",
+    })
+    setTimeout(() => setResultadoImportacao(null), 5000)
   }
 
   // ── Atualiza GDL em sessão única: uma chamada, um browser ───────────────────
@@ -1150,24 +1152,25 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                     {/* Filtros + lista */}
                     <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
-                      <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-3 flex items-center justify-between gap-3">
-                        <div>
-                          <h3 className="text-base font-black text-[#f0d08a]">REPs disponíveis</h3>
-                          <p className="text-[11px] text-[#ccb780]">{laudosDB.length} no total</p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                      <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-3 space-y-2">
+                        {/* Linha 1: título + botão Limpar */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <h3 className="text-base font-black text-[#f0d08a]">REPs disponíveis</h3>
+                            <p className="text-[11px] text-[#ccb780]">{laudosDB.length} no total</p>
+                          </div>
                           {confirmandoLimpar ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-black text-[#f0a08a]">Confirmar?</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-[11px] font-black text-[#f0a08a]">Confirmar?</span>
                               <button
                                 onClick={handleLimparReps}
-                                className="rounded-full bg-[#8b2020] px-2.5 py-0.5 text-[10px] font-black text-white"
+                                className="rounded-xl bg-[#8b2020] px-4 py-2 text-[12px] font-black text-white active:brightness-90 transition"
                               >
                                 SIM
                               </button>
                               <button
                                 onClick={() => setConfirmandoLimpar(false)}
-                                className="rounded-full bg-[#f0d08a]/10 px-2.5 py-0.5 text-[10px] font-black text-[#f0d08a]/70"
+                                className="rounded-xl bg-[#f0d08a]/10 px-4 py-2 text-[12px] font-black text-[#f0d08a]/70 active:brightness-90 transition"
                               >
                                 NÃO
                               </button>
@@ -1175,12 +1178,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ) : (
                             <button
                               onClick={() => setConfirmandoLimpar(true)}
-                              className="rounded-full bg-[#8b2020]/30 px-2.5 py-0.5 text-[10px] font-black text-[#f0a08a] hover:bg-[#8b2020]/50 transition"
+                              className="shrink-0 rounded-xl bg-[#8b2020]/30 px-4 py-2 text-[12px] font-black text-[#f0a08a] hover:bg-[#8b2020]/50 active:brightness-90 transition"
                             >
                               Limpar
                             </button>
                           )}
-                        <div className="flex gap-1.5 shrink-0">
+                        </div>
+                        {/* Linha 2: pílulas de filtro */}
+                        <div className="flex gap-1.5">
                           {([
                             { id: "todas",      label: "Todas",     count: laudosDB.length },
                             { id: "pendentes",  label: "Pendentes", count: contPendentes },
@@ -1199,7 +1204,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               {tab.label}{tab.count > 0 ? ` ${tab.count}` : ""}
                             </button>
                           ))}
-                        </div>
                         </div>
                       </div>
                       <div className="divide-y divide-[#e8dfc8]">
