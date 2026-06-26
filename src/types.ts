@@ -199,6 +199,7 @@ export type RecordItem = {
   unit: string
   expert: string
   repStatus?: RepStatus
+  naturezaExame?: string
 }
 
 export type ExamType = "EFICIÊNCIA" | "CONSTATAÇÃO"

@@ -36,6 +36,7 @@ function laudoToRecordItem(l: Laudo): RecordItem {
     unit: l.unit,
     expert: l.expert,
     repStatus: l.repStatus,
+    naturezaExame: l.naturezaExame,
   }
 }
 
@@ -78,6 +79,7 @@ export function useLaudoDb() {
             ...form,
             syncStatus: "pending",
             atualizadoEm: agora,
+            ...(existente.repStatus === "importada" ? { repStatus: "editando" } : {}),
           })
         } else {
           await db.laudos.add({
@@ -168,6 +170,20 @@ export function useLaudoDb() {
     [laudoLocalId, recarregarLista]
   )
 
+  const descartarRascunho = useCallback(async () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    await db.transaction("rw", db.laudos, db.armas, db.fotos, async () => {
+      const existente = await db.laudos.where("localId").equals(laudoLocalId).first()
+      if (existente?.id != null) {
+        await db.armas.where("laudoLocalId").equals(laudoLocalId).delete()
+        await db.fotos.where("laudoLocalId").equals(laudoLocalId).delete()
+        await db.laudos.delete(existente.id)
+      }
+    })
+    setLaudoLocalId(generateId())
+    await recarregarLista()
+  }, [laudoLocalId, recarregarLista])
+
   return {
     laudoLocalId,
     setLaudoLocalId,
@@ -179,5 +195,6 @@ export function useLaudoDb() {
     removerFotoNoBanco,
     recarregarLista,
     atualizarRepStatus,
+    descartarRascunho,
   }
 }

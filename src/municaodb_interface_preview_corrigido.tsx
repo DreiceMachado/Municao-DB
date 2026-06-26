@@ -26,6 +26,7 @@ import {
   Search,
   User2,
   RefreshCw,
+  RotateCcw,
   Wifi,
   Wand2,
   X,
@@ -72,7 +73,7 @@ function validarCamposGdlPeca(peca: WeaponEntry): string[] {
 }
 
 export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: () => void }) {
-  const { laudoLocalId, setLaudoLocalId, laudos: laudosDB, salvarForm, finalizarLaudo, salvarPecas, salvarFotoNoBanco, removerFotoNoBanco, recarregarLista } = useLaudoDb()
+  const { laudoLocalId, setLaudoLocalId, laudos: laudosDB, salvarForm, finalizarLaudo, salvarPecas, salvarFotoNoBanco, removerFotoNoBanco, recarregarLista, descartarRascunho } = useLaudoDb()
   const [salvouExame, setSalvouExame] = useState(false)
   const [modoEdicao, setModoEdicao] = useState(false)
   const [activeSection, setActiveSection] = useState<Section>("exames")
@@ -159,6 +160,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [repMinimized, setRepMinimized] = useState(false)
   const [repGdlCarregando, setRepGdlCarregando] = useState(false)
   const [repGdlErro, setRepGdlErro] = useState<string | null>(null)
+  const [repCarregadaLocal, setRepCarregadaLocal] = useState(false)
+  const [sourceImportedRepDbId, setSourceImportedRepDbId] = useState<number | undefined>()
   const [gdlFotos, setGdlFotos] = useState<string[]>([])
   const [confirmDeleteRep, setConfirmDeleteRep] = useState(false)
   const [confirmDeleteMira, setConfirmDeleteMira] = useState(false)
@@ -261,6 +264,41 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const handleImportarGdl = async () => {
     const numLimpo = form.examNumber.trim().replace(/[^0-9]/g, '')
     if (!numLimpo) { setRepGdlErro('Digite o número da REP antes de buscar'); return }
+
+    // Verifica se já existe registro local com dados completos
+    const localRep = await db.laudos
+      .filter(l => l.examNumber === numLimpo && l.examYear === form.examYear)
+      .first()
+    if (localRep && (localRep.solicitante || localRep.remetenteOrgao || localRep.oficio)) {
+      setForm(prev => ({
+        ...prev,
+        caseNumber:         prev.caseNumber         || localRep.caseNumber         || "",
+        naturezaExame:      prev.naturezaExame      || localRep.naturezaExame      || "",
+        naturezaOcorrencia: prev.naturezaOcorrencia || localRep.naturezaOcorrencia || "",
+        solicitante:        prev.solicitante        || localRep.solicitante        || "",
+        remetenteCidade:    prev.remetenteCidade    || localRep.remetenteCidade    || "",
+        remetenteOrgao:     prev.remetenteOrgao     || localRep.remetenteOrgao     || "",
+        dataEntrada:        prev.dataEntrada        || localRep.dataEntrada        || "",
+        horaEntrada:        prev.horaEntrada        || localRep.horaEntrada        || "",
+        enderecoExame:      prev.enderecoExame      || localRep.enderecoExame      || "",
+        oficio:             prev.oficio             || localRep.oficio             || "",
+        ipApfd:             prev.ipApfd             || localRep.ipApfd             || "",
+        processo:           prev.processo           || localRep.processo           || "",
+      }))
+      if (savedPieces.length === 0) {
+        const armasImportadas = await db.armas
+          .where("laudoLocalId").equals(localRep.localId)
+          .toArray()
+        if (armasImportadas.length > 0) {
+          const pecas = armasImportadas.map(a => JSON.parse(a.dadosJson) as import("./types").WeaponEntry)
+          setSavedPieces(pecas)
+        }
+      }
+      setSourceImportedRepDbId(localRep.id)
+      setRepCarregadaLocal(true)
+      return
+    }
+
     setRepGdlCarregando(true)
     setRepGdlErro(null)
     try {
@@ -435,23 +473,72 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
         return
       }
 
-      const reps: { numero: string; natureza: string }[] = data.reps ?? []
+      const reps: Array<{
+        numero: string
+        natureza: string
+        rep?: Record<string, string>
+        grids?: Record<string, Record<string, string>[]>
+        arquivos?: { url: string; tipo: string; base64?: string }[]
+        pecas?: Record<string, string>[]
+      }> = data.reps ?? []
       const agora = new Date().toISOString()
       let novas = 0
 
-      for (const { numero, natureza } of reps) {
+      for (const rep of reps) {
+        const { numero, natureza } = rep
         const partes = numero.replace(/\./g, "").split("/")
         const examNumber = partes[0] ?? numero
         const examYear   = partes[1] ?? new Date().getFullYear().toString()
 
-        // Não duplica — verifica se já existe pelo número+ano (filter não exige índice)
+        // Não duplica — se já existe, pula
         const existe = await db.laudos
           .filter(l => l.examNumber === examNumber && l.examYear === examYear)
           .first()
         if (existe) continue
 
+        const localId = generateId()
+        let extraFields: Partial<import("./lib/db").Laudo> = {}
+
+        // Se o Python extraiu dados completos, usa mapearRepGdl
+        if (rep.rep) {
+          const gdlData: RepGdlData = {
+            rep:      rep.rep,
+            grids:    rep.grids    ?? {},
+            arquivos: rep.arquivos ?? [],
+            pecas:    rep.pecas    ?? [],
+          }
+          const { form: f, pecas: pMapeadas, lacres } = mapearRepGdl(gdlData)
+          extraFields = {
+            caseNumber:         f.caseNumber,
+            naturezaExame:      f.naturezaExame || natureza,
+            naturezaOcorrencia: f.naturezaOcorrencia,
+            solicitante:        f.solicitante,
+            remetenteCidade:    f.remetenteCidade,
+            remetenteOrgao:     f.remetenteOrgao,
+            dataEntrada:        f.dataEntrada,
+            horaEntrada:        f.horaEntrada,
+            enderecoExame:      f.enderecoExame,
+            oficio:             f.oficio,
+            ipApfd:             f.ipApfd,
+            processo:           f.processo,
+          }
+          // Salva peças em db.armas
+          if (pMapeadas.length > 0) {
+            for (const peca of pMapeadas) {
+              await db.armas.add({
+                localId:      generateId(),
+                laudoLocalId: localId,
+                tipo:         peca.type as import("./types").WeaponType,
+                dadosJson:    JSON.stringify(peca),
+                syncStatus:   "pending",
+                criadoEm:     agora,
+              })
+            }
+          }
+        }
+
         await db.laudos.add({
-          localId:           generateId(),
+          localId,
           examNumber,
           examYear,
           caseNumber:        "",
@@ -465,13 +552,16 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           repStatus:         "importada",
           criadoEm:          agora,
           atualizadoEm:      agora,
+          ...extraFields,
         })
         novas++
       }
 
       await recarregarLista()
       if (novas > 0) {
-        setResultadoImportacao({ ok: true, msg: `${novas} REP(s) nova(s) importada(s) de ${reps.length} encontrada(s).` })
+        setResultadoImportacao({ ok: true, msg: `${novas} REP(s) nova(s) importada(s) de ${reps.length} encontrada(s) com dados completos.` })
+      } else if (reps.length > 0) {
+        setResultadoImportacao({ ok: true, msg: `${reps.length} REP(s) já estavam importadas — sem duplicatas.` })
       } else {
         const logArr: string[] = Array.isArray((data as any)._log) ? (data as any)._log : []
         const resumo = logArr.slice(-15).join(" | ")
@@ -579,7 +669,22 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     const completo = await buscarLaudoCompleto(localId)
     if (!completo) return
     const { laudo, armas, fotosDoLaudo } = completo
-    setLaudoLocalId(localId)
+
+    if (laudo.repStatus) {
+      // REP importada: não muda laudoLocalId (mantém UUID fresco para rascunho separado)
+      setSourceImportedRepDbId(laudo.id)
+      setRepCarregadaLocal(true)
+      if (laudo.repStatus === "importada" && laudo.id != null) {
+        await db.laudos.update(laudo.id, { repStatus: "editando", atualizadoEm: new Date().toISOString() })
+        await recarregarLista()
+      }
+    } else {
+      // Rascunho comum: edita no lugar
+      setLaudoLocalId(localId)
+      setSourceImportedRepDbId(undefined)
+      setRepCarregadaLocal(false)
+    }
+
     setForm({
       examNumber:         laudo.examNumber        ?? '',
       examYear:           laudo.examYear          ?? '',
@@ -606,7 +711,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setActiveWeaponIdx(0)
     setPieceFormOpen(false)
     setWeaponType(null)
-    // Carrega fotos do laudo no mapa de preview
     const fotoMap = new Map<string, string>()
     for (const foto of fotosDoLaudo) {
       fotoMap.set(foto.slotLabel, foto.imagemBase64)
@@ -617,6 +721,26 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setModoEdicao(true)
     setSelectedLaudoId(null)
     setActiveSection("exames")
+  }
+
+  // Reverte status de REP editando → importada e apaga rascunho associado (se houver)
+  const handleResetRepStatus = async (itemLocalId: string, examNumber: string, examYear: string) => {
+    const rep = await db.laudos.where("localId").equals(itemLocalId).first()
+    if (rep?.id != null) {
+      await db.laudos.update(rep.id, { repStatus: "importada", atualizadoEm: new Date().toISOString() })
+    }
+    // Apaga rascunho que possa ter sido criado a partir desta REP (mesmo número, sem repStatus)
+    const rascunhos = await db.laudos
+      .filter(l => l.examNumber === examNumber && l.examYear === examYear && !l.repStatus)
+      .toArray()
+    for (const r of rascunhos) {
+      if (r.id != null) {
+        await db.armas.where("laudoLocalId").equals(r.localId).delete()
+        await db.fotos.where("laudoLocalId").equals(r.localId).delete()
+        await db.laudos.delete(r.id)
+      }
+    }
+    await recarregarLista()
   }
 
   const resetPieceForm = () => {
@@ -639,7 +763,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setEditingPieceIdx(null)
   }
 
-  const resetFullExam = () => {
+  const resetFullExam = async () => {
+    await descartarRascunho()
+    // Se veio de uma REP importada (via EDITAR), reverte status para "importada" em vez de deletar
+    if (sourceImportedRepDbId != null) {
+      await db.laudos.update(sourceImportedRepDbId, { repStatus: "importada", atualizadoEm: new Date().toISOString() })
+      await recarregarLista()
+      setSourceImportedRepDbId(undefined)
+    }
     resetPieceForm()
     setSavedPieces([])
     setColetaActivePieceIdx(null)
@@ -647,6 +778,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setPhotoUrls(new Map())
     setExamType(null)
     setRepMinimized(false)
+    setRepCarregadaLocal(false)
   }
 
   const savePiece = () => {
@@ -759,7 +891,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#09142a_0%,#0d1a34_50%,#091429_100%)] text-white">
+    <div className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#09142a_0%,#0d1a34_50%,#091429_100%)] text-white">
       <div className="min-h-screen bg-[radial-gradient(circle_at_15%_18%,rgba(245,211,128,.08),transparent_18%),radial-gradient(circle_at_90%_10%,rgba(245,211,128,.05),transparent_18%),linear-gradient(180deg,rgba(255,255,255,.01),rgba(255,255,255,0))]">
         <header className="border-b-[3px] border-[#b79248] bg-[linear-gradient(180deg,#13233f_0%,#10203b_100%)] shadow-[0_12px_28px_rgba(0,0,0,.28)]">
           <div className="border-b border-[#8e7340]/70 px-4 py-2.5 lg:px-8">
@@ -821,8 +953,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
         <div className="mx-auto flex max-w-[1800px]">
           {sidebarDesktop}
 
-          <main className="flex-1 px-4 py-5 pb-36 lg:px-8 lg:py-6 xl:px-10 xl:pb-6">
-            <div className="grid gap-6 max-w-[1060px] mx-auto">
+          <main className="flex-1 min-w-0 overflow-x-hidden px-4 py-5 pb-36 lg:px-8 lg:pt-6 lg:pb-36 xl:px-10 xl:pb-6">
+            <div className="grid gap-6 max-w-[1060px] mx-auto w-full min-w-0">
               {/* ── INÍCIO ─────────────────────────────────────────── */}
               {activeSection === "inicio" && (
                 <section className="space-y-6">
@@ -898,26 +1030,29 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       <h3 className="text-xl font-black text-[#f0d08a]">Laudos em execução</h3>
                     </div>
                     <div className="space-y-3 p-5 text-[#26221b]">
-                      {laudosDB.length === 0 && (
-                        <div className="rounded-2xl border border-dashed border-[#cab88d] bg-[#fbf8f3] px-4 py-6 text-center text-sm font-medium text-[#6e614d]">
-                          Nenhum exame em execução
-                        </div>
-                      )}
-                      {laudosDB.map((item) => (
-                        <button key={item.id} onClick={() => setSelectedLaudoId(item.id)} className="flex w-full flex-col rounded-2xl border border-[#d9ccb2] bg-[#fbf8f3] px-4 py-4 text-left transition hover:border-[#ac8d50] active:brightness-95">
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <div className="text-xl font-black tracking-tight">{item.number}/{item.year}</div>
-                              <div className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-[#67583d]">{item.unit}</div>
-                            </div>
-                            {item.repStatus
-                              ? <span className={`rounded-full px-3 py-1 text-xs font-bold tracking-[0.16em] ${REP_STATUS_BADGE[item.repStatus]}`}>{REP_STATUS_LABEL[item.repStatus]}</span>
-                              : <span className="rounded-full border border-[#d8c59b] bg-[#f2e4bc] px-3 py-1 text-xs font-bold tracking-[0.16em] text-[#5b4a2e]">Em execução</span>
-                            }
+                      {(() => {
+                        const laudosAtivos = laudosDB.filter(l => !l.repStatus)
+                        if (laudosAtivos.length === 0) return (
+                          <div className="rounded-2xl border border-dashed border-[#cab88d] bg-[#fbf8f3] px-4 py-6 text-center text-sm font-medium text-[#6e614d]">
+                            Nenhum exame em execução
                           </div>
-                          <div className="mt-2 text-sm text-[#6a5c45]">{item.expert}</div>
-                        </button>
-                      ))}
+                        )
+                        return laudosAtivos.map((item) => (
+                          <button key={item.id} onClick={() => setSelectedLaudoId(item.id)} className="flex w-full flex-col rounded-2xl border border-[#d9ccb2] bg-[#fbf8f3] px-4 py-4 text-left transition hover:border-[#ac8d50] active:brightness-95">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <div className="text-xl font-black tracking-tight">{item.number}/{item.year}</div>
+                                <div className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-[#67583d]">{item.unit}</div>
+                              </div>
+                              {item.repStatus
+                                ? <span className={`rounded-full px-3 py-1 text-xs font-bold tracking-[0.16em] ${REP_STATUS_BADGE[item.repStatus]}`}>{REP_STATUS_LABEL[item.repStatus]}</span>
+                                : <span className="rounded-full border border-[#d8c59b] bg-[#f2e4bc] px-3 py-1 text-xs font-bold tracking-[0.16em] text-[#5b4a2e]">Em execução</span>
+                              }
+                            </div>
+                            <div className="mt-2 text-sm text-[#6a5c45]">{item.expert}</div>
+                          </button>
+                        ))
+                      })()}
                     </div>
                   </div>
 
@@ -1000,11 +1135,23 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
               {/* ── SINCRONIZAR ─────────────────────────────────────── */}
               {activeSection === "sincronizar" && (() => {
+                // Deduplica por número/ano para o pipeline
+                const _spPipe: Record<string, number> = { importada: 1, editando: 2, no_gdl: 3, sincronizada: 4 }
+                const _pipeMap = new Map<string, RecordItem>()
+                for (const l of laudosDB) {
+                  if (!l.repStatus) continue
+                  const k = `${l.number}/${l.year}`
+                  const prev = _pipeMap.get(k)
+                  const currP = _spPipe[l.repStatus] ?? 0
+                  const prevP = prev ? (_spPipe[prev.repStatus ?? ""] ?? 0) : -1
+                  if (currP > prevP) _pipeMap.set(k, l)
+                }
+                const _repsPipe = [..._pipeMap.values()]
                 const porStatus = {
-                  importada:    laudosDB.filter(l => l.repStatus === "importada"),
-                  editando:     laudosDB.filter(l => l.repStatus === "editando"),
-                  sincronizada: laudosDB.filter(l => l.repStatus === "sincronizada"),
-                  no_gdl:       laudosDB.filter(l => l.repStatus === "no_gdl"),
+                  importada:    _repsPipe,                                              // total importadas (todos os estágios)
+                  editando:     _repsPipe.filter(l => l.repStatus === "editando"),
+                  sincronizada: _repsPipe.filter(l => l.repStatus === "sincronizada"),
+                  no_gdl:       _repsPipe.filter(l => l.repStatus === "no_gdl"),
                 }
                 const filaGdl = porStatus.sincronizada
                 return (
@@ -1105,15 +1252,27 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   sincronizada: { label: "Pronta",       dot: "bg-[#3d9b55]",  text: "text-[#3d9b55]",  btn: "border-[#a18449] bg-[#ece6da] text-[#7a6840]", btnLabel: "EDITAR" },
                   no_gdl:       { label: "No GDL",       dot: "bg-[#8ea4c0]",  text: "text-[#8ea4c0]",  btn: "border-[#a18449] bg-[#ece6da] text-[#7a6840]", btnLabel: "VER" },
                 }
-                const repsFiltered = laudosDB.filter(l => {
+                // Deduplica por número/ano, mantendo o registro de status mais avançado
+                const _statusPrio: Record<string, number> = { importada: 1, editando: 2, no_gdl: 3, sincronizada: 4 }
+                const _repMap = new Map<string, RecordItem>()
+                for (const l of laudosDB) {
+                  if (!l.repStatus) continue
+                  const k = `${l.number}/${l.year}`
+                  const prev = _repMap.get(k)
+                  const currP = _statusPrio[l.repStatus] ?? 0
+                  const prevP = prev ? (_statusPrio[prev.repStatus ?? ""] ?? 0) : -1
+                  if (currP > prevP) _repMap.set(k, l)
+                }
+                const repsComStatus = [..._repMap.values()]
+                const repsFiltered = repsComStatus.filter(l => {
                   if (importarFiltro === "pendentes")  return l.repStatus === "importada" || l.repStatus === "editando"
                   if (importarFiltro === "concluidas") return l.repStatus === "sincronizada" || l.repStatus === "no_gdl"
                   return true
                 })
-                const contPendentes  = laudosDB.filter(l => l.repStatus === "importada" || l.repStatus === "editando").length
-                const contConcluidas = laudosDB.filter(l => l.repStatus === "sincronizada" || l.repStatus === "no_gdl").length
+                const contPendentes  = repsComStatus.filter(l => l.repStatus === "importada" || l.repStatus === "editando").length
+                const contConcluidas = repsComStatus.filter(l => l.repStatus === "sincronizada" || l.repStatus === "no_gdl").length
                 return (
-                  <section className="space-y-4">
+                  <section className="space-y-4 pb-4 overflow-x-hidden w-full">
                     <div className="rounded-2xl border border-[#8e7340] bg-[linear-gradient(180deg,rgba(20,35,63,.92)_0%,rgba(11,23,48,.96)_100%)] px-4 py-3 shadow-[0_6px_16px_rgba(0,0,0,.18)]">
                       <h2 className="text-base font-black tracking-tight text-[#f0d08a] md:text-lg">Importar REPs</h2>
                       <p className="mt-0.5 text-[12px] text-[#eadab0]">REPs designadas para este perito</p>
@@ -1125,18 +1284,18 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f0d08a]/15">
                           <Download className="h-5 w-5 text-[#f0d08a]" />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <h3 className="text-base font-black text-[#f0d08a]">Buscar no GDL</h3>
-                          <p className="text-[11px] text-[#ccb780]">Importa REPs designadas automaticamente</p>
+                          <p className="text-[11px] text-[#ccb780] break-words">Importa REPs designadas automaticamente</p>
                         </div>
                       </div>
                       <div className="px-5 py-4 space-y-3">
                         {resultadoImportacao && (
-                          <div className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-black ${resultadoImportacao.ok ? "bg-[#1e3d1e]/10 text-[#2d6e2d]" : "bg-[#3d1e1e]/10 text-[#8b2020]"}`}>
+                          <div className={`flex items-start gap-2 rounded-xl px-3 py-2.5 text-[13px] font-black ${resultadoImportacao.ok ? "bg-[#1e3d1e]/10 text-[#2d6e2d]" : "bg-[#3d1e1e]/10 text-[#8b2020]"}`}>
                             {resultadoImportacao.ok
-                              ? <CheckCircle2 className="h-4 w-4 shrink-0" />
-                              : <AlertCircle className="h-4 w-4 shrink-0" />}
-                            {resultadoImportacao.msg}
+                              ? <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+                              : <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />}
+                            <span className="break-words min-w-0">{resultadoImportacao.msg}</span>
                           </div>
                         )}
                         <button
@@ -1153,25 +1312,25 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                     {/* Filtros + lista */}
                     <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
-                      <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-3 space-y-2">
+                      <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-4 py-3 space-y-2">
                         {/* Linha 1: título + botão Limpar */}
                         <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <h3 className="text-base font-black text-[#f0d08a]">REPs disponíveis</h3>
-                            <p className="text-[11px] text-[#ccb780]">{laudosDB.length} no total</p>
+                          <div className="min-w-0">
+                            <h3 className="text-base font-black text-[#f0d08a] truncate">REPs disponíveis</h3>
+                            <p className="text-[11px] text-[#ccb780]">{repsComStatus.length} no total</p>
                           </div>
                           {confirmandoLimpar ? (
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-[11px] font-black text-[#f0a08a]">Confirmar?</span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[11px] font-black text-[#f0a08a] hidden xs:inline">Confirmar?</span>
                               <button
                                 onClick={handleLimparReps}
-                                className="rounded-xl bg-[#8b2020] px-4 py-2 text-[12px] font-black text-white active:brightness-90 transition"
+                                className="rounded-xl bg-[#8b2020] px-3 py-2 text-[12px] font-black text-white active:brightness-90 transition"
                               >
                                 SIM
                               </button>
                               <button
                                 onClick={() => setConfirmandoLimpar(false)}
-                                className="rounded-xl bg-[#f0d08a]/10 px-4 py-2 text-[12px] font-black text-[#f0d08a]/70 active:brightness-90 transition"
+                                className="rounded-xl bg-[#f0d08a]/10 px-3 py-2 text-[12px] font-black text-[#f0d08a]/70 active:brightness-90 transition"
                               >
                                 NÃO
                               </button>
@@ -1179,16 +1338,16 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ) : (
                             <button
                               onClick={() => setConfirmandoLimpar(true)}
-                              className="shrink-0 rounded-xl bg-[#8b2020]/30 px-4 py-2 text-[12px] font-black text-[#f0a08a] hover:bg-[#8b2020]/50 active:brightness-90 transition"
+                              className="shrink-0 rounded-xl bg-[#8b2020]/30 px-3 py-2 text-[12px] font-black text-[#f0a08a] hover:bg-[#8b2020]/50 active:brightness-90 transition"
                             >
                               Limpar
                             </button>
                           )}
                         </div>
                         {/* Linha 2: pílulas de filtro */}
-                        <div className="flex gap-1.5">
+                        <div className="flex flex-wrap gap-x-1.5 gap-y-1">
                           {([
-                            { id: "todas",      label: "Todas",     count: laudosDB.length },
+                            { id: "todas",      label: "Todas",     count: repsComStatus.length },
                             { id: "pendentes",  label: "Pendentes", count: contPendentes },
                             { id: "concluidas", label: "Prontas",   count: contConcluidas },
                           ] as const).map(tab => (
@@ -1196,7 +1355,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               key={tab.id}
                               onClick={() => setImportarFiltro(tab.id)}
                               className={cn(
-                                "rounded-full px-2.5 py-0.5 text-[10px] font-black transition",
+                                "rounded-full px-2.5 py-0.5 text-[10px] font-black transition whitespace-nowrap",
                                 importarFiltro === tab.id
                                   ? "bg-[#f0d08a] text-[#12213d]"
                                   : "bg-[#f0d08a]/10 text-[#f0d08a]/70 hover:bg-[#f0d08a]/20"
@@ -1209,10 +1368,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </div>
                       <div className="divide-y divide-[#e8dfc8]">
                         {repsFiltered.length === 0 ? (
-                          <div className="px-5 py-10 text-center">
+                          <div className="px-4 py-10 text-center">
                             <Package className="h-10 w-10 mx-auto mb-2 text-[#cab88d]" />
                             <p className="text-sm font-black text-[#6e614d]">Nenhuma REP encontrada</p>
-                            <p className="mt-1 text-xs text-[#9e8c6e]">
+                            <p className="mt-1 text-xs text-[#9e8c6e] break-words">
                               {importarFiltro === "todas"
                                 ? "Use o botão acima para importar REPs do GDL."
                                 : "Nenhuma REP neste filtro."}
@@ -1221,39 +1380,53 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         ) : repsFiltered.map(item => {
                           const cfg = item.repStatus ? STATUS_CFG[item.repStatus] : null
                           return (
-                            <div key={item.id} className="px-5 py-4">
-                              <div className="flex items-start justify-between gap-3">
+                            <div key={item.id} className="px-4 py-4">
+                              <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-[15px] font-black text-[#26221b]">
                                       REP {item.number}/{item.year}
                                     </span>
                                     {cfg && (
-                                      <span className={`flex items-center gap-1 text-[10px] font-black ${cfg.text}`}>
-                                        <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+                                      <span className={`flex items-center gap-1 text-[10px] font-black ${cfg.text} whitespace-nowrap`}>
+                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${cfg.dot}`} />
                                         {cfg.label}
                                       </span>
                                     )}
                                   </div>
                                   <div className="mt-1 space-y-0.5">
+                                    {item.naturezaExame && (
+                                      <p className="text-[12px] font-bold text-[#4e6a3e] truncate">{item.naturezaExame}</p>
+                                    )}
                                     {item.unit && (
                                       <p className="text-[12px] text-[#6a5c45] truncate">{item.unit}</p>
                                     )}
                                     {item.model && item.model !== "—" && (
                                       <p className="text-[11px] text-[#9e8c6e] truncate">BC: {item.model}</p>
                                     )}
-                                    <p className="text-[10px] text-[#b5a07e]">Atualizado: {fmtDate(item.updatedAt)}</p>
+                                    <p className="text-[10px] text-[#b5a07e] truncate">Atualizado: {fmtDate(item.updatedAt)}</p>
                                   </div>
                                 </div>
-                                <button
-                                  onClick={() => handleEditarLaudo(item.id)}
-                                  className={cn(
-                                    "shrink-0 rounded-2xl border-2 px-4 py-2.5 text-[11px] font-black tracking-[0.08em] transition active:brightness-95",
-                                    cfg ? cfg.btn : "border-[#a18449] bg-[#ece6da] text-[#7a6840]"
+                                <div className="flex shrink-0 items-center gap-1.5">
+                                  {item.repStatus === "editando" && (
+                                    <button
+                                      onClick={() => handleResetRepStatus(item.id, item.number, item.year)}
+                                      title="Desfazer edição — volta para A Iniciar"
+                                      className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#d9a0a0] bg-[#fdf3f3] text-[#b05050] transition hover:bg-[#fbe8e8] active:brightness-95"
+                                    >
+                                      <RotateCcw className="h-4 w-4" />
+                                    </button>
                                   )}
-                                >
-                                  {cfg ? cfg.btnLabel : "EDITAR"}
-                                </button>
+                                  <button
+                                    onClick={() => handleEditarLaudo(item.id)}
+                                    className={cn(
+                                      "rounded-xl border-2 px-3 py-2 text-[11px] font-black tracking-[0.06em] transition active:brightness-95 whitespace-nowrap",
+                                      cfg ? cfg.btn : "border-[#a18449] bg-[#ece6da] text-[#7a6840]"
+                                    )}
+                                  >
+                                    {cfg ? cfg.btnLabel : "EDITAR"}
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           )
@@ -1485,10 +1658,106 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <div className="space-y-5">
                       <div>
                         <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número do exame</label>
+                      {/* REPs importadas disponíveis para este tipo */}
+                      {(() => {
+                        const isEficiencia = (nat?: string) => {
+                          const n = (nat ?? "").toUpperCase()
+                          return n === "B602" || n.includes("EFICI")
+                        }
+                        const isConstatacao = (nat?: string) => {
+                          const n = (nat ?? "").toUpperCase()
+                          return n === "B601" || n.includes("CONSTAT")
+                        }
+                        const _sp: Record<string, number> = { importada: 1, editando: 2, no_gdl: 3, sincronizada: 4 }
+                        const _repMapDropdown = new Map<string, RecordItem>()
+                        for (const l of laudosDB) {
+                          if (l.repStatus !== "importada" && l.repStatus !== "editando") continue
+                          const k = `${l.number}/${l.year}`
+                          const prev = _repMapDropdown.get(k)
+                          const currP = _sp[l.repStatus] ?? 0
+                          const prevP = prev ? (_sp[prev.repStatus ?? ""] ?? 0) : -1
+                          if (currP > prevP) _repMapDropdown.set(k, l)
+                        }
+                        const repsImportadas = [..._repMapDropdown.values()].filter(l => {
+                          if (examType === "EFICIÊNCIA") return isEficiencia(l.naturezaExame)
+                          if (examType === "CONSTATAÇÃO") return isConstatacao(l.naturezaExame)
+                          return false
+                        })
+                        if (repsImportadas.length > 0) return (
+                          <div className="mb-3">
+                            <div className="relative">
+                              <select
+                                value={form.examNumber ? `${form.examNumber}/${form.examYear}` : ""}
+                                onChange={async e => {
+                                  if (!e.target.value) return
+                                  const [num, ano] = e.target.value.split("/")
+                                  const localRep = await db.laudos
+                                    .filter(l => l.examNumber === num && l.examYear === ano)
+                                    .first()
+                                  if (localRep) {
+                                    setForm({
+                                      examNumber:         localRep.examNumber         ?? num ?? "",
+                                      examYear:           localRep.examYear           ?? ano ?? "",
+                                      caseNumber:         localRep.caseNumber         ?? "",
+                                      unit:               localRep.unit               || emptyForm.unit,
+                                      expert:             localRep.expert             || emptyForm.expert,
+                                      date:               localRep.date               || emptyForm.date,
+                                      observacoes:        localRep.observacoes        ?? "",
+                                      solicitante:        localRep.solicitante        ?? "",
+                                      remetenteCidade:    localRep.remetenteCidade    ?? "",
+                                      remetenteOrgao:     localRep.remetenteOrgao     ?? "",
+                                      naturezaExame:      localRep.naturezaExame      ?? "",
+                                      naturezaOcorrencia: localRep.naturezaOcorrencia ?? "",
+                                      dataEntrada:        localRep.dataEntrada        ?? "",
+                                      horaEntrada:        localRep.horaEntrada        ?? "",
+                                      enderecoExame:      localRep.enderecoExame      ?? "",
+                                      oficio:             localRep.oficio             ?? "",
+                                      ipApfd:             localRep.ipApfd             ?? "",
+                                      processo:           localRep.processo           ?? "",
+                                    })
+                                    // Carrega as peças da REP importada
+                                    const armasImportadas = await db.armas
+                                      .where("laudoLocalId").equals(localRep.localId)
+                                      .toArray()
+                                    if (armasImportadas.length > 0) {
+                                      const pecas = armasImportadas.map(a => JSON.parse(a.dadosJson) as import("./types").WeaponEntry)
+                                      setSavedPieces(pecas)
+                                    }
+                                    // Marca como em edição para não duplicar em "REPs disponíveis"
+                                    if (localRep.repStatus === "importada" && localRep.id != null) {
+                                      await db.laudos.update(localRep.id, { repStatus: "editando", atualizadoEm: new Date().toISOString() })
+                                      await recarregarLista()
+                                    }
+                                    setSourceImportedRepDbId(localRep.id)
+                                    setRepCarregadaLocal(true)
+                                    setRepGdlErro(null)
+                                  } else {
+                                    setSourceImportedRepDbId(undefined)
+                                    setForm(f => ({ ...f, examNumber: num ?? "", examYear: ano ?? f.examYear }))
+                                    setRepCarregadaLocal(false)
+                                  }
+                                }}
+                                className="h-14 w-full appearance-none rounded-2xl border-2 border-[#9e7f45] bg-[#fffbf2] pl-4 pr-10 text-[15px] font-bold text-[#3a2e1a] outline-none transition focus:ring-2 focus:ring-[#dcc17c]/40 shadow-sm cursor-pointer"
+                              >
+                                <option value="">— Selecionar REP importada —</option>
+                                {repsImportadas.map(l => (
+                                  <option key={l.id} value={`${l.number}/${l.year}`}>
+                                    {l.number}/{l.year}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#9e7f45]" />
+                            </div>
+                            <p className="mt-1 text-[11px] text-[#9e8c6e]">{repsImportadas.length} REP(s) disponível(is) — ou digite abaixo para outra</p>
+                          </div>
+                        )
+                        return null
+                      })()}
                       <div className="flex items-center gap-3">
                         <div className="relative flex-1">
                           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                          <input value={form.examNumber} onChange={handleField("examNumber")}
+                          <input value={form.examNumber}
+                            onChange={e => { handleField("examNumber")(e); setRepCarregadaLocal(false) }}
                             onKeyDown={e => e.key === 'Enter' && handleImportarGdl()}
                             placeholder="Nº REP"
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm" />
@@ -1503,14 +1772,21 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           </select>
                           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9e7f45]" />
                         </div>
-                        <button type="button" onClick={handleImportarGdl}
-                          disabled={repGdlCarregando || !form.examNumber.trim()}
-                          className="flex h-14 items-center gap-1.5 rounded-2xl bg-[#12213d] px-4 text-[13px] font-black text-[#f0d08a] shadow-sm disabled:opacity-40 active:bg-[#1a2c4f]">
-                          {repGdlCarregando
-                            ? <Loader2 className="h-4 w-4 animate-spin" />
-                            : <Database className="h-4 w-4" />}
-                          {repGdlCarregando ? 'Buscando…' : 'Buscar'}
-                        </button>
+                        {repCarregadaLocal ? (
+                          <div className="flex h-14 items-center gap-1.5 rounded-2xl bg-[#1a4a2e] px-4 text-[13px] font-black text-[#7de8a0] shadow-sm">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            Carregado
+                          </div>
+                        ) : (
+                          <button type="button" onClick={handleImportarGdl}
+                            disabled={repGdlCarregando || !form.examNumber.trim()}
+                            className="flex h-14 items-center gap-1.5 rounded-2xl bg-[#12213d] px-4 text-[13px] font-black text-[#f0d08a] shadow-sm disabled:opacity-40 active:bg-[#1a2c4f]">
+                            {repGdlCarregando
+                              ? <Loader2 className="h-4 w-4 animate-spin" />
+                              : <Database className="h-4 w-4" />}
+                            {repGdlCarregando ? 'Buscando…' : 'Buscar'}
+                          </button>
+                        )}
                       </div>
                       {repGdlErro && (
                         <div className="mt-1.5 text-[12px] font-semibold text-red-600">{repGdlErro}</div>
@@ -1955,7 +2231,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           <div className="w-full max-w-xs rounded-3xl border border-[#e8c0c0] bg-[#f5efe3] shadow-[0_32px_80px_rgba(0,0,0,.55)] overflow-hidden">
                             <div className="bg-[linear-gradient(180deg,#2e1414_0%,#1a0a0a_100%)] px-6 py-5">
                               <div className="text-xl font-black text-[#ffb3b3]">Excluir exame?</div>
-                              <div className="mt-1 text-xs leading-relaxed text-[#e08080]">Esta ação não pode ser desfeita. Todas as peças adicionadas serão perdidas.</div>
+                              <div className="mt-1 text-xs leading-relaxed text-[#e08080]">As modificações feitas serão perdidas. REPs importadas continuam disponíveis em Importar REPs.</div>
                             </div>
                             <div className="flex gap-3 p-4">
                               <button
