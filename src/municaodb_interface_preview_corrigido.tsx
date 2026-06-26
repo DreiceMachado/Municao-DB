@@ -32,7 +32,7 @@ import {
   X,
 } from "lucide-react"
 
-import type { WeaponEntry, WeaponType, ProfileView, RepStatus } from "./types"
+import type { WeaponEntry, WeaponType, ProfileView, RepStatus, RecordItem } from "./types"
 import { supabase, supabaseAtivo } from "./lib/supabase"
 import { makeWeaponEntry } from "./data/constants"
 import { useLaudoDb } from "./hooks/useLaudoDb"
@@ -983,7 +983,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                   </div>
 
-                  <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                  <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)] [transform:translateZ(0)]">
                     <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
                       <h3 className="text-xl font-black text-[#f0d08a]">Laudos recentes</h3>
                     </div>
@@ -1025,7 +1025,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                   </div>
 
-                  <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                  <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)] [transform:translateZ(0)]">
                     <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
                       <h3 className="text-xl font-black text-[#f0d08a]">Laudos em execução</h3>
                     </div>
@@ -1067,7 +1067,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <p className="mt-0.5 text-[12px] text-[#eadab0]">Histórico de laudos salvos</p>
                   </div>
 
-                  <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                  <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)] [transform:translateZ(0)]">
                     <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
                       <h3 className="text-xl font-black text-[#f0d08a]">Buscar</h3>
                     </div>
@@ -1096,7 +1096,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                   </div>
 
-                  <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f7f1e5] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                  <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f7f1e5] shadow-[0_18px_44px_rgba(0,0,0,.24)] [transform:translateZ(0)]">
                     <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
                       <h3 className="text-xl font-black text-[#f0d08a]">Laudos Registrados</h3>
                     </div>
@@ -1162,7 +1162,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
 
                     {/* Painel de estágios */}
-                    <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                    <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)] [transform:translateZ(0)]">
                       <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4">
                         <h3 className="text-base font-black text-[#f0d08a]">Pipeline de REPs</h3>
                         <p className="text-[11px] text-[#ccb780]">Visão geral dos estágios</p>
@@ -1186,7 +1186,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
 
                     {/* Fila para GDL */}
-                    <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                    <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)] [transform:translateZ(0)]">
                       <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4 flex items-center justify-between">
                         <div>
                           <h3 className="text-base font-black text-[#f0d08a]">Fila para o GDL</h3>
@@ -1279,7 +1279,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
 
                     {/* Card de importação */}
-                    <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                    <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)] [transform:translateZ(0)]">
                       <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4 flex items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f0d08a]/15">
                           <Download className="h-5 w-5 text-[#f0d08a]" />
@@ -1311,7 +1311,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
 
                     {/* Filtros + lista */}
-                    <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                    <div className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)] [transform:translateZ(0)]">
                       <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-4 py-3 space-y-2">
                         {/* Linha 1: título + botão Limpar */}
                         <div className="flex items-center justify-between gap-2">
@@ -1380,8 +1380,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         ) : repsFiltered.map(item => {
                           const cfg = item.repStatus ? STATUS_CFG[item.repStatus] : null
                           return (
-                            <div key={item.id} className="px-4 py-4">
-                              <div className="flex items-start justify-between gap-2">
+                            <div key={item.id} className="px-4 py-4 min-w-0 w-full">
+                              <div className="flex items-start justify-between gap-2 min-w-0 w-full">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-[15px] font-black text-[#26221b]">
@@ -1450,7 +1450,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     { title: "Tipos de munição", count: "0", desc: "Tipos e subtipos de munição",        icon: null },
                     { title: "Sincronizados",    count: "0", desc: "Laudos enviados para o servidor",   icon: <Wifi className="h-5 w-5 text-[#f0d08a]" /> },
                   ]).map((card) => (
-                    <div key={card.title} className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)]">
+                    <div key={card.title} className="overflow-hidden rounded-[28px] border border-[#a18449] bg-[#f4edde] shadow-[0_18px_44px_rgba(0,0,0,.24)] [transform:translateZ(0)]">
                       <div className="border-b border-[#ccb890] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 py-4 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {card.icon}
