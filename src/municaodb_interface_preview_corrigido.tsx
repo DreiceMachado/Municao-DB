@@ -470,18 +470,19 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       }
 
       await recarregarLista()
-      setResultadoImportacao({
-        ok:  true,
-        msg: novas > 0
-          ? `${novas} REP(s) nova(s) importada(s) de ${reps.length} encontrada(s).`
-          : `Nenhuma REP nova — ${reps.length} já estavam importadas.`,
-      })
+      if (novas > 0) {
+        setResultadoImportacao({ ok: true, msg: `${novas} REP(s) nova(s) importada(s) de ${reps.length} encontrada(s).` })
+      } else {
+        const logArr: string[] = Array.isArray((data as any)._log) ? (data as any)._log : []
+        const resumo = logArr.slice(-15).join(" | ")
+        setResultadoImportacao({ ok: false, msg: `0 REPs encontradas. Log: ${resumo || "(vazio)"}` })
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setResultadoImportacao({ ok: false, msg: `Erro: ${msg}` })
     } finally {
       setImportandoReps(false)
-      setTimeout(() => setResultadoImportacao(null), 8000)
+      setTimeout(() => setResultadoImportacao(null), 30000)
     }
   }
 
