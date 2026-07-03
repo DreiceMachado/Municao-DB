@@ -12,8 +12,8 @@ export default defineConfig({
             '/api': {
                 target: 'http://127.0.0.1:3001',
                 changeOrigin: true,
-                proxyTimeout: 300000, // 5 min — Python pode demorar
-                timeout: 300000,
+                proxyTimeout: 600000, // 10 min — igual ao backend (api.js), Python pode demorar
+                timeout: 600000,
             },
         },
     },

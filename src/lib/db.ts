@@ -207,6 +207,80 @@ export async function buscarLaudoCompleto(laudoLocalId: string) {
   }
 }
 
+/** Cria (ou reusa) um rascunho de trabalho a partir de uma REP importada.
+ *  A REP importada permanece intacta — o usuário não precisa reimportar.
+ *  Retorna o localId do rascunho (ou null se a REP não for encontrada). */
+export async function obterOuCriarRascunhoDeRep(repLocalId: string): Promise<string | null> {
+  const rep = await db.laudos.where("localId").equals(repLocalId).first()
+  if (!rep) return null
+
+  // Reusa rascunho já existente desta REP (mesmo número/ano, sem repStatus)
+  const existente = await db.laudos
+    .filter((l) => l.examNumber === rep.examNumber && l.examYear === rep.examYear && !l.repStatus)
+    .first()
+  if (existente) return existente.localId
+
+  // Cria um novo rascunho copiando os dados da REP importada
+  const agora = new Date().toISOString()
+  const draftLocalId = generateId()
+
+  await db.transaction("rw", db.laudos, db.armas, db.fotos, async () => {
+    await db.laudos.add({
+      localId:            draftLocalId,
+      examNumber:         rep.examNumber,
+      examYear:           rep.examYear,
+      caseNumber:         rep.caseNumber,
+      unit:               rep.unit,
+      expert:             rep.expert,
+      date:               rep.date,
+      observacoes:        rep.observacoes,
+      solicitante:        rep.solicitante,
+      remetenteCidade:    rep.remetenteCidade,
+      remetenteOrgao:     rep.remetenteOrgao,
+      naturezaExame:      rep.naturezaExame,
+      naturezaOcorrencia: rep.naturezaOcorrencia,
+      dataEntrada:        rep.dataEntrada,
+      horaEntrada:        rep.horaEntrada,
+      enderecoExame:      rep.enderecoExame,
+      oficio:             rep.oficio,
+      ipApfd:             rep.ipApfd,
+      processo:           rep.processo,
+      status:             "rascunho",
+      syncStatus:         "pending",
+      criadoEm:           agora,
+      atualizadoEm:       agora,
+    })
+
+    const armas = await db.armas.where("laudoLocalId").equals(repLocalId).toArray()
+    for (const a of armas) {
+      await db.armas.add({
+        localId:      generateId(),
+        laudoLocalId: draftLocalId,
+        tipo:         a.tipo,
+        dadosJson:    a.dadosJson,
+        syncStatus:   "pending",
+        criadoEm:     agora,
+      })
+    }
+
+    const fotos = await db.fotos.where("laudoLocalId").equals(repLocalId).toArray()
+    for (const f of fotos) {
+      await db.fotos.add({
+        localId:      generateId(),
+        laudoLocalId: draftLocalId,
+        armaLocalId:  f.armaLocalId,
+        slotLabel:    f.slotLabel,
+        imagemBase64: f.imagemBase64,
+        mimeType:     f.mimeType,
+        syncStatus:   "pending",
+        criadoEm:     agora,
+      })
+    }
+  })
+
+  return draftLocalId
+}
+
 /** Lista todos os laudos ordenados do mais recente */
 export async function listarLaudos() {
   return db.laudos.orderBy("criadoEm").reverse().toArray()

@@ -36,7 +36,7 @@ import type { WeaponEntry, WeaponType, ProfileView, RepStatus, RecordItem } from
 import { supabase, supabaseAtivo } from "./lib/supabase"
 import { makeWeaponEntry } from "./data/constants"
 import { useLaudoDb } from "./hooks/useLaudoDb"
-import { db, buscarLaudoCompleto, atualizarRepStatus, limparRepsLocais } from "./lib/db"
+import { db, buscarLaudoCompleto, atualizarRepStatus, limparRepsLocais, obterOuCriarRascunhoDeRep } from "./lib/db"
 import { generateId } from "./lib/uuid"
 import { BottomTabBar, type Section } from "./components/BottomTabBar"
 import { cn } from "./utils/cn"
@@ -615,6 +615,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setAtualizandoPecas(true)
     setAtualizandoPecasProgresso({ fase: 'Atualizando GDL...', atual: 1, total: 1 })
 
+    let msgDuracao = 5000
     try {
       const resp = await fetch('/api/gdl/atualizar', {
         method: 'POST',
@@ -632,16 +633,28 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       const partes = [
         data.adicionadas > 0 && `${data.adicionadas} adicionada(s)`,
         data.editadas    > 0 && `${data.editadas} editada(s)`,
-        data.excluidas   > 0 && `${data.excluidas} excluída(s) do GDL`,
       ].filter(Boolean)
-      const msg = partes.length > 0 ? partes.join(' · ') : 'GDL sincronizado'
+      let msg = partes.length > 0 ? partes.join(' · ') : 'GDL sincronizado'
+
+      // Exclusão desativada: apenas reporta as peças a mais no GDL para o usuário ficar ciente
+      const sobrando: number = data.sobrandoNoGdl ?? 0
+      if (sobrando > 0) {
+        const dets = (data.detalhesSobrando ?? []) as Array<{ tipo?: string; identificacao?: string }>
+        const listados = dets.slice(0, 3).map(d => {
+          const ident = (d.identificacao ?? '').trim()
+          return ident ? `${d.tipo ?? 'Peça'} — ${ident}` : (d.tipo ?? 'Peça')
+        })
+        const extra = sobrando > listados.length ? ` e mais ${sobrando - listados.length}` : ''
+        msg += ` · ⚠ ${sobrando} peça(s) a mais no GDL, não removida(s): ${listados.join('; ')}${extra}`
+        msgDuracao = 15000
+      }
       setGdlResultado({ ok: data.ok, msg })
     } catch (err: any) {
       setGdlResultado({ ok: false, msg: err?.message ?? 'Erro de rede' })
     } finally {
       setAtualizandoPecas(false)
       setAtualizandoPecasProgresso({ fase: '', atual: 0, total: 0 })
-      setTimeout(() => setGdlResultado(null), 5000)
+      setTimeout(() => setGdlResultado(null), msgDuracao)
     }
   }
 
@@ -666,24 +679,34 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   }
 
   const handleEditarLaudo = async (localId: string) => {
-    const completo = await buscarLaudoCompleto(localId)
+    let completo = await buscarLaudoCompleto(localId)
     if (!completo) return
-    const { laudo, armas, fotosDoLaudo } = completo
 
-    if (laudo.repStatus) {
-      // REP importada: não muda laudoLocalId (mantém UUID fresco para rascunho separado)
-      setSourceImportedRepDbId(laudo.id)
+    if (completo.laudo.repStatus) {
+      // REP importada: edita numa CÓPIA de trabalho (rascunho), preservando a REP
+      // original intacta — assim o usuário nunca precisa reimportar.
+      setSourceImportedRepDbId(completo.laudo.id)
       setRepCarregadaLocal(true)
-      if (laudo.repStatus === "importada" && laudo.id != null) {
-        await db.laudos.update(laudo.id, { repStatus: "editando", atualizadoEm: new Date().toISOString() })
-        await recarregarLista()
+      if (completo.laudo.repStatus === "importada" && completo.laudo.id != null) {
+        await db.laudos.update(completo.laudo.id, { repStatus: "editando", atualizadoEm: new Date().toISOString() })
       }
+      // Cria (ou reusa) o rascunho e passa a editá-lo — exclusões/edições de peça
+      // agora persistem no rascunho e reaparecem ao reabrir.
+      const draftLocalId = await obterOuCriarRascunhoDeRep(localId)
+      if (draftLocalId) {
+        const draftCompleto = await buscarLaudoCompleto(draftLocalId)
+        if (draftCompleto) completo = draftCompleto
+        setLaudoLocalId(draftLocalId)
+      }
+      await recarregarLista()
     } else {
       // Rascunho comum: edita no lugar
       setLaudoLocalId(localId)
       setSourceImportedRepDbId(undefined)
       setRepCarregadaLocal(false)
     }
+
+    const { laudo, armas, fotosDoLaudo } = completo
 
     setForm({
       examNumber:         laudo.examNumber        ?? '',
@@ -1691,9 +1714,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 onChange={async e => {
                                   if (!e.target.value) return
                                   const [num, ano] = e.target.value.split("/")
-                                  const localRep = await db.laudos
-                                    .filter(l => l.examNumber === num && l.examYear === ano)
-                                    .first()
+                                  // Localiza a REP exata pelo localId da opção selecionada — evita
+                                  // falha de carregamento quando o número/ano salvo tem formatação
+                                  // diferente do texto exibido no dropdown.
+                                  const selecionada = repsImportadas.find(r => `${r.number}/${r.year}` === e.target.value)
+                                  const localRep = selecionada
+                                    ? await db.laudos.where("localId").equals(selecionada.id).first()
+                                    : await db.laudos.filter(l => l.examNumber === num && l.examYear === ano).first()
                                   if (localRep) {
                                     setForm({
                                       examNumber:         localRep.examNumber         ?? num ?? "",
