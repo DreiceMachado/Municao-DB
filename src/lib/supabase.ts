@@ -11,6 +11,14 @@ export const supabase = SUPABASE_URL
         autoRefreshToken: true,    // renova token automaticamente
         detectSessionInUrl: false, // não usa OAuth redirect
       },
+      global: {
+        headers: {
+          // Ignora a página de aviso do ngrok, que senão quebraria o sync
+          // quando o Supabase é acessado por um túnel *.ngrok-free.app.
+          // Inofensivo quando não se usa ngrok.
+          "ngrok-skip-browser-warning": "true",
+        },
+      },
     })
   : null
 
