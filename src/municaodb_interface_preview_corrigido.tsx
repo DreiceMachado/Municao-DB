@@ -36,7 +36,7 @@ import type { WeaponEntry, WeaponType, ProfileView, RepStatus, RecordItem } from
 import { supabase, supabaseAtivo } from "./lib/supabase"
 import { makeWeaponEntry } from "./data/constants"
 import { useLaudoDb } from "./hooks/useLaudoDb"
-import { db, buscarLaudoCompleto, atualizarRepStatus, limparRepsLocais, obterOuCriarRascunhoDeRep } from "./lib/db"
+import { db, buscarLaudoCompleto, atualizarRepStatus, limparRepsLocais, obterOuCriarRascunhoDeRep, fotosPendentesGdl, marcarFotosEnviadasGdl } from "./lib/db"
 import { generateId } from "./lib/uuid"
 import { BottomTabBar, type Section } from "./components/BottomTabBar"
 import { cn } from "./utils/cn"
@@ -615,14 +615,26 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setAtualizandoPecas(true)
     setAtualizandoPecasProgresso({ fase: 'Atualizando GDL...', atual: 1, total: 1 })
 
+    // Fotos ainda não enviadas ao GDL (nível REP: todas as fotos deste laudo)
+    const fotosNovas = await fotosPendentesGdl(laudoLocalId)
+    const fotosPayload = fotosNovas.map((f) => ({
+      nome:   `${f.slotLabel}_${f.localId.slice(0, 8)}`,
+      base64: f.imagemBase64,
+    }))
+
     let msgDuracao = 5000
     try {
       const resp = await fetch('/api/gdl/atualizar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rep_numero: repNumero, pecas: savedPieces }),
+        body: JSON.stringify({ rep_numero: repNumero, pecas: savedPieces, fotos: fotosPayload }),
       })
       const data = await resp.json()
+
+      // Marca as fotos como enviadas somente se o GDL as aceitou
+      if (data.ok && (data.fotosEnviadas ?? 0) > 0) {
+        await marcarFotosEnviadasGdl(fotosNovas.map((f) => f.localId))
+      }
 
       // Persiste peças com gdlPartsIds atualizados (novos IDs capturados pelo Python)
       if (Array.isArray(data.pecasAtualizadas)) {
@@ -631,8 +643,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       }
 
       const partes = [
-        data.adicionadas > 0 && `${data.adicionadas} adicionada(s)`,
-        data.editadas    > 0 && `${data.editadas} editada(s)`,
+        data.adicionadas  > 0 && `${data.adicionadas} adicionada(s)`,
+        data.editadas     > 0 && `${data.editadas} editada(s)`,
+        data.fotosEnviadas > 0 && `${data.fotosEnviadas} foto(s) enviada(s)`,
       ].filter(Boolean)
       let msg = partes.length > 0 ? partes.join(' · ') : 'GDL sincronizado'
 

@@ -18,7 +18,8 @@ if (!fs.existsSync(DADOS)) {
 }
 
 const app = express()
-app.use(express.json())
+// Limite alto: o envio de fotos ao GDL manda imagens em base64 no corpo da requisição
+app.use(express.json({ limit: '80mb' }))
 
 app.post('/api/rep', async (req, res) => {
   const { numero } = req.body ?? {}
@@ -94,6 +95,45 @@ function lerUltimoJson(prefixo) {
     .reverse()
   if (!arquivos.length) return null
   return JSON.parse(fs.readFileSync(path.join(DADOS, arquivos[0]), 'utf8'))
+}
+
+// Grava fotos (base64) em uma pasta temporária e devolve o caminho da pasta.
+// Cada item: { nome, base64 } — base64 pode vir como data URL ou base64 puro.
+// Retorna null se não houver fotos.
+function gravarFotosTemp(repNome, fotos) {
+  if (!Array.isArray(fotos) || fotos.length === 0) return null
+  const carimbo = `${repNome}_${Date.now()}`
+  const pasta   = path.join(DADOS, 'upload_fotos', carimbo)
+  fs.mkdirSync(pasta, { recursive: true })
+
+  const usados = new Set()
+  for (let i = 0; i < fotos.length; i++) {
+    const item = fotos[i] ?? {}
+    const bruto = String(item.base64 ?? '')
+    const dados = bruto.includes(',') ? bruto.slice(bruto.indexOf(',') + 1) : bruto
+    if (!dados) continue
+
+    // Nome de arquivo seguro e único (o GDL rejeita nomes repetidos/estranhos)
+    let base = String(item.nome ?? `foto_${i + 1}`)
+      .replace(/[^\w.\- ]+/g, '_')
+      .replace(/\s+/g, '_')
+      .slice(0, 80)
+    if (!/\.(jpe?g|png|webp|gif)$/i.test(base)) base += '.jpg'
+    let nome = base
+    let n = 1
+    while (usados.has(nome.toLowerCase())) {
+      nome = base.replace(/(\.[^.]+)$/, `_${n++}$1`)
+    }
+    usados.add(nome.toLowerCase())
+
+    fs.writeFileSync(path.join(pasta, nome), Buffer.from(dados, 'base64'))
+  }
+  return pasta
+}
+
+function apagarPastaTemp(pasta) {
+  if (!pasta) return
+  try { fs.rmSync(pasta, { recursive: true, force: true }) } catch { /* ignora */ }
 }
 
 // ── Adicionar peça ao GDL ─────────────────────────────────────────────────────
@@ -193,22 +233,27 @@ app.post('/api/gdl/sincronizar', async (req, res) => {
 
 // ── Atualizar tudo em uma sessão (adicionar + editar + sincronizar exclusões) ──
 app.post('/api/gdl/atualizar', async (req, res) => {
-  const { rep_numero, pecas } = req.body ?? {}
+  const { rep_numero, pecas, fotos } = req.body ?? {}
   if (!rep_numero?.trim() || !Array.isArray(pecas)) {
     return res.status(400).json({ ok: false, erro: 'Informe rep_numero e pecas[]' })
   }
 
   const repSeguro = rep_numero.trim()
-  const payload   = JSON.stringify({ pecas })
+  const repNome   = repSeguro.replace(/\//g, '-').replace(/\./g, '')
+
+  // Grava as fotos novas em disco (o Playwright faz upload a partir de arquivos)
+  const pastaFotos = gravarFotosTemp(repNome, fotos)
+  const payload    = JSON.stringify(pastaFotos ? { pecas, fotosDir: pastaFotos } : { pecas })
 
   try {
     await execFileAsync(PYTHON, ['-X', 'utf8', 'main.py', '--atualizar', repSeguro, payload], baseOpts())
   } catch (err) {
     const detalhe = err.stdout || err.stderr || err.message
     return res.status(500).json({ ok: false, erro: 'Falha ao atualizar GDL', detalhe })
+  } finally {
+    apagarPastaTemp(pastaFotos)
   }
 
-  const repNome   = rep_numero.trim().replace(/\//g, '-').replace(/\./g, '')
   const resultado = lerUltimoJson(`gdl_atualizar_${repNome}`)
   if (!resultado) return res.status(500).json({ ok: false, erro: 'Resultado não gerado' })
   return res.json(resultado)

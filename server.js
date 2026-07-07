@@ -160,23 +160,13 @@ const url = `http://${ip}:${PORT}`
 
 app.listen(PORT, () => {
   console.clear()
-  console.log('')
   console.log('  BalísticaDB - Sistema Pericial')
-  console.log('  ================================')
-  console.log('')
-  console.log(`  Local:  http://localhost:${PORT}`)
-  console.log(`  Rede:   ${url}`)
-  console.log('')
-  console.log('  Escaneie para abrir no celular:')
-  console.log('')
-
+  console.log(`  Local: http://localhost:${PORT}   Rede: ${url}`)
+  console.log('  Escaneie no celular:')
   try {
     execSync(`npx --yes qrcode-terminal "${url}" --small`, { stdio: 'inherit' })
   } catch {
     console.log(`  ${url}`)
   }
-
-  console.log('')
   console.log('  Ctrl+C para encerrar')
-  console.log('')
 })

@@ -58,6 +58,7 @@ export interface FotoLocal {
   imagemBase64: string                   // foto completa em base64
   mimeType: string                       // "image/jpeg"
   syncStatus: "pending" | "synced"
+  gdlEnviada?: boolean                   // true = já foi anexada ao GDL (não reenviar)
   criadoEm: string
 }
 
@@ -84,6 +85,11 @@ class MunicaoDatabase extends Dexie {
       laudos: "++id, localId, examNumber, syncStatus, status, repStatus, criadoEm",
       armas:  "++id, localId, laudoLocalId, syncStatus",
       fotos:  "++id, localId, laudoLocalId, armaLocalId, syncStatus",
+    })
+    this.version(4).stores({
+      laudos: "++id, localId, examNumber, syncStatus, status, repStatus, criadoEm",
+      armas:  "++id, localId, laudoLocalId, syncStatus",
+      fotos:  "++id, localId, laudoLocalId, armaLocalId, syncStatus, gdlEnviada",
     })
   }
 }
@@ -186,6 +192,23 @@ export async function removerFoto(
   if (alvo) await db.fotos.delete(alvo.id!)
 }
 
+/** Lista as fotos de um laudo que ainda NÃO foram enviadas ao GDL */
+export async function fotosPendentesGdl(laudoLocalId: string): Promise<FotoLocal[]> {
+  const todas = await db.fotos.where("laudoLocalId").equals(laudoLocalId).toArray()
+  return todas.filter((f) => !f.gdlEnviada)
+}
+
+/** Marca um conjunto de fotos (por localId) como já enviadas ao GDL */
+export async function marcarFotosEnviadasGdl(localIds: string[]): Promise<void> {
+  if (localIds.length === 0) return
+  await db.transaction("rw", db.fotos, async () => {
+    for (const localId of localIds) {
+      const foto = await db.fotos.where("localId").equals(localId).first()
+      if (foto?.id != null) await db.fotos.update(foto.id, { gdlEnviada: true })
+    }
+  })
+}
+
 /** Busca laudo completo com armas e fotos */
 export async function buscarLaudoCompleto(laudoLocalId: string) {
   const [laudo, armas, fotos] = await Promise.all([
@@ -273,6 +296,7 @@ export async function obterOuCriarRascunhoDeRep(repLocalId: string): Promise<str
         imagemBase64: f.imagemBase64,
         mimeType:     f.mimeType,
         syncStatus:   "pending",
+        gdlEnviada:   f.gdlEnviada,
         criadoEm:     agora,
       })
     }
