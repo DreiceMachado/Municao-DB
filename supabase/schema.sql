@@ -71,6 +71,7 @@ CREATE TABLE laudos (
   oficio               TEXT,
   ip_apfd              TEXT,
   processo             TEXT,
+  documentos           TEXT,
   status               TEXT NOT NULL DEFAULT 'rascunho'
                          CHECK (status IN ('rascunho', 'finalizado')),
   criado_em            TIMESTAMPTZ DEFAULT now(),

@@ -98,6 +98,7 @@ async function sincronizarLaudos(peritoId: string | null) {
       oficio:              laudo.oficio ?? null,
       ip_apfd:             laudo.ipApfd ?? null,
       processo:            laudo.processo ?? null,
+      documentos:          laudo.documentos ?? null,
     }
     if (peritoId) payload.perito_id = peritoId
 

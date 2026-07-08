@@ -166,8 +166,15 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     oficio: "",
     ipApfd: "",
     processo: "",
+    documentos: "[]",
   }
   const [form, setForm] = useState(emptyForm)
+  // Documentos vinculados (IP/APFD, Processo, BO, REP) — persistidos como JSON em form.documentos
+  const documentos: { tipo: string; numero: string; ano: string }[] = useMemo(() => {
+    try { const v = JSON.parse(form.documentos || "[]"); return Array.isArray(v) ? v : [] } catch { return [] }
+  }, [form.documentos])
+  const setDocumentos = (docs: { tipo: string; numero: string; ano: string }[]) =>
+    setForm(f => ({ ...f, documentos: JSON.stringify(docs) }))
 
   const [weapons, setWeapons] = useState<WeaponEntry[]>([])
   const [activeWeaponIdx, setActiveWeaponIdx] = useState(0)
@@ -187,6 +194,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [typePickerOpen, setTypePickerOpen] = useState(false)
   const [changePieceTypeOpen, setChangePieceTypeOpen] = useState(false)
   const [infoGeraisOpen, setInfoGeraisOpen] = useState(false)
+  const [addDocOpen, setAddDocOpen] = useState(false)
   const [examType, setExamType] = useState<"EFICIÊNCIA" | "CONSTATAÇÃO" | null>(null)
   const [repMinimized, setRepMinimized] = useState(false)
   const [repGdlCarregando, setRepGdlCarregando] = useState(false)
@@ -775,6 +783,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       oficio:             laudo.oficio            ?? '',
       ipApfd:             laudo.ipApfd            ?? '',
       processo:           laudo.processo          ?? '',
+      documentos:         laudo.documentos        ?? '[]',
     })
     const pecas = armas.map(a => JSON.parse(a.dadosJson) as WeaponEntry)
     setSavedPieces(pecas)
@@ -1789,6 +1798,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                       oficio:             localRep.oficio             ?? "",
                                       ipApfd:             localRep.ipApfd             ?? "",
                                       processo:           localRep.processo           ?? "",
+                                      documentos:         localRep.documentos         ?? "[]",
                                     })
                                     // Carrega as peças da REP importada
                                     const armasImportadas = await db.armas
@@ -2106,8 +2116,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                   )}
 
-                  {/* ── Informações Gerais ── */}
-                  {(form.solicitante || form.naturezaExame || form.enderecoExame || form.oficio || form.ipApfd || form.processo) && (
+                  {/* ── Informações Gerais ── (sempre visível: permite adicionar documentos) */}
+                  {true && (
                     <div className="overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
                       <button
                         type="button"
@@ -2140,6 +2150,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                   <div className="flex h-12 items-center rounded-xl border border-[#e0d5be] bg-[#f5f0e8] px-4 text-[13px] font-medium text-[#6b5838]">{form.naturezaExame}</div>
                                 </div>
                               )}
+                              {(form.solicitante || form.remetenteOrgao || form.remetenteCidade || form.naturezaOcorrencia || form.oficio || form.ipApfd || form.processo || form.dataEntrada || form.horaEntrada || form.enderecoExame) && (
+                              <>
                               <div className="grid gap-4 sm:grid-cols-2">
                                 {([
                                   ["solicitante",        "Solicitante"],
@@ -2152,15 +2164,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 ] as [keyof typeof form, string][]).map(([key, label]) => (
                                   <div key={key}>
                                     <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.14em] text-[#9e8255]">{label}</label>
-                                    <input
-                                      value={form[key] as string}
-                                      onChange={handleField(key)}
-                                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[13px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                    />
+                                    <div className="flex min-h-12 items-center rounded-xl border border-[#e0d5be] bg-[#f5f0e8] px-4 py-2 text-[13px] font-medium text-[#6b5838]">
+                                      {(form[key] as string) || "—"}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
-                              <div className="grid gap-4 grid-cols-[1fr_0.55fr_2fr]">
+                              <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_0.55fr_2fr]">
                                 {([
                                   ["dataEntrada",  "Data de entrada"],
                                   ["horaEntrada",  "Hora"],
@@ -2168,13 +2178,70 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 ] as [keyof typeof form, string][]).map(([key, label]) => (
                                   <div key={key}>
                                     <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.14em] text-[#9e8255]">{label}</label>
-                                    <input
-                                      value={form[key] as string}
-                                      onChange={handleField(key)}
-                                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[13px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                    />
+                                    <div className="flex min-h-12 items-center rounded-xl border border-[#e0d5be] bg-[#f5f0e8] px-4 py-2 text-[13px] font-medium text-[#6b5838]">
+                                      {(form[key] as string) || "—"}
+                                    </div>
                                   </div>
                                 ))}
+                              </div>
+                              </>
+                              )}
+
+                              {/* Documentos vinculados — IP/APFD, Processo, BO, REP (número + ano) */}
+                              <div className="space-y-2">
+                                {documentos.map((doc, i) => (
+                                  <div key={i} className="rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] p-3">
+                                    <div className="mb-2 flex items-center justify-between">
+                                      <span className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6b5838]">{doc.tipo}</span>
+                                      <button type="button"
+                                        onClick={() => setDocumentos(documentos.filter((_, j) => j !== i))}
+                                        className="flex h-6 w-6 items-center justify-center rounded-full bg-[#fde8e8] text-[#c0392b]">
+                                        <X className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                    <div className="grid grid-cols-[2fr_0.8fr] gap-2">
+                                      <input
+                                        inputMode="numeric"
+                                        value={doc.numero}
+                                        onChange={e => setDocumentos(documentos.map((d, j) => j === i ? { ...d, numero: e.target.value.replace(/[^\d.\-/]/g, "") } : d))}
+                                        placeholder="Número"
+                                        className="h-11 w-full rounded-lg border border-[#cdbf9e] bg-white px-3 text-[13px] outline-none transition focus:border-[#9e7f45]"
+                                      />
+                                      <input
+                                        inputMode="numeric"
+                                        value={doc.ano}
+                                        onChange={e => setDocumentos(documentos.map((d, j) => j === i ? { ...d, ano: e.target.value.replace(/\D/g, "").slice(0, 4) } : d))}
+                                        placeholder="Ano"
+                                        className="h-11 w-full rounded-lg border border-[#cdbf9e] bg-white px-3 text-[13px] outline-none transition focus:border-[#9e7f45]"
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+
+                                {addDocOpen ? (
+                                  <div className="rounded-xl border-2 border-dashed border-[#c8b47e] bg-[#fdf8ef] p-3">
+                                    <div className="mb-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#9e7f45]">Tipo do documento</div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {(["IP/APFD", "PROCESSO", "BO", "REP"] as const).map(tp => (
+                                        <button key={tp} type="button"
+                                          onClick={() => { setDocumentos([...documentos, { tipo: tp, numero: "", ano: "" }]); setAddDocOpen(false) }}
+                                          className="rounded-lg border border-[#cdbf9e] bg-white py-2.5 text-[12px] font-black uppercase tracking-[0.1em] text-[#6b5838] active:bg-[#f0e8d5]">
+                                          {tp}
+                                        </button>
+                                      ))}
+                                    </div>
+                                    <button type="button" onClick={() => setAddDocOpen(false)}
+                                      className="mt-4 w-full border-t border-[#e5d9c3] pt-3 pb-1 text-[12px] font-bold uppercase tracking-[0.12em] text-[#a09070] active:text-[#7a6540]">Cancelar</button>
+                                  </div>
+                                ) : (
+                                  <button type="button"
+                                    onClick={() => setAddDocOpen(true)}
+                                    className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#c8b47e] bg-[#fdf8ef] py-3 text-[12px] font-black uppercase tracking-[0.12em] text-[#9e7f45] active:bg-[#f0e8d5]"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                    Adicionar documento
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </motion.div>

@@ -226,6 +226,8 @@ export type ExamForm = {
   oficio: string
   ipApfd: string
   processo: string
+  // Documentos vinculados manualmente (JSON: {tipo, numero, ano}[])
+  documentos: string
 }
 
 export type ProfileView = null | "main"

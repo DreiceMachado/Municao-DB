@@ -27,6 +27,7 @@ export interface Laudo {
   oficio?: string
   ipApfd?: string
   processo?: string
+  documentos?: string                    // JSON: {tipo, numero, ano}[]
   // controle
   status: "rascunho" | "finalizado"
   syncStatus: "pending" | "synced"
@@ -268,6 +269,7 @@ export async function obterOuCriarRascunhoDeRep(repLocalId: string): Promise<str
       oficio:             rep.oficio,
       ipApfd:             rep.ipApfd,
       processo:           rep.processo,
+      documentos:         rep.documentos,
       status:             "rascunho",
       syncStatus:         "pending",
       criadoEm:           agora,
