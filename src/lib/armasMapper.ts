@@ -65,7 +65,9 @@ export function pecaPayload(
     tipo:               d.type,
     ordem,
     destinacao:         enumOrNull(d.destinacao, DESTINACOES),
-    identificacao:      s(d.identificacao),
+    // Munições (ESTOJO/CARTUCHO/CARREGADOR) guardam a identificação/headstamp no
+    // campo `model`; armas de fogo usam `identificacao`. Faz o fallback p/ não perder o dado.
+    identificacao:      s(d.identificacao) ?? s(d.model),
     quantidade:         s(d.quantidade),
     lacre_entrada_peca: s(d.lacreEntradaPeca),
     lacre_saida_peca:   s(d.lacreSaidaPeca) ?? s(d.coletaLacreSaida),
@@ -180,6 +182,7 @@ export function detalhePayload(
       return {
         ...calibre,
         marca:             s(d.brand),
+        lote:              s(d.lote),
         inscricao_fab:     s(d.inscricaoFabricante),
         quantidade:        s(d.quantidade),
         marcacao_extrator: b(d.marcacaoExtrator),
@@ -194,6 +197,7 @@ export function detalhePayload(
       return {
         ...calibre,
         marca:      s(d.brand),
+        tipo:       s(d.tipoConstrutivo),
         quantidade: s(d.quantidade),
         completo:   b(d.completo),
         amassado:   b(d.amassado),

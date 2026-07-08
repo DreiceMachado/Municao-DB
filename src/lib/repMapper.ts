@@ -207,7 +207,8 @@ export function mapearRepGdl(dados: RepGdlData): RepMapeada {
 
     // Guia de Remessa
     entry.dataEntradaPeca   = campo(peca, '$txtDtaEntryParts')
-    entry.dataLiberacaoPeca = campo(peca, '$txtDtaLiberationParts')
+    // Se o GDL não trouxer data de liberação, mantém o default (hoje) de makeWeaponEntry
+    entry.dataLiberacaoPeca = campo(peca, '$txtDtaLiberationParts') || entry.dataLiberacaoPeca
     entry.unidadeMedida     = campo(peca, '$ddlDimensionParts')
     entry.consumidaExame    = campo(peca, '$ddlItemsConsumedExaminationParts')
     entry.observacaoPeca    = campo(peca, '$txtObservation')

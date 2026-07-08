@@ -5,6 +5,7 @@ import {
   AlertCircle,
   BookOpen,
   Building2,
+  Calendar,
   Camera,
   CheckCircle2,
   ChevronDown,
@@ -34,7 +35,7 @@ import {
 
 import type { WeaponEntry, WeaponType, ProfileView, RepStatus, RecordItem } from "./types"
 import { supabase, supabaseAtivo } from "./lib/supabase"
-import { makeWeaponEntry } from "./data/constants"
+import { makeWeaponEntry, FABRICANTES_MUNICAO, FABRICANTES_MUNICAO_INFO, TIPOS_PROJETIL_CARTUCHO } from "./data/constants"
 import { useLaudoDb } from "./hooks/useLaudoDb"
 import { db, buscarLaudoCompleto, atualizarRepStatus, limparRepsLocais, obterOuCriarRascunhoDeRep, fotosPendentesGdl, marcarFotosEnviadasGdl } from "./lib/db"
 import { generateId } from "./lib/uuid"
@@ -61,6 +62,36 @@ import { useLiveQuery } from "dexie-react-hooks"
 const _ARMAS_FOGO_GDL: WeaponType[] = ["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"]
 const _MODEL_IDENT_GDL: WeaponType[] = ["CARREGADOR","ESTOJO","CARTUCHO","ARMA DE CHOQUE"]
 const _VINCULO_GDL: WeaponType[] = ["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE PRESSÃO","ARMA DE ANTECARGA"]
+
+// ── Datas: o app/GDL usam DD/MM/AAAA; o <input type="date"> usa AAAA-MM-DD ──
+function brParaIso(br: string): string {
+  const m = (br ?? "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : ""
+}
+function isoParaBr(iso: string): string {
+  const m = (iso ?? "").match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : ""
+}
+// Campo de data que SEMPRE exibe DD/MM/AAAA (ex.: 15/04/2026) e abre o calendário
+// nativo por baixo (invisível). Assim o visual é igual no desktop e no celular —
+// o iOS não consegue impor o formato "15 de abr. de 2026" porque o texto é nosso.
+function DateField({ value, onChange, className }: { value: string; onChange: (v: string) => void; className?: string }) {
+  return (
+    <div className={`relative h-14 w-full ${className ?? ""}`}>
+      <div className="pointer-events-none flex h-14 w-full items-center rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] shadow-sm">
+        <span className={value ? "font-medium text-[#26221b]" : "text-[#a09070]"}>{value || "DD/MM/AAAA"}</span>
+        <Calendar className="ml-auto h-5 w-5 shrink-0 text-[#b89a58]" />
+      </div>
+      <input
+        type="date"
+        value={brParaIso(value)}
+        onChange={e => onChange(isoParaBr(e.target.value))}
+        onClick={e => { const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void }; el.showPicker?.() }}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
+    </div>
+  )
+}
 
 function validarCamposGdlPeca(peca: WeaponEntry): string[] {
   const faltando: string[] = []
@@ -207,6 +238,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   // ── Catálogo de armas ────────────────────────────────────────────────────
   const [catalogoMarcaPickerOpen, setCatalogoMarcaPickerOpen] = useState(false)
   const [catalogoModeloPickerOpen, setCatalogoModeloPickerOpen] = useState(false)
+  const [fabricanteMunicaoPickerOpen, setFabricanteMunicaoPickerOpen] = useState(false)
+  const [tipoCartuchoPickerOpen, setTipoCartuchoPickerOpen] = useState(false)
   const [catalogoMarcaSel, setCatalogoMarcaSel] = useState("")
   const [catalogoModeloSel, setCatalogoModeloSel] = useState("")
   const { buscarFicha, fichaParaWeaponEntry, loadingFicha } = useWeaponCatalog()
@@ -391,6 +424,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   }
 
   const activeWeapon = weapons[activeWeaponIdx] ?? null
+  // Munições consumíveis: destinação vem antes do lacre de saída (se consumida, não há lacre de saída)
+  const isMunicaoConsumivel = (["CARTUCHO","ESPOLETA","PROJÉTIL","ESTOJO"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
 
   // Índice único da peça sendo editada (para chaves de foto por peça)
   const currentPhotoIdx = editingPieceIdx ?? savedPieces.length
@@ -2655,12 +2690,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       Data de Entrada
                       <span className="text-[#c87070] text-[13px] font-black leading-none">*</span>
                     </label>
-                    <input
-                      type="text"
+                    <DateField
                       value={activeWeapon?.dataEntradaPeca ?? ""}
-                      onChange={handleWeaponField("dataEntradaPeca" as any)}
-                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                      placeholder="DD/MM/AAAA"
+                      onChange={v => setWeaponDirect("dataEntradaPeca" as any, v)}
                     />
                   </div>
 
@@ -2693,57 +2725,163 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && !(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                         <div>
                           <label className="mb-2 flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            {activeWeapon?.type === "CARTUCHO" ? "Tipo" : "Identificação"}
+                            Identificação
                             {_MODEL_IDENT_GDL.includes(activeWeapon?.type as WeaponType) && (
                               <span className="text-[#c87070] text-[13px] font-black leading-none">*</span>
                             )}
-                            <HelpBtn title={activeWeapon?.type === "CARTUCHO" ? "Tipo" : "Identificação"} text={
+                            <HelpBtn title="Identificação" text={
                               activeWeapon?.type === "ESTOJO" ? "Headstamp ou marcação identificadora do estojo. Ex.: CBC .38, RP 9mm." :
-                              activeWeapon?.type === "CARTUCHO" ? "Tipo construtivo da munição. Ex.: FMJ (encamisado), HP (ponta oca), Slug (projétil único para espingarda)." :
+                              activeWeapon?.type === "CARTUCHO" ? "Designação ou referência de identificação do cartucho. Ex.: CBC 9mm, RP .40. O tipo construtivo do projétil (FMJ, HP, etc.) fica no campo Tipo." :
                               "Designação ou referência de identificação do item."
                             } />
+                            {activeWeapon?.type === "ESTOJO" && (activeWeapon?.caliber || activeWeapon?.brand || activeWeapon?.estadoEstojo) && (
+                              <button type="button" title="Preencher com Calibre, Fabricante e Estado do estojo" style={{ marginLeft: "6px" }}
+                                onClick={() => {
+                                  const p = [activeWeapon?.caliber, activeWeapon?.brand, activeWeapon?.estadoEstojo].filter(Boolean)
+                                  setWeaponDirect("model", p.join(' '))
+                                }}
+                                className="inline-flex h-8 w-8 md:h-6 md:w-6 items-center justify-center rounded-full bg-[#e8dfc8] text-[#7a6840] hover:bg-[#ddd0b3] active:bg-[#ccc0a0]">
+                                <Wand2 className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                              </button>
+                            )}
+                            {activeWeapon?.type === "CARTUCHO" && (activeWeapon?.caliber || activeWeapon?.brand || activeWeapon?.tipoConstrutivo || activeWeapon?.estadoCartucho) && (
+                              <button type="button" title="Preencher com Calibre, Fabricante, Tipo e Estado do cartucho" style={{ marginLeft: "6px" }}
+                                onClick={() => {
+                                  const p = [activeWeapon?.caliber, activeWeapon?.brand, activeWeapon?.tipoConstrutivo, activeWeapon?.estadoCartucho].filter(Boolean)
+                                  setWeaponDirect("model", p.join(' '))
+                                }}
+                                className="inline-flex h-8 w-8 md:h-6 md:w-6 items-center justify-center rounded-full bg-[#e8dfc8] text-[#7a6840] hover:bg-[#ddd0b3] active:bg-[#ccc0a0]">
+                                <Wand2 className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                              </button>
+                            )}
                           </label>
                           <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                            placeholder={activeWeapon?.type === "CARTUCHO" ? "Ex.: FMJ, HP, Slug…" : "Ex.: RT 627"} />
+                            placeholder={activeWeapon?.type === "CARTUCHO" ? "Ex.: CBC 9mm, RP .40…" : "Ex.: RT 627"} />
                         </div>
                       )}
+                      {/* Calibre — exibido antes do Fabricante para todos os tipos */}
+                      {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && activeWeapon?.type !== "CARREGADOR" && activeWeapon?.type !== "ARMA DE ANTECARGA" && (
+                        <div>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Calibre
+                            <HelpBtn title="Calibre" text="Designação nominal da munição compatível com a arma ou peça. Ex.: .38 SPL, 9 mm Luger, 12 Ga. Para projéteis deflagrados, utilize o campo de diâmetro medido." />
+                          </label>
+                          <button type="button" onClick={() => {
+                            if (activeWeapon?.type === "ARMA DE ANTECARGA") setCalibreAntecargaPickerOpen(true);
+                            else setCalibrePickerOpen(true);
+                          }}
+                            className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[16px] ${activeWeapon?.caliber ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.caliber || "Selecionar calibre…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
+                      )}
+
                       {/* Fabricante e Modelo com Catálogo Integrado */}
                       {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA","ESTOJO","CARTUCHO"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                         <>
-                          {/* Picker Fabricante */}
+                          {/* Fabricante — seletor. Armas de fogo usam o catálogo; munições usam a lista de fabricantes de munição */}
                           <div>
                             <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                               Fabricante
-                              <HelpBtn title="Fabricante" text="Empresa responsável pela fabricação. Toque para selecionar a partir do catálogo ou digite manualmente." />
+                              <HelpBtn title="Fabricante" text="Empresa responsável pela fabricação. Toque para selecionar da lista." />
                             </label>
                             <button
                               type="button"
-                              onClick={() => setCatalogoMarcaPickerOpen(true)}
+                              onClick={() => {
+                                if (activeWeapon?.type === "ESTOJO" || activeWeapon?.type === "CARTUCHO") setFabricanteMunicaoPickerOpen(true)
+                                else setCatalogoMarcaPickerOpen(true)
+                              }}
                               className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]"
                             >
                               <span className={`truncate text-[16px] ${activeWeapon?.brand ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>{activeWeapon?.brand || "Selecionar fabricante…"}</span>
                               <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                             </button>
+
+                            {/* Preencher ficha (munição) — preenche headstamp e país a partir do fabricante */}
+                            {(activeWeapon?.type === "ESTOJO" || activeWeapon?.type === "CARTUCHO") && activeWeapon?.brand && FABRICANTES_MUNICAO_INFO[activeWeapon.brand] && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const info = FABRICANTES_MUNICAO_INFO[activeWeapon.brand!]
+                                  if (!info) return
+                                  if (info.headstamp) setWeaponDirect("inscricaoFabricante", info.headstamp)
+                                  if (info.pais) setWeaponDirect("paisFabricacao", info.pais)
+                                }}
+                                className="mt-2 flex h-10 w-full items-center justify-between rounded-2xl border border-blue-200 bg-blue-50 px-4 text-left shadow-sm transition active:opacity-70"
+                              >
+                                <span className="flex items-center gap-2 text-[13px] font-medium text-blue-600">
+                                  <BookOpen className="h-3.5 w-3.5" />
+                                  Preencher ficha
+                                </span>
+                                <ChevronRight className="h-4 w-4 shrink-0 text-blue-300" />
+                              </button>
+                            )}
                           </div>
                           
-                          {/* Picker Modelo */}
-                          <div>
-                            <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                              Modelo
-                              <HelpBtn title="Modelo" text="Designação comercial ou nomenclatura. Toque para selecionar a partir do catálogo ou digite manualmente." />
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => { if (activeWeapon?.brand) setCatalogoModeloPickerOpen(true) }}
-                              className={`flex h-14 w-full items-center justify-between rounded-2xl border px-4 text-left shadow-sm transition ${activeWeapon?.brand ? "border-[#cdbf9e] bg-[#fbf8f2] focus:border-[#9e7f45]" : "border-[#e0d5bc] bg-[#f5f2eb] opacity-50 cursor-not-allowed"}`}
-                            >
-                              <span className={`truncate text-[16px] ${activeWeapon?.model ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
-                                {activeWeapon?.model || (activeWeapon?.brand ? "Selecionar modelo…" : "Selecione o fabricante primeiro")}
-                              </span>
-                              <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                            </button>
-                          </div>
+                          {/* Slot Modelo. ESTOJO usa "Número de lote" (após País); CARTUCHO usa o Tipo construtivo (seletor). */}
+                          {activeWeapon?.type === "ESTOJO" ? null : activeWeapon?.type === "CARTUCHO" ? (
+                            <div>
+                              <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                                Tipo
+                                <HelpBtn title="Tipo" text="Tipo construtivo do projétil do cartucho. Ex.: ETOG (Encamisado Total Ogival), ETPO (Ponta-Oca), Balote (Slug). Toque para escolher da lista." />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => setTipoCartuchoPickerOpen(true)}
+                                className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]"
+                              >
+                                <span className={`truncate text-[16px] ${activeWeapon?.tipoConstrutivo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.tipoConstrutivo || "Selecionar tipo…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div>
+                              <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                                Modelo
+                                <HelpBtn title="Modelo" text="Designação comercial ou nomenclatura. Toque para selecionar a partir do catálogo ou digite manualmente." />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => { if (activeWeapon?.brand) setCatalogoModeloPickerOpen(true) }}
+                                className={`flex h-14 w-full items-center justify-between rounded-2xl border px-4 text-left shadow-sm transition ${activeWeapon?.brand ? "border-[#cdbf9e] bg-[#fbf8f2] focus:border-[#9e7f45]" : "border-[#e0d5bc] bg-[#f5f2eb] opacity-50 cursor-not-allowed"}`}
+                              >
+                                <span className={`truncate text-[16px] ${activeWeapon?.model ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.model || (activeWeapon?.brand ? "Selecionar modelo…" : "Selecione o fabricante primeiro")}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+
+                              {/* Botão Preencher ficha — sempre logo abaixo do Modelo */}
+                              {TIPOS_COM_CATALOGO.includes(activeWeapon?.type as WeaponType) && activeWeapon?.brand && activeWeapon?.model && (
+                                <button
+                                  type="button"
+                                  disabled={loadingFicha}
+                                  onClick={async () => {
+                                    if (!activeWeapon || !activeWeapon.brand || !activeWeapon.model) return
+                                    const ficha = await buscarFicha(activeWeapon.type, activeWeapon.brand, activeWeapon.model)
+                                    if (!ficha) return
+                                    const campos = fichaParaWeaponEntry(ficha)
+                                    Object.entries(campos).forEach(([campo, valor]) => {
+                                      setWeaponDirect(campo as keyof Omit<WeaponEntry, "type">, valor as string | boolean | null | string[])
+                                    })
+                                  }}
+                                  className="mt-2 flex h-10 w-full items-center justify-between rounded-2xl border border-blue-200 bg-blue-50 px-4 text-left shadow-sm transition active:opacity-70 disabled:opacity-40"
+                                >
+                                  <span className="flex items-center gap-2 text-[13px] font-medium text-blue-600">
+                                    {loadingFicha ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
+                                    Preencher ficha
+                                  </span>
+                                  <ChevronRight className="h-4 w-4 shrink-0 text-blue-300" />
+                                </button>
+                              )}
+                            </div>
+                          )}
 
                         </>
                       )}
@@ -2773,24 +2911,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && activeWeapon?.type !== "CARREGADOR" && activeWeapon?.type !== "ARMA DE ANTECARGA" && (
                         <div>
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            Calibre
-                            <HelpBtn title="Calibre" text="Designação nominal da munição compatível com a arma ou peça. Ex.: .38 SPL, 9 mm Luger, 12 Ga. Para projéteis deflagrados, utilize o campo de diâmetro medido." />
-                          </label>
-                          <button type="button" onClick={() => {
-                            if (activeWeapon?.type === "ARMA DE ANTECARGA") setCalibreAntecargaPickerOpen(true);
-                            else setCalibrePickerOpen(true);
-                          }}
-                            className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[16px] ${activeWeapon?.caliber ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                              {activeWeapon?.caliber || "Selecionar calibre…"}
-                            </span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                      )}
-                      {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && activeWeapon?.type !== "CARREGADOR" && activeWeapon?.type !== "ARMA DE ANTECARGA" && (
-                        <div>
-                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             País de fabricação
                             <HelpBtn title="País de fabricação" text="País onde a peça foi fabricada, conforme indicação do fabricante ou marcação na arma. Ex.: Brasil, EUA, Alemanha." />
                           </label>
@@ -2802,6 +2922,22 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                           </button>
                         </div>
+                      )}
+
+                      {/* Número de lote — apenas ESTOJO, exibido logo após País de fabricação */}
+                      {activeWeapon?.type === "ESTOJO" && (
+                        <LacreInput
+                          label="Número de lote"
+                          slotKey={`lote-${effectivePhotoIdx}`}
+                          value={activeWeapon?.lote ?? ""}
+                          onChange={v => setWeaponDirect("lote" as any, v)}
+                          allPhotoUrls={photoUrls}
+                          onCapture={handlePhotoCapture}
+                          onRemove={handlePhotoRemove}
+                          onView={setViewerPhoto}
+                          placeholder="Ex.: LOTE 2023-045"
+                          help={<HelpBtn title="Número de lote" text="Número do lote de fabricação do estojo/munição, quando indicado na embalagem ou na marcação. Toque na câmera ao lado para anexar a foto do lote. Ex.: LOTE 2023-045." />}
+                        />
                       )}
 
                       {/* Tambor sobressalente — apenas REVÓLVER */}
@@ -2823,30 +2959,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       )}
                     </div>
-
-                    {/* Botão Preencher ficha — aparece só quando fabricante e modelo estão selecionados */}
-                    {TIPOS_COM_CATALOGO.includes(activeWeapon?.type as WeaponType) && activeWeapon?.brand && activeWeapon?.model && (
-                      <button
-                        type="button"
-                        disabled={loadingFicha}
-                        onClick={async () => {
-                          if (!activeWeapon || !activeWeapon.brand || !activeWeapon.model) return
-                          const ficha = await buscarFicha(activeWeapon.type, activeWeapon.brand, activeWeapon.model)
-                          if (!ficha) return
-                          const campos = fichaParaWeaponEntry(ficha)
-                          Object.entries(campos).forEach(([campo, valor]) => {
-                            setWeaponDirect(campo as keyof Omit<WeaponEntry, "type">, valor as string | boolean | null | string[])
-                          })
-                        }}
-                        className="flex h-10 w-full items-center justify-between rounded-2xl border border-blue-200 bg-blue-50 px-4 text-left shadow-sm transition active:opacity-70 disabled:opacity-40"
-                      >
-                        <span className="flex items-center gap-2 text-[13px] font-medium text-blue-600">
-                          {loadingFicha ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
-                          Preencher ficha
-                        </span>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-blue-300" />
-                      </button>
-                    )}
 
                     {/* Tipo de produção — apenas armas de fogo */}
                     {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
@@ -4284,17 +4396,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
                               {activeWeapon?.material || "Selecionar material…"}
-                            </span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        {/* Formato / tipo de rebordo — picker */}
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de rebordo</label>
-                          <button type="button" onClick={() => setFormatoPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.formato ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                              {activeWeapon?.formato || "Selecionar tipo…"}
                             </span>
                             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                           </button>
@@ -6399,30 +6500,56 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   </div>
 
 
-                  {/* ── Lacre de Saída ── */}
-                  <LacreInput
-                    label="Lacre de Saída"
-                    slotKey="lacre-saida-form"
-                    value={activeWeapon?.lacreSaidaPeca ?? lacreSaidaNumero}
-                    onChange={v => { setLacreSaidaNumero(v); setWeaponDirect("lacreSaidaPeca" as any, v) }}
-                    allPhotoUrls={photoUrls}
-                    onCapture={handlePhotoCapture}
-                    onRemove={handlePhotoRemove}
-                    onView={setViewerPhoto}
-                    placeholder="Nº do lacre de saída"
-                  />
+                  {/* ── Destinação da peça (munição consumível: antes do lacre de saída) ── */}
+                  {isMunicaoConsumivel && (
+                    <div className="rounded-2xl border border-[#d3c3a4] bg-[#fdf8f0] p-4">
+                      <label className="mb-3 block text-sm font-black uppercase tracking-[0.14em] text-[#6b5838]">
+                        Destinação da peça
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(["LIBERADO", "CONSUMIDO"] as const).map(dest => (
+                          <button
+                            key={dest}
+                            type="button"
+                            onClick={() => setWeaponDirect("destinacao", activeWeapon?.destinacao === dest ? "" : dest)}
+                            className={`rounded-xl border-2 py-3 text-sm font-black tracking-[0.12em] transition active:scale-[.97] ${
+                              activeWeapon?.destinacao === dest
+                                ? dest === "LIBERADO"
+                                  ? "border-[#4a9e6a] bg-[linear-gradient(180deg,#1a3d2a_0%,#0f2a1c_100%)] text-[#7de0a8]"
+                                  : "border-[#c05050] bg-[linear-gradient(180deg,#3d1a1a_0%,#2a0f0f_100%)] text-[#f0a0a0]"
+                                : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                            }`}
+                          >
+                            {dest}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Lacre de Saída (oculto quando a peça foi consumida) ── */}
+                  {!(isMunicaoConsumivel && activeWeapon?.destinacao === "CONSUMIDO") && (
+                    <LacreInput
+                      label="Lacre de Saída"
+                      slotKey="lacre-saida-form"
+                      value={activeWeapon?.lacreSaidaPeca ?? lacreSaidaNumero}
+                      onChange={v => { setLacreSaidaNumero(v); setWeaponDirect("lacreSaidaPeca" as any, v) }}
+                      allPhotoUrls={photoUrls}
+                      onCapture={handlePhotoCapture}
+                      onRemove={handlePhotoRemove}
+                      onView={setViewerPhoto}
+                      placeholder="Nº do lacre de saída"
+                    />
+                  )}
 
                   {/* ── Data de Liberação ── */}
                   <div>
                     <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                       Data de Liberação
                     </label>
-                    <input
-                      type="text"
+                    <DateField
                       value={activeWeapon?.dataLiberacaoPeca ?? ""}
-                      onChange={handleWeaponField("dataLiberacaoPeca" as any)}
-                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                      placeholder="DD/MM/AAAA"
+                      onChange={v => setWeaponDirect("dataLiberacaoPeca" as any, v)}
                     />
                   </div>
 
@@ -6440,30 +6567,32 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     />
                   </div>
 
-                  {/* ── Destinação da peça ── */}
-                  <div className="rounded-2xl border border-[#d3c3a4] bg-[#fdf8f0] p-4">
-                    <label className="mb-3 block text-sm font-black uppercase tracking-[0.14em] text-[#6b5838]">
-                      Destinação da peça
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(["LIBERADO", "CONSUMIDO"] as const).map(dest => (
-                        <button
-                          key={dest}
-                          type="button"
-                          onClick={() => setWeaponDirect("destinacao", activeWeapon?.destinacao === dest ? "" : dest)}
-                          className={`rounded-xl border-2 py-3 text-sm font-black tracking-[0.12em] transition active:scale-[.97] ${
-                            activeWeapon?.destinacao === dest
-                              ? dest === "LIBERADO"
-                                ? "border-[#4a9e6a] bg-[linear-gradient(180deg,#1a3d2a_0%,#0f2a1c_100%)] text-[#7de0a8]"
-                                : "border-[#c05050] bg-[linear-gradient(180deg,#3d1a1a_0%,#2a0f0f_100%)] text-[#f0a0a0]"
-                              : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
-                          }`}
-                        >
-                          {dest}
-                        </button>
-                      ))}
+                  {/* ── Destinação da peça (demais tipos: no fim) ── */}
+                  {!isMunicaoConsumivel && (
+                    <div className="rounded-2xl border border-[#d3c3a4] bg-[#fdf8f0] p-4">
+                      <label className="mb-3 block text-sm font-black uppercase tracking-[0.14em] text-[#6b5838]">
+                        Destinação da peça
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(["LIBERADO", "CONSUMIDO"] as const).map(dest => (
+                          <button
+                            key={dest}
+                            type="button"
+                            onClick={() => setWeaponDirect("destinacao", activeWeapon?.destinacao === dest ? "" : dest)}
+                            className={`rounded-xl border-2 py-3 text-sm font-black tracking-[0.12em] transition active:scale-[.97] ${
+                              activeWeapon?.destinacao === dest
+                                ? dest === "LIBERADO"
+                                  ? "border-[#4a9e6a] bg-[linear-gradient(180deg,#1a3d2a_0%,#0f2a1c_100%)] text-[#7de0a8]"
+                                  : "border-[#c05050] bg-[linear-gradient(180deg,#3d1a1a_0%,#2a0f0f_100%)] text-[#f0a0a0]"
+                                : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                            }`}
+                          >
+                            {dest}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   </div>{/* end space-y-6 body */}
 
@@ -7068,6 +7197,102 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </button>
                     ))
                   )}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Sheet Fabricante de Munição (estojo/cartucho) ── */}
+        <AnimatePresence>
+          {fabricanteMunicaoPickerOpen && (
+            <>
+              <motion.div
+                className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setFabricanteMunicaoPickerOpen(false)}
+              />
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[85vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              >
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Fabricante</span>
+                      <p className="mt-0.5 text-[11px] text-[#8d7854]">Fabricantes de munição</p>
+                    </div>
+                    <button type="button" onClick={() => setFabricanteMunicaoPickerOpen(false)}
+                      className="rounded-full bg-[#e8dcc8] p-1.5"><X className="h-4 w-4 text-[#6b5838]" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-6">
+                  {FABRICANTES_MUNICAO.map((marca) => (
+                    <button key={marca} type="button"
+                      onClick={() => {
+                        setWeaponDirect("brand", marca)
+                        setFabricanteMunicaoPickerOpen(false)
+                      }}
+                      className={`flex w-full items-center justify-between border-b border-[#e0d0b0] py-3.5 text-left text-[15px] last:border-0 transition ${
+                        activeWeapon?.brand === marca ? "font-black text-[#6b5838]" : "font-medium text-[#26221b] hover:text-[#6b5838]"
+                      }`}
+                    >
+                      {marca}
+                      {activeWeapon?.brand === marca
+                        ? <CheckCircle2 className="h-4 w-4 text-[#9e7f45]" />
+                        : <ChevronRight className="h-4 w-4 text-[#b89a58]" />}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Sheet Tipo construtivo (cartucho) ── */}
+        <AnimatePresence>
+          {tipoCartuchoPickerOpen && (
+            <>
+              <motion.div
+                className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setTipoCartuchoPickerOpen(false)}
+              />
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[85vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              >
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Tipo</span>
+                      <p className="mt-0.5 text-[11px] text-[#8d7854]">Tipo construtivo do projétil</p>
+                    </div>
+                    <button type="button" onClick={() => setTipoCartuchoPickerOpen(false)}
+                      className="rounded-full bg-[#e8dcc8] p-1.5"><X className="h-4 w-4 text-[#6b5838]" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-6">
+                  {TIPOS_PROJETIL_CARTUCHO.map((tp) => (
+                    <button key={tp} type="button"
+                      onClick={() => {
+                        setWeaponDirect("tipoConstrutivo", tp)
+                        setTipoCartuchoPickerOpen(false)
+                      }}
+                      className={`flex w-full items-center justify-between border-b border-[#e0d0b0] py-3.5 text-left text-[15px] last:border-0 transition ${
+                        activeWeapon?.tipoConstrutivo === tp ? "font-black text-[#6b5838]" : "font-medium text-[#26221b] hover:text-[#6b5838]"
+                      }`}
+                    >
+                      {tp}
+                      {activeWeapon?.tipoConstrutivo === tp
+                        ? <CheckCircle2 className="h-4 w-4 shrink-0 text-[#9e7f45]" />
+                        : <ChevronRight className="h-4 w-4 shrink-0 text-[#b89a58]" />}
+                    </button>
+                  ))}
                 </div>
               </motion.div>
             </>

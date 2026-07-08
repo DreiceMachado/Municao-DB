@@ -15,10 +15,11 @@ type Props = {
   onView: (url: string) => void
   placeholder?: string
   gdlRequired?: boolean
+  help?: React.ReactNode
 }
 
 export function LacreInput({
-  label, slotKey, value, onChange, allPhotoUrls, onCapture, onRemove, onView, placeholder, gdlRequired,
+  label, slotKey, value, onChange, allPhotoUrls, onCapture, onRemove, onView, placeholder, gdlRequired, help,
 }: Props) {
   const cameraRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
@@ -40,12 +41,34 @@ export function LacreInput({
     setShowPicker(true)
   }
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !pendingKey) return
     e.target.value = ""
-    onCapture(pendingKey, file)
+    const key = pendingKey
     setPendingKey(null)
+
+    const isHeic =
+      file.type === "image/heic" ||
+      file.type === "image/heif" ||
+      /\.(heic|heif)$/i.test(file.name)
+
+    if (isHeic) {
+      try {
+        const heic2any = (await import("heic2any")).default
+        const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.88 })
+        const converted = new File(
+          [blob as Blob],
+          file.name.replace(/\.(heic|heif)$/i, ".jpg"),
+          { type: "image/jpeg" }
+        )
+        onCapture(key, converted)
+      } catch {
+        onCapture(key, file)
+      }
+    } else {
+      onCapture(key, file)
+    }
   }
 
   const ACCEPT = "image/*,.heic,.heif"
@@ -57,6 +80,7 @@ export function LacreInput({
       <label className="mb-2 flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
         {label}
         {gdlRequired && <span className="text-[#c87070] text-[13px] font-black leading-none">*</span>}
+        {help}
       </label>
 
       <div className="flex gap-2">

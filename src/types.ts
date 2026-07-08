@@ -118,9 +118,11 @@ export type WeaponEntry = {
   fragmentado: boolean
   oxidacaoPresente: boolean
   inscricaoFabricante: string
+  lote: string
   // CARTUCHO
   amassado: boolean
   completo: boolean
+  tipoConstrutivo: string
   // FACA
   tipoLamina: string
   compLamina: string

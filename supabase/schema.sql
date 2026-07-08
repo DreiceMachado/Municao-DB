@@ -299,6 +299,7 @@ CREATE TABLE estojos (
   calibre_id          UUID REFERENCES calibres (id),
 
   marca               TEXT,
+  lote                TEXT,
   inscricao_fab       TEXT,
   quantidade          TEXT,
 
@@ -322,6 +323,7 @@ CREATE TABLE cartuchos (
   calibre_id  UUID REFERENCES calibres (id),
 
   marca       TEXT,
+  tipo        TEXT,
   quantidade  TEXT,
   completo    BOOLEAN,
   amassado    BOOLEAN,
