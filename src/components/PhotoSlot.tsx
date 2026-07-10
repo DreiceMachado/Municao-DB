@@ -140,7 +140,7 @@ export function PhotoSlot({ label, slotKey, photoUrl, onCapture, onRemove, onVie
               onClick={() => setShowPicker(false)}
             />
             <motion.div
-              className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6"
+              className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6 sm:mx-auto sm:max-w-md"
               initial={{ y: "100%", opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "100%", opacity: 0 }}

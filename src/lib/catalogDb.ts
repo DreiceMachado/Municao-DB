@@ -14,6 +14,7 @@ export interface CatalogWeapon {
   sistema_mira?: string | null
   raias_qtd?: number | null
   raias_sentido?: string | null
+  tipo_raiamento?: string | null
   comprimento_cano_cm?: string | null
   comprimento_total_cm?: string | null
   altura_cm?: string | null
@@ -48,19 +49,27 @@ export const catalogDb = new CatalogDatabase()
 
 let populando = false
 
+// Bump este valor sempre que o weaponCatalog.json mudar — força o re-seed do
+// catálogo local (IndexedDB) para todos os usuários.
+const CATALOG_VERSION = "2025-07-revolveres-3"
+
 export async function populateCatalogDb(): Promise<void> {
   if (populando) return
   populando = true
 
   try {
     const count = await catalogDb.catalog.count()
-    if (count > 0) return
+    const verLocal = typeof localStorage !== "undefined" ? localStorage.getItem("catalogVersion") : null
+    if (count > 0 && verLocal === CATALOG_VERSION) return
+    // Versão diferente (ou ausente) → limpa e recarrega do bundle atualizado.
+    if (count > 0) await catalogDb.catalog.clear()
 
     // 1. Carrega bundle local (sem rede, imediato)
     const res = await fetch("/data/weaponCatalog.json")
     if (res.ok) {
       const data: CatalogWeapon[] = await res.json()
       await catalogDb.catalog.bulkAdd(data)
+      if (typeof localStorage !== "undefined") localStorage.setItem("catalogVersion", CATALOG_VERSION)
       console.log(`[catalogDb] ${data.length} fichas carregadas do bundle local.`)
       return
     }
@@ -81,6 +90,7 @@ export async function populateCatalogDb(): Promise<void> {
       from += BATCH
       if (data.length < BATCH) break
     }
+    if (total > 0 && typeof localStorage !== "undefined") localStorage.setItem("catalogVersion", CATALOG_VERSION)
     console.log(`[catalogDb] ${total} fichas carregadas do Supabase.`)
   } catch (err) {
     console.error("[catalogDb] Erro ao popular catálogo:", err)

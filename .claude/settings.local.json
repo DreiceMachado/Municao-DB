@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(cd /c/Users/dreic/Municao-DB; grep -nE \"sistemaAcionamentoOptions\" src/components/AllPickers.tsx; sed -n '/const sistemaAcionamentoOptions/,/^  }/p' src/components/AllPickers.tsx | head -20)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\dreic\\Municao-DB\\src\\components"
     ]
   }
 }

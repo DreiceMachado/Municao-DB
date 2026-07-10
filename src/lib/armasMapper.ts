@@ -155,6 +155,12 @@ export function detalhePayload(
         ejacao_funcional:    b(d.ejacaoFuncional),
         ciclagem_funcional:  b(d.ciclagemFuncional),
         origem_municao:      s(d.origemMunicao),
+        institucional:       b(d.institucional),
+        inscricao_institucional: s(d.inscricaoInstitucional),
+        instituicao:         s(d.instituicao),
+        serial_tentativa_revelacao: b(d.serialTentativaRevelacao),
+        serial_revelacao:    s(d.serialRevelacao),
+        serial_revelado_obs: s(d.serialReveladoObs),
       }
 
     case "projeteis":
@@ -199,6 +205,7 @@ export function detalhePayload(
         ...calibre,
         marca:      s(d.brand),
         tipo:       s(d.tipoConstrutivo),
+        lote:       s(d.lote),
         quantidade: s(d.quantidade),
         completo:   b(d.completo),
         amassado:   b(d.amassado),
@@ -233,6 +240,12 @@ export function detalhePayload(
         comp_cano:           s(d.compCano),
         estado_conservacao:  s(d.desgasteObs),
         adaptada_arma_fogo:  b(d.adaptadaArmaFogo),
+        institucional:       b(d.institucional),
+        inscricao_institucional: s(d.inscricaoInstitucional),
+        instituicao:         s(d.instituicao),
+        serial_tentativa_revelacao: b(d.serialTentativaRevelacao),
+        serial_revelacao:    s(d.serialRevelacao),
+        serial_revelado_obs: s(d.serialReveladoObs),
       }
 
     case "armas_antecarga":
@@ -243,6 +256,12 @@ export function detalhePayload(
         comp_cano:           s(d.compCano),
         sistema_acionamento: s(d.sistemaAcionamento),
         estado_conservacao:  s(d.desgasteObs),
+        institucional:       b(d.institucional),
+        inscricao_institucional: s(d.inscricaoInstitucional),
+        instituicao:         s(d.instituicao),
+        serial_tentativa_revelacao: b(d.serialTentativaRevelacao),
+        serial_revelacao:    s(d.serialRevelacao),
+        serial_revelado_obs: s(d.serialReveladoObs),
       }
 
     case "carregadores":

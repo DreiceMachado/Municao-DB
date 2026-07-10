@@ -164,7 +164,7 @@ export function LacreInput({
               onClick={() => setShowPicker(false)}
             />
             <motion.div
-              className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6"
+              className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6 sm:mx-auto sm:max-w-md"
               initial={{ y: "100%", opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "100%", opacity: 0 }}
@@ -174,7 +174,7 @@ export function LacreInput({
                 <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4">
                   <div className="text-base font-black text-[#f0d08a]">{label}</div>
                   <div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">
-                    Foto {photos.length + 1} de {MAX_PHOTOS} · Selecione a origem
+                    Selecione a origem
                   </div>
                 </div>
                 <div className="space-y-3 p-4">

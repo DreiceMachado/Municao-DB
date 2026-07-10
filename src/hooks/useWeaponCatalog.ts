@@ -85,10 +85,21 @@ export function useWeaponCatalog() {
         const m = ficha.material_armacao.trim()
         campos.materialQuadro = m ? m.charAt(0).toUpperCase() + m.slice(1) : m
       }
+      // material_cano = material e acabamento do cano.
+      if (ficha.material_cano) {
+        const mc = ficha.material_cano.trim()
+        campos.material = mc ? mc.charAt(0).toUpperCase() + mc.slice(1) : mc
+      }
+      // sistema_disparo → Sistema de acionamento (mostra o texto da ficha).
+      if (ficha.sistema_disparo) campos.sistemaAcionamento = ficha.sistema_disparo.trim()
       if (ficha.raias_qtd != null)   campos.numEstrias         = String(ficha.raias_qtd)
       if (ficha.raias_sentido)       campos.sentidoEstrias     = ficha.raias_sentido
-      if (ficha.carregador_capacidade != null)
-        campos.capacidadeCarregador = String(ficha.carregador_capacidade)
+      if (ficha.tipo_raiamento)      campos.tipoRaiamento      = ficha.tipo_raiamento
+      if (ficha.carregador_capacidade != null) {
+        // Revólver: a "capacidade" é o nº de câmaras do tambor.
+        if (ficha.tipo === "Revólver") campos.numCamaras = String(ficha.carregador_capacidade)
+        else campos.capacidadeCarregador = String(ficha.carregador_capacidade)
+      }
 
       // Sistemas de disparo → booleanos
       campos.acaoSimples = disparo.includes("simples")

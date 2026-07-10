@@ -1,73 +1,33 @@
 import type { WeaponType } from "../../types"
+import carabinaImg from "../../assets/icons/pecas/carabina.png"
+import espingardaImg from "../../assets/icons/pecas/espingarda.png"
+import fuzilImg from "../../assets/icons/pecas/fuzil.png"
+import garruchaImg from "../../assets/icons/pecas/garrucha.png"
+import pistolaImg from "../../assets/icons/pecas/pistola.png"
+import pistoleteImg from "../../assets/icons/pecas/pistolete.png"
+import revolverImg from "../../assets/icons/pecas/revolver.png"
 
 type Props = {
   type: WeaponType
   className?: string
 }
 
+// Ícones em imagem (fundo removido) para as armas de fogo desenhadas pelo usuário.
+const IMG_ICONS: Partial<Record<WeaponType, string>> = {
+  "REVÓLVER":   revolverImg,
+  "PISTOLA":    pistolaImg,
+  "PISTOLETE":  pistoleteImg,
+  "GARRUCHA":   garruchaImg,
+  "CARABINA":   carabinaImg,
+  "ESPINGARDA": espingardaImg,
+  "FUZIL":      fuzilImg,
+}
+
 export function PieceIcon({ type, className = "h-14 w-auto" }: Props) {
+  const img = IMG_ICONS[type]
+  if (img) return <img src={img} alt="" aria-hidden="true" draggable={false} className={`${className} object-contain`} />
+
   switch (type) {
-    case "REVÓLVER": return (
-      <svg viewBox="0 0 64 40" fill="currentColor" className={className} aria-hidden="true">
-        <rect x="8" y="22" width="10" height="16" rx="3"/>
-        <rect x="8" y="14" width="22" height="9" rx="2"/>
-        <ellipse cx="25" cy="18" rx="9" ry="9"/>
-        <ellipse cx="25" cy="18" rx="5" ry="5" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-        <circle cx="25" cy="18" r="1.5"/>
-        <rect x="29" y="15" width="26" height="6" rx="2"/>
-        <path d="M11 23 Q11 30 18 30 L18 23" fill="none" stroke="currentColor" strokeWidth="2"/>
-        <rect x="6" y="12" width="5" height="7" rx="1.5"/>
-      </svg>
-    )
-    case "PISTOLA": return (
-      <svg viewBox="0 0 64 40" fill="currentColor" className={className} aria-hidden="true">
-        <rect x="12" y="20" width="11" height="18" rx="3"/>
-        <rect x="12" y="12" width="30" height="10" rx="2"/>
-        <rect x="20" y="8" width="26" height="9" rx="2"/>
-        <rect x="44" y="10" width="16" height="5" rx="2"/>
-        <path d="M15 22 Q15 30 24 30 L24 22" fill="none" stroke="currentColor" strokeWidth="2"/>
-        <rect x="34" y="9" width="7" height="4" rx="1" fill="none" stroke="currentColor" strokeWidth="1.2"/>
-        <rect x="20" y="6" width="4" height="3" rx="1"/>
-        <rect x="56" y="7" width="3" height="3" rx="1"/>
-      </svg>
-    )
-    case "ESPINGARDA": return (
-      <svg viewBox="0 0 88 36" fill="currentColor" className={className} aria-hidden="true">
-        <path d="M2 14 Q2 6 8 6 L20 8 L22 28 L8 30 Q2 30 2 22 Z"/>
-        <rect x="20" y="10" width="10" height="18" rx="2"/>
-        <rect x="18" y="8" width="22" height="13" rx="2"/>
-        <rect x="38" y="9" width="22" height="11" rx="2"/>
-        <rect x="58" y="10" width="28" height="9" rx="3"/>
-        <path d="M22 22 Q22 32 30 32 L30 24" fill="none" stroke="currentColor" strokeWidth="2"/>
-        <ellipse cx="86" cy="14.5" rx="2" ry="4.5"/>
-      </svg>
-    )
-    case "CARABINA": return (
-      <svg viewBox="0 0 80 32" fill="currentColor" className={className} aria-hidden="true">
-        <path d="M2 14 Q2 8 8 8 L16 8 L18 24 L8 26 Q2 26 2 20 Z"/>
-        <rect x="18" y="17" width="8" height="12" rx="2"/>
-        <rect x="16" y="9" width="22" height="10" rx="2"/>
-        <rect x="36" y="10" width="20" height="8" rx="2"/>
-        <rect x="54" y="12" width="24" height="4" rx="2"/>
-        <path d="M22 19 L28 19 L30 30 L20 30 Z"/>
-        <rect x="18" y="6" width="20" height="4" rx="1"/>
-        <rect x="77" y="11" width="3" height="6" rx="1"/>
-      </svg>
-    )
-    case "FUZIL": return (
-      <svg viewBox="0 0 88 36" fill="currentColor" className={className} aria-hidden="true">
-        <path d="M2 15 L14 13 L16 22 L2 24 Z"/>
-        <rect x="10" y="14" width="9" height="8" rx="1"/>
-        <rect x="16" y="13" width="22" height="10" rx="2"/>
-        <path d="M20 23 L28 22 L30 35 L18 35 Z"/>
-        <rect x="18" y="7" width="28" height="8" rx="2"/>
-        <rect x="18" y="5" width="26" height="3" rx="1" opacity="0.5"/>
-        <rect x="44" y="8" width="22" height="7" rx="2"/>
-        <rect x="64" y="10" width="22" height="4" rx="1.5"/>
-        <path d="M22 23 L32 23 L34 35 L20 35 Q20 33 22 30 Z"/>
-        <rect x="85" y="9" width="3" height="6" rx="1"/>
-      </svg>
-    )
     case "METRALHADORA": return (
       <svg viewBox="0 0 80 40" fill="currentColor" className={className} aria-hidden="true">
         <path d="M2 16 L12 14 L14 22 L2 24 Z"/>

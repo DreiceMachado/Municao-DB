@@ -215,7 +215,15 @@ CREATE TABLE armas_fogo (
   ciclagem_funcional  BOOLEAN,
 
   -- Origem da munição
-  origem_municao      TEXT
+  origem_municao      TEXT,
+
+  -- Vínculo (institucional/particular) + inscrição no órgão
+  institucional            BOOLEAN,
+  inscricao_institucional  TEXT,
+  instituicao              TEXT,
+  serial_tentativa_revelacao BOOLEAN,
+  serial_revelacao         TEXT,
+  serial_revelado_obs      TEXT
 );
 
 
@@ -329,6 +337,7 @@ CREATE TABLE cartuchos (
 
   marca       TEXT,
   tipo        TEXT,
+  lote        TEXT,
   quantidade  TEXT,
   completo    BOOLEAN,
   amassado    BOOLEAN,
@@ -378,7 +387,13 @@ CREATE TABLE armas_pressao (
   sistema_acionamento TEXT,
   comp_cano           TEXT,
   estado_conservacao  TEXT,
-  adaptada_arma_fogo  BOOLEAN
+  adaptada_arma_fogo  BOOLEAN,
+  institucional            BOOLEAN,
+  inscricao_institucional  TEXT,
+  instituicao              TEXT,
+  serial_tentativa_revelacao BOOLEAN,
+  serial_revelacao         TEXT,
+  serial_revelado_obs      TEXT
 );
 
 
@@ -395,7 +410,13 @@ CREATE TABLE armas_antecarga (
   modelo              TEXT,
   comp_cano           TEXT,
   sistema_acionamento TEXT,
-  estado_conservacao  TEXT
+  estado_conservacao  TEXT,
+  institucional            BOOLEAN,
+  inscricao_institucional  TEXT,
+  instituicao              TEXT,
+  serial_tentativa_revelacao BOOLEAN,
+  serial_revelacao         TEXT,
+  serial_revelado_obs      TEXT
 );
 
 

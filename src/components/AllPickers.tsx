@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { X } from "lucide-react"
 import { useWeaponForm } from "../context/WeaponFormContext"
 import type { WeaponType } from "../types"
+import { ordenarOpcoes } from "../lib/ordenar"
 
 const FIREARMS: WeaponType[] = ["REVÓLVER", "PISTOLA", "PISTOLETE", "GARRUCHA", "ESPINGARDA", "CARABINA", "FUZIL", "METRALHADORA", "SUBMETRALHADORA", "ARMA DE ANTECARGA"]
 
@@ -98,7 +99,7 @@ export function AllPickers(props: PickersProps) {
     if (weapon.type === "FACA") return ["Aço inoxidável","Aço carbono","Aço inox cirúrgico","Aço damasco","Aço revestido (titânio / DLC)","Liga metálica","Cerâmica","Ferro","Indeterminado"]
     if (weapon.type === "CARREGADOR") return ["Polímero","Polímero reforçado (P-Mag)","Aço","Aço inoxidável","Alumínio","Liga de alumínio","Latão","Plástico ABS","Indeterminado"]
     if (FIREARMS.includes(weapon.type as WeaponType)) return ["Aço oxidado","Aço inoxidável","Aço fosfatado","Aço niquelado","Aço cromado","Aço brunido","Alumínio anodizado","Liga de alumínio","Titânio","Latão","Polímero","Madeira","Inox escovado","Indeterminado"]
-    return ["Chumbo","Liga de chumbo","Chumbo endurecido","Encamisado (FMJ)","Semiencamisado","Ponta oca (HP)","Encamisado de aço","Cobre","Latão","Aço","Aço inoxidável","Alumínio","Tungstênio","Bismuto","Polímero","Niquelado"]
+    return ["Chumbo","Liga de chumbo","Chumbo endurecido","Cobre","Latão","Aço","Aço inoxidável","Alumínio","Tungstênio","Bismuto","Polímero","Niquelado","Indeterminado"]
   }
 
   const materialTitle = () => {
@@ -362,7 +363,6 @@ export function AllPickers(props: PickersProps) {
     if (weapon.type === "REVÓLVER" || weapon.type === "PISTOLA") return [
       { l: "9 mm Luger (9×19mm)", d: "Padrão NATO e policial mundial" },
       { l: ".38 SPL", d: "O mais comum no Brasil; padrão policial" },
-      { l: ".38 SPL +P", d: "Versão de maior pressão do .38 SPL" },
       { l: ".357 Magnum", d: "Revólveres e carabinas; compatível com .38 SPL" },
       { l: ".40 S&W", d: "Padrão policial brasileiro" },
       { l: ".45 ACP", d: "Grande diâmetro; alto poder de parada" },
@@ -513,7 +513,6 @@ export function AllPickers(props: PickersProps) {
       { l: "9 mm Luger (9×19mm)", d: "Padrão NATO e policial" },
       { l: "9 mm Makarov (9×18mm)", d: "Pistolas de origem soviética" },
       { l: ".38 SPL", d: "Padrão no Brasil" },
-      { l: ".38 SPL +P", d: "Versão +P do .38 SPL" },
       { l: ".357 Magnum", d: "Revólveres e lever-action" },
       { l: ".38 Super Auto", d: "Pistolas de competição" },
       { l: ".40 S&W", d: "Pistolas policiais" },
@@ -567,7 +566,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title={materialTitle()} onClose={() => close("material")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {materialOptions().map((mat, idx, arr) => (
+                {ordenarOpcoes(materialOptions()).map((mat, idx, arr) => (
                   <PickerItem key={mat} label={mat} selected={weapon.material === mat} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("material", weapon.material === mat ? "" : mat); close("material") }} />
                 ))}
@@ -585,7 +584,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title={formatoTitle()} onClose={() => close("formato")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {formatoOptions().map((fmt, idx, arr) => (
+                {ordenarOpcoes(formatoOptions()).map((fmt, idx, arr) => (
                   <PickerItem key={fmt} label={fmt} selected={weapon.formato === fmt} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("formato", weapon.formato === fmt ? "" : fmt); close("formato") }} />
                 ))}
@@ -603,7 +602,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Tipo de mira" onClose={() => close("mira")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {miraOptions().map(({ l, d }, idx, arr) => {
+                {ordenarOpcoes(miraOptions()).map(({ l, d }, idx, arr) => {
                   if (l === "Outro") {
                     const temOutro = (weapon.tipoMira ?? []).some(m => !miraOptions().slice(0, -1).find(o => o.l === m))
                     return (
@@ -691,7 +690,7 @@ export function AllPickers(props: PickersProps) {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {carregadorOptions().map(({ l, d }, idx, arr) => (
+                {ordenarOpcoes(carregadorOptions()).map(({ l, d }, idx, arr) => (
                   <PickerItem key={l} label={l} desc={d} selected={(weapon.tipoCarregador ?? []).includes(l)} last={idx === arr.length - 1}
                     onSelect={() => {
                       const cur = weapon.tipoCarregador ?? []
@@ -713,7 +712,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Sentido das raias" onClose={() => close("sentido")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {["Dextrorso","Sinistrorso","Dextrorso e Sinistrorso (combinado)","Anfidextrorso","Indeterminado"].map((s, idx, arr) => (
+                {ordenarOpcoes(["Dextrorso","Sinistrorso","Dextrorso e Sinistrorso (combinado)","Anfidextrorso","Indeterminado"]).map((s, idx, arr) => (
                   <PickerItem key={s} label={s} selected={weapon.sentidoEstrias === s} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("sentidoEstrias", weapon.sentidoEstrias === s ? "" : s); close("sentido") }} />
                 ))}
@@ -731,7 +730,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Deformações acidentais" onClose={() => close("deformacoes")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {(weapon.type === "ESTOJO" ? [
+                {ordenarOpcoes(weapon.type === "ESTOJO" ? [
                   "Ausente","Amassamento na boca","Amassamento no corpo","Amassamento no rebordo","Deformação por extração forçada","Arranhões / riscos superficiais","Oxidação com deformação","Indeterminada",
                 ] : weapon.type === "CARTUCHO" ? [
                   "Ausente","Amassamento na boca do estojo","Amassamento no corpo do estojo","Deformação no projétil","Deformação no rebordo","Arranhões / riscos superficiais","Oxidação com deformação","Indeterminada",
@@ -762,7 +761,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Tipo de lâmina" onClose={() => close("tipoLamina")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {["Lisa","Serrilhada","Mista (lisa e serrilhada)","Ondulada / dentada","Indeterminada"].map((opt, idx, arr) => (
+                {ordenarOpcoes(["Lisa","Serrilhada","Mista (lisa e serrilhada)","Ondulada / dentada","Indeterminada"]).map((opt, idx, arr) => (
                   <PickerItem key={opt} label={opt} selected={weapon.tipoLamina === opt} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("tipoLamina", weapon.tipoLamina === opt ? "" : opt); close("tipoLamina") }} />
                 ))}
@@ -780,7 +779,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Tipo de gume" onClose={() => close("tipoGume")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {["Simples (um gume)","Duplo (dois gumes)","Falso gume","Sem gume definido","Indeterminado"].map((opt, idx, arr) => (
+                {ordenarOpcoes(["Simples (um gume)","Duplo (dois gumes)","Falso gume","Sem gume definido","Indeterminado"]).map((opt, idx, arr) => (
                   <PickerItem key={opt} label={opt} selected={weapon.tipoGume === opt} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("tipoGume", weapon.tipoGume === opt ? "" : opt); close("tipoGume") }} />
                 ))}
@@ -798,7 +797,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Tipo de raiamento do cano" onClose={() => close("tipoRaiamento")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {["Alma lisa (sem raiamento)","Raiamento convencional","Raiamento poligonal","Raiamento de campo e alvéolo","Microgroove (múltiplos raios)","Raiamento quadrado","Indeterminado"].map((opt, idx, arr) => (
+                {ordenarOpcoes(["Alma lisa (sem raiamento)","Raiamento convencional","Raiamento poligonal","Raiamento de campo e alvéolo","Microgroove (múltiplos raios)","Raiamento quadrado","Indeterminado"]).map((opt, idx, arr) => (
                   <PickerItem key={opt} label={opt} selected={weapon.tipoRaiamento === opt} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("tipoRaiamento", weapon.tipoRaiamento === opt ? "" : opt); close("tipoRaiamento") }} />
                 ))}
@@ -816,7 +815,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Sistema de acionamento" onClose={() => close("sistemaAcionamento")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {sistemaAcionamentoOptions().map(({ l, d }, idx, arr) => (
+                {ordenarOpcoes(sistemaAcionamentoOptions()).map(({ l, d }, idx, arr) => (
                   <PickerItem key={l} label={l} desc={d} selected={weapon.sistemaAcionamento === l} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("sistemaAcionamento", weapon.sistemaAcionamento === l ? "" : l); close("sistemaAcionamento") }} />
                 ))}
@@ -834,7 +833,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="País de fabricação" onClose={() => close("pais")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {([
+                {ordenarOpcoes([
                   { c: "br", l: "Brasil" },{ c: "us", l: "Estados Unidos" },{ c: "at", l: "Áustria" },
                   { c: "de", l: "Alemanha" },{ c: "it", l: "Itália" },{ c: "cz", l: "República Tcheca" },
                   { c: "be", l: "Bélgica" },{ c: "ar", l: "Argentina" },{ c: "ru", l: "Rússia" },
@@ -1032,7 +1031,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Material e acabamento da coronha" onClose={() => close("materialCoronha")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {["Polímero sintético","Madeira (mogno)","Madeira (faia)","Madeira (carvalho)","Madeira laminada","Fibra de vidro","Fibra de carbono","Metal (dobrável/retrátil)","Plástico reforçado","Borracha / soft-touch","Indeterminado"].map((opt, idx, arr) => (
+                {ordenarOpcoes(["Polímero sintético","Madeira (mogno)","Madeira (faia)","Madeira (carvalho)","Madeira laminada","Fibra de vidro","Fibra de carbono","Metal (dobrável/retrátil)","Plástico reforçado","Borracha / soft-touch","Indeterminado"]).map((opt, idx, arr) => (
                   <PickerItem key={opt} label={opt} selected={weapon.materialCoroha === opt} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("materialCoroha", weapon.materialCoroha === opt ? "" : opt); close("materialCoronha") }} />
                 ))}
@@ -1050,7 +1049,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Material e acabamento do quadro" onClose={() => close("materialQuadro")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {["Aço oxidado","Aço inoxidável","Aço fosfatado","Alumínio forjado","Liga de alumínio","Polímero reforçado","Titânio","Aço niquelado","Indeterminado"].map((opt, idx, arr) => (
+                {ordenarOpcoes(["Aço oxidado","Aço inoxidável","Aço fosfatado","Alumínio forjado","Liga de alumínio","Polímero reforçado","Titânio","Aço niquelado","Indeterminado"]).map((opt, idx, arr) => (
                   <PickerItem key={opt} label={opt} selected={weapon.materialQuadro === opt} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("materialQuadro", weapon.materialQuadro === opt ? "" : opt); close("materialQuadro") }} />
                 ))}
@@ -1068,7 +1067,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Acabamento" onClose={() => close("acabamento")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {(FIREARMS.includes(weapon.type as WeaponType) ? [
+                {ordenarOpcoes(FIREARMS.includes(weapon.type as WeaponType) ? [
                   "Oxidado / pavonado","Niquelado","Cromado","Brunido","Polido / espelhado","Fosfatado","DLC (Diamond-Like Carbon)","Revestimento Teflon","Casehardenado","Inox escovado","Indeterminado",
                 ] : [
                   "Polido / espelhado","Brunido / escurecido","Fosco","Revestimento preto","Titânio","DLC (Diamond-Like Carbon)","Pintado","Envernizado","Oxidado","Indeterminado",
@@ -1090,7 +1089,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Tipo de pólvora" onClose={() => close("tipoPolvora")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {["Pólvora negra (black powder)","Pólvora sem fumaça — base simples (nitrocelulose)","Pólvora sem fumaça — base dupla (nitrocelulose + nitroglicerina)","Pólvora sem fumaça — base tripla","Propelente esférico (ball powder)","Propelente extrudado","Propelente de chumbinho (pistão de ar)","Indeterminado"].map((opt, idx, arr) => (
+                {ordenarOpcoes(["Pólvora negra (black powder)","Pólvora sem fumaça — base simples (nitrocelulose)","Pólvora sem fumaça — base dupla (nitrocelulose + nitroglicerina)","Pólvora sem fumaça — base tripla","Propelente esférico (ball powder)","Propelente extrudado","Propelente de chumbinho (pistão de ar)","Indeterminado"]).map((opt, idx, arr) => (
                   <PickerItem key={opt} label={opt} selected={weapon.tipoPolvora === opt} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("tipoPolvora", weapon.tipoPolvora === opt ? "" : opt); close("tipoPolvora") }} />
                 ))}
@@ -1108,7 +1107,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Tipo de espoleta" onClose={() => close("tipoEspoleta")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {["Boxer (percussão central — 1 orifício)","Berdan (percussão central — 2 orifícios)","Rimfire (percussão periférica / anel)","Percussão anular","Espoleta elétrica","Indeterminado"].map((opt, idx, arr) => (
+                {ordenarOpcoes(["Boxer (percussão central — 1 orifício)","Berdan (percussão central — 2 orifícios)","Rimfire (percussão periférica / anel)","Percussão anular","Espoleta elétrica","Indeterminado"]).map((opt, idx, arr) => (
                   <PickerItem key={opt} label={opt} selected={weapon.tipoEspoleta === opt} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("tipoEspoleta", weapon.tipoEspoleta === opt ? "" : opt); close("tipoEspoleta") }} />
                 ))}

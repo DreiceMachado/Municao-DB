@@ -5,7 +5,7 @@ import {
   CheckCircle2, XCircle, Check, X, Camera,
   ArrowRight, Download, Pencil, Send, CircleCheck, SquarePen,
 } from "lucide-react"
-import { buscarLaudoCompleto, atualizarRepStatus } from "../lib/db"
+import { buscarLaudoCompleto, atualizarRepStatus, db } from "../lib/db"
 import type { FotoLocal } from "../lib/db"
 import type { WeaponEntry, RepStatus } from "../types"
 
@@ -478,29 +478,30 @@ export function LaudoDetailPanel({ laudoId, onClose, onRefresh, onEditar }: Prop
   const open = !!laudoId
   const [dados, setDados] = useState<LaudoCompleto>(null)
   const [carregando, setCarregando] = useState(false)
-  const [avancando, setAvancando] = useState(false)
+  // Status da REP importada correspondente (o rascunho aberto não carrega o repStatus).
+  const [repStatusFonte, setRepStatusFonte] = useState<RepStatus | undefined>(undefined)
 
   const recarregar = (id: string) => {
     setCarregando(true)
-    buscarLaudoCompleto(id).then((d) => { setDados(d); setCarregando(false) })
+    buscarLaudoCompleto(id).then(async (d) => {
+      setDados(d)
+      let status: RepStatus | undefined = d?.laudo.repStatus ?? undefined
+      if (d?.laudo && !status && d.laudo.examNumber) {
+        // Rascunho: busca a REP importada de mesmo número/ano que tenha estágio.
+        const rep = await db.laudos
+          .filter(l => l.examNumber === d.laudo.examNumber && l.examYear === d.laudo.examYear && !!l.repStatus)
+          .first()
+        status = rep?.repStatus
+      }
+      setRepStatusFonte(status)
+      setCarregando(false)
+    })
   }
 
   useEffect(() => {
     if (!laudoId) { setDados(null); return }
     recarregar(laudoId)
   }, [laudoId])
-
-  const handleAvancarEstagio = async () => {
-    if (!dados?.laudo.localId) return
-    const atual = dados.laudo.repStatus
-    const proximo = atual ? NEXT_STATUS[atual] : "editando"
-    if (!proximo) return
-    setAvancando(true)
-    await atualizarRepStatus(dados.laudo.localId, proximo)
-    recarregar(dados.laudo.localId)
-    onRefresh?.()
-    setAvancando(false)
-  }
 
   return (
     <>
@@ -544,12 +545,12 @@ export function LaudoDetailPanel({ laudoId, onClose, onRefresh, onEditar }: Prop
                   </div>
                   <div className="mt-1 flex items-center gap-2 flex-wrap">
                     <span className="text-[10px] uppercase tracking-[0.2em] text-[#8ea4c0]">
-                      {dados?.laudo.repStatus
-                        ? REP_STATUS_LABEL[dados.laudo.repStatus]
+                      {(dados?.laudo.repStatus ?? repStatusFonte)
+                        ? REP_STATUS_LABEL[(dados?.laudo.repStatus ?? repStatusFonte)!]
                         : dados?.laudo.status === "finalizado" ? "Finalizado" : "Em execução"}
                     </span>
-                    {dados?.laudo.repStatus && (() => {
-                      const s = dados.laudo.repStatus!
+                    {(dados?.laudo.repStatus ?? repStatusFonte) && (() => {
+                      const s = (dados?.laudo.repStatus ?? repStatusFonte)!
                       const Icon = REP_STATUS_ICON[s]
                       return (
                         <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${REP_STATUS_COLORS[s].badge}`}>
@@ -600,8 +601,8 @@ export function LaudoDetailPanel({ laudoId, onClose, onRefresh, onEditar }: Prop
                           ? "bg-[#1a6b3e]/30 text-[#7de0a8]"
                           : "bg-[#f0d08a]/15 text-[#f0d08a]"
                       }`}>
-                        {dados.laudo.repStatus
-                          ? <><CheckCircle2 className="h-3 w-3" /> {REP_STATUS_LABEL[dados.laudo.repStatus]}</>
+                        {(dados.laudo.repStatus ?? repStatusFonte)
+                          ? <><CheckCircle2 className="h-3 w-3" /> {REP_STATUS_LABEL[(dados.laudo.repStatus ?? repStatusFonte)!]}</>
                           : dados.laudo.status === "finalizado"
                             ? <><CheckCircle2 className="h-3 w-3" /> Finalizado</>
                             : <><XCircle className="h-3 w-3" /> Em execução</>}
@@ -624,11 +625,7 @@ export function LaudoDetailPanel({ laudoId, onClose, onRefresh, onEditar }: Prop
 
                   {/* Pipeline de estágio */}
                   {(() => {
-                    const repStatus = dados.laudo.repStatus
-                    const proximo = repStatus ? NEXT_STATUS[repStatus] : "editando"
-                    const label = repStatus ? NEXT_STATUS_LABEL[repStatus] : "Iniciar Rastreamento"
-                    const colors = repStatus ? REP_STATUS_COLORS[repStatus] : REP_STATUS_COLORS["importada"]
-                    const ProximoIcon = proximo ? REP_STATUS_ICON[proximo] : ArrowRight
+                    const repStatus = dados.laudo.repStatus ?? repStatusFonte
                     const estagios: RepStatus[] = ["importada", "editando", "sincronizada", "no_gdl"]
                     const idxAtual = repStatus ? estagios.indexOf(repStatus) : -1
                     return (
@@ -658,20 +655,8 @@ export function LaudoDetailPanel({ laudoId, onClose, onRefresh, onEditar }: Prop
                             )
                           })}
                         </div>
-                        {label && proximo && (
-                          <div className="px-4 pb-4 pt-2">
-                            <button
-                              type="button"
-                              onClick={handleAvancarEstagio}
-                              disabled={avancando}
-                              className={`flex w-full items-center justify-center gap-2 rounded-2xl border-2 py-3 text-sm font-black tracking-[0.10em] transition active:brightness-95 disabled:opacity-50 ${colors.btn}`}
-                            >
-                              <ProximoIcon className="h-4 w-4" />
-                              {avancando ? "Atualizando..." : label}
-                            </button>
-                          </div>
-                        )}
-                        {!proximo && repStatus === "no_gdl" && (
+                        {/* Rastreamento agora é automático — sem botão de avançar estágio. */}
+                        {repStatus === "no_gdl" && (
                           <div className="px-4 pb-4 pt-1 text-center text-xs font-bold text-[#3d9b55]">
                             ✓ Enviada ao GDL
                           </div>

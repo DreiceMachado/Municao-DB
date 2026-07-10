@@ -135,9 +135,16 @@ export type WeaponEntry = {
   manchas: boolean
   manchasObs: string
   institucional: boolean | null
+  // Quando institucional: número de inscrição da arma no órgão + instituição.
+  inscricaoInstitucional: string
+  instituicao: string
   naFlags: string[]
   tipoProd: string
   serialEstado: string
+  // Nº de série SUPRIMIDO: houve tentativa de revelação? + resultado + anotação.
+  serialTentativaRevelacao: boolean | null
+  serialRevelacao: string
+  serialReveladoObs: string
   quantidade: string
   diametroMin: string
   massa: string

@@ -108,7 +108,7 @@ export function makeWeaponEntry(type: WeaponType): WeaponEntry {
     gumeFuncional: true, aptaUso: true, laminaIntegra: true,
     caboDanificado: false, manchas: false, manchasObs: "",
     sistemaAcionamento: "", tamanhoCamara: "", tipoRaiamento: "", materialQuadro: "", materialCoroha: "",
-    institucional: null, naFlags: [], tipoProd: "", serialEstado: "", quantidade: "", diametroMin: "", massa: "",
+    institucional: null, inscricaoInstitucional: "", instituicao: "", naFlags: [], tipoProd: "", serialEstado: "", serialTentativaRevelacao: null, serialRevelacao: "", serialReveladoObs: "", quantidade: "", diametroMin: "", massa: "",
     origemProjetil: "", origemProjetilRef: "", regiaoColeta: "", deformacoesAcidentais: "", estadoProjetil: "", alturaProjetil: "",
     estadoCartucho: "", estadoEstojo: "",
     tipoPolvora: "", cor: "", tipoEspoleta: "",
@@ -229,6 +229,7 @@ export const FABRICANTES_MUNICAO_INFO: Record<string, { headstamp: string; pais:
 export const TIPOS_PROJETIL_CARTUCHO: string[] = [
   "CHOG — Chumbo Ogival",
   "CHPP — Chumbo Ponta Plana",
+  "CHPO — Chumbo Ponta Oca",
   "CHCV — Chumbo Canto Vivo",
   "CSCV — Chumbo Semi Canto Vivo",
   "CXPO — Cobre Expansivo Ponta Oca",
