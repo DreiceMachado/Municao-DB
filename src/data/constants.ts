@@ -84,7 +84,7 @@ export function makeWeaponEntry(type: WeaponType): WeaponEntry {
   return {
     type,
     identificacao: "", brand: "", model: "", caliber: "", serial: "", paisFabricacao: "", origemMunicao: "",
-    material: "", acabamento: "", compCano: "", numCamaras: "", tamborSobressalente: "", tamborSobressalenteQtd: "", tipoMira: [], tipoCarregador: [],
+    material: "", acabamento: "", compCano: "", numCamaras: "", rebatimentoTambor: "", tamborSobressalente: "", tamborSobressalenteQtd: "", tipoMira: [], tipoCarregador: [],
     canoSobressalente: "", canoSobressalenteQtd: "", canoSobressalenteComp: "", canoSobressalenteMaterial: "", canoSobressalenteAcabamento: "",
     acaoSimples: true, acaoDupla: true, tamborGira: true, indexacaoCorreta: true,
     caoFuncional: true, gatilhoFuncional: true, seguranca: true,
@@ -126,6 +126,8 @@ export function makeWeaponEntry(type: WeaponType): WeaponEntry {
     tipoAcessorio: [], lacreEntradaAcessorio: "", lacreEntradaMesmoDaPeca: false,
     lacreSaidaAcessorio: "", lacreSaidaMesmoDaPeca: false,
     origemAcessorio: "", materialAcessorio: {}, descricaoAcessorio: "",
+    capacidadeAcessorio: "",
+    acessorios: [],
   }
 }
 
@@ -145,7 +147,7 @@ export const FABRICANTES_MUNICAO: string[] = [
   "Fabricaciones Militares (Argentina)", "Stopping Power", "DIMABEL", "Famae & Dimabel",
   "Fábrica Boliviana de Munición", "Indumil", "Aguila", "Dominion Cartridge",
   "Israel Military Industries", "Pretoria Metal Pressings", "Mátravidéki Fémmuvek",
-  "Igman Zavod", "Taiwan Government Arsenal", "Outro",
+  "Igman Zavod", "Taiwan Government Arsenal", "Indeterminado", "Outro",
 ]
 
 // Ficha do fabricante de munição — usada pelo botão "Preencher ficha" no estojo/cartucho.

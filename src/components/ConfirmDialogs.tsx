@@ -17,9 +17,9 @@ type Props = {
   onDeleteCarregador: () => void
   onCancelDeleteCarregador: () => void
 
-  confirmDeleteAcessorios: boolean
-  onDeleteAcessorios: () => void
-  onCancelDeleteAcessorios: () => void
+  confirmDeleteAcessorioIdx: number | null
+  onDeleteAcessorio: () => void
+  onCancelDeleteAcessorio: () => void
 }
 
 const sheetContainer = "overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.45)]"
@@ -51,9 +51,9 @@ export function ConfirmDialogs({
   confirmDeleteCarregador,
   onDeleteCarregador,
   onCancelDeleteCarregador,
-  confirmDeleteAcessorios,
-  onDeleteAcessorios,
-  onCancelDeleteAcessorios,
+  confirmDeleteAcessorioIdx,
+  onDeleteAcessorio,
+  onCancelDeleteAcessorio,
 }: Props) {
   const piece = confirmDeletePieceIdx !== null ? savedPieces[confirmDeletePieceIdx] : null
 
@@ -64,7 +64,7 @@ export function ConfirmDialogs({
           <>
             <motion.div className="fixed inset-0 z-[140] bg-black/60 backdrop-blur-[2px]"
               {...backdropMotion} onClick={onCancelDeletePiece} />
-            <motion.div className="fixed inset-x-0 bottom-0 z-[150] px-4 pb-8" {...sheetMotion}>
+            <motion.div className="fixed inset-x-0 bottom-0 z-[150] px-4 pb-8 sm:mx-auto sm:max-w-sm" {...sheetMotion}>
               <div className={sheetContainer}>
                 <div className={sheetHeader}>
                   <div className="flex items-center gap-3">
@@ -111,7 +111,7 @@ export function ConfirmDialogs({
           <>
             <motion.div className="fixed inset-0 z-[140] bg-black/60 backdrop-blur-[2px]"
               {...backdropMotion} onClick={onCancelDeleteMira} />
-            <motion.div className="fixed inset-x-0 bottom-0 z-[150] px-4 pb-8" {...sheetMotion}>
+            <motion.div className="fixed inset-x-0 bottom-0 z-[150] px-4 pb-8 sm:mx-auto sm:max-w-sm" {...sheetMotion}>
               <div className={sheetContainer}>
                 <div className={sheetHeader}>
                   <div className="flex items-center gap-3">
@@ -141,7 +141,7 @@ export function ConfirmDialogs({
           <>
             <motion.div className="fixed inset-0 z-[140] bg-black/60 backdrop-blur-[2px]"
               {...backdropMotion} onClick={onCancelDeleteCarregador} />
-            <motion.div className="fixed inset-x-0 bottom-0 z-[150] px-4 pb-8" {...sheetMotion}>
+            <motion.div className="fixed inset-x-0 bottom-0 z-[150] px-4 pb-8 sm:mx-auto sm:max-w-sm" {...sheetMotion}>
               <div className={sheetContainer}>
                 <div className={sheetHeader}>
                   <div className="flex items-center gap-3">
@@ -167,11 +167,11 @@ export function ConfirmDialogs({
       </AnimatePresence>
 
       <AnimatePresence>
-        {confirmDeleteAcessorios && (
+        {confirmDeleteAcessorioIdx !== null && (
           <>
             <motion.div className="fixed inset-0 z-[140] bg-black/60 backdrop-blur-[2px]"
-              {...backdropMotion} onClick={onCancelDeleteAcessorios} />
-            <motion.div className="fixed inset-x-0 bottom-0 z-[150] px-4 pb-8" {...sheetMotion}>
+              {...backdropMotion} onClick={onCancelDeleteAcessorio} />
+            <motion.div className="fixed inset-x-0 bottom-0 z-[150] px-4 pb-8 sm:mx-auto sm:max-w-sm" {...sheetMotion}>
               <div className={sheetContainer}>
                 <div className={sheetHeader}>
                   <div className="flex items-center gap-3">
@@ -179,16 +179,16 @@ export function ConfirmDialogs({
                       <X className="h-5 w-5 text-[#f08a8a]" />
                     </div>
                     <div>
-                      <div className="text-base font-black text-[#f08a8a]">Excluir acessórios e embalagem</div>
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#c47a7a]">Todos os dados serão removidos. Continuar?</div>
+                      <div className="text-base font-black text-[#f08a8a]">Excluir acessório {confirmDeleteAcessorioIdx + 1}</div>
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#c47a7a]">Esta ação não pode ser desfeita</div>
                     </div>
                   </div>
                 </div>
                 <div className="space-y-3 p-4">
-                  <button type="button" onClick={onDeleteAcessorios} className={confirmBtn}>
+                  <button type="button" onClick={onDeleteAcessorio} className={confirmBtn}>
                     <X className="h-4 w-4" /> SIM, EXCLUIR
                   </button>
-                  <button type="button" onClick={onCancelDeleteAcessorios} className={cancelBtn}>CANCELAR</button>
+                  <button type="button" onClick={onCancelDeleteAcessorio} className={cancelBtn}>CANCELAR</button>
                 </div>
               </div>
             </motion.div>

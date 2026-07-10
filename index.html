@@ -7,6 +7,30 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Diagnóstico: se algo falhar no carregamento, mostra o erro na tela
+      // (útil no celular, onde não dá para abrir o console).
+      (function () {
+        function mostra(txt) {
+          var r = document.getElementById('root');
+          if (r && !r.hasChildNodes()) {
+            r.innerHTML = '<pre style="margin:0;padding:16px;color:#b00020;background:#fff;white-space:pre-wrap;word-break:break-word;font:13px/1.4 monospace">' +
+              String(txt).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }) + '</pre>';
+          }
+        }
+        window.addEventListener('error', function (e) {
+          mostra('ERRO: ' + (e.message || e) + '\n' + (e.filename || '') + (e.lineno ? ':' + e.lineno : ''));
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          var r = e.reason;
+          mostra('PROMISE: ' + (r && (r.stack || r.message) || r));
+        });
+        // Se em 5s o app não montou, avisa (erro de módulo/MIME não dispara onerror).
+        setTimeout(function () {
+          mostra('O app não montou em 5s.\nSe você está vendo ESTA mensagem, a HTML carregou mas o módulo JS falhou (provável bloqueio do ngrok no /src/main.tsx).\n\nSe NÃO vê nem esta mensagem, a página servida não é o app (aviso do ngrok ou cache).');
+        }, 5000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -27,12 +27,26 @@ export async function useCatalogoBrands(weaponType?: WeaponType | null): Promise
 }
 
 export async function useCatalogoModels(weaponType: WeaponType | undefined, marca: string | undefined): Promise<string[] | undefined> {
-  if (!weaponType || !marca) return undefined
+  if (!weaponType) return undefined
   const tipoCatalogo = TIPO_BALISTICADB_PARA_CATALOGO[weaponType]
   if (!tipoCatalogo) return undefined
 
-  const items = await catalogDb.catalog.where({ tipo: tipoCatalogo, marca }).toArray()
+  // Sem fabricante (ou "Indeterminado"): mostra TODOS os modelos do tipo.
+  const semMarca = !marca || marca === "Indeterminado"
+  const items = semMarca
+    ? await catalogDb.catalog.where('tipo').equals(tipoCatalogo).toArray()
+    : await catalogDb.catalog.where({ tipo: tipoCatalogo, marca }).toArray()
   return [...new Set(items.map(w => w.modelo))].sort()
+}
+
+// Descobre a marca (fabricante) de um modelo — usado ao escolher um modelo sem
+// fabricante definido, para preencher o fabricante automaticamente.
+export async function buscarMarcaPorModelo(weaponType: WeaponType | undefined, modelo: string): Promise<string | null> {
+  if (!weaponType || !modelo) return null
+  const tipoCatalogo = TIPO_BALISTICADB_PARA_CATALOGO[weaponType]
+  if (!tipoCatalogo) return null
+  const item = await catalogDb.catalog.where({ tipo: tipoCatalogo, modelo }).first()
+  return item?.marca ?? null
 }
 
 export function useWeaponCatalog() {
@@ -66,7 +80,11 @@ export function useWeaponCatalog() {
       if (ficha.pais_fabricacao)     campos.paisFabricacao     = ficha.pais_fabricacao
       if (ficha.comprimento_cano_cm) campos.compCano           = ficha.comprimento_cano_cm
       if (ficha.comprimento_total_cm)campos.compTotal          = ficha.comprimento_total_cm
-      if (ficha.material_armacao)    campos.material           = ficha.material_armacao
+      // material_armacao = material da ARMAÇÃO (quadro), não do cano. Vai para materialQuadro.
+      if (ficha.material_armacao) {
+        const m = ficha.material_armacao.trim()
+        campos.materialQuadro = m ? m.charAt(0).toUpperCase() + m.slice(1) : m
+      }
       if (ficha.raias_qtd != null)   campos.numEstrias         = String(ficha.raias_qtd)
       if (ficha.raias_sentido)       campos.sentidoEstrias     = ficha.raias_sentido
       if (ficha.carregador_capacidade != null)

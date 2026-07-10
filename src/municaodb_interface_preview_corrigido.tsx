@@ -33,7 +33,7 @@ import {
   X,
 } from "lucide-react"
 
-import type { WeaponEntry, WeaponType, ProfileView, RepStatus, RecordItem } from "./types"
+import type { WeaponEntry, WeaponType, ProfileView, RepStatus, RecordItem, AcessorioEntry } from "./types"
 import { supabase, supabaseAtivo } from "./lib/supabase"
 import { makeWeaponEntry, FABRICANTES_MUNICAO, FABRICANTES_MUNICAO_INFO, TIPOS_PROJETIL_CARTUCHO } from "./data/constants"
 import { useLaudoDb } from "./hooks/useLaudoDb"
@@ -55,13 +55,30 @@ import { PhotosScreen } from "./components/PhotosScreen"
 import { WeaponFormProvider } from "./context/WeaponFormContext"
 import { AllPickers } from "./components/AllPickers"
 import { mapearRepGdl, type RepGdlData } from "./lib/repMapper"
-import { useWeaponCatalog, useCatalogoBrands, useCatalogoModels } from "./hooks/useWeaponCatalog"
+import { useWeaponCatalog, useCatalogoBrands, useCatalogoModels, buscarMarcaPorModelo } from "./hooks/useWeaponCatalog"
 import { populateCatalogDb } from "./lib/catalogDb"
 import { useLiveQuery } from "dexie-react-hooks"
 
 const _ARMAS_FOGO_GDL: WeaponType[] = ["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"]
 const _MODEL_IDENT_GDL: WeaponType[] = ["CARREGADOR","ESTOJO","CARTUCHO","ARMA DE CHOQUE"]
 const _VINCULO_GDL: WeaponType[] = ["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE PRESSÃO","ARMA DE ANTECARGA"]
+
+// Campos que só aceitam dígitos inteiros (contagens/quantidades)
+const _CAMPOS_INT = new Set<string>(["numCamaras", "numCanos", "quantidade"])
+// Campos de medida: dígitos + um separador decimal (vírgula/ponto → normalizado p/ vírgula)
+const _CAMPOS_DEC = new Set<string>(["diametro", "diametroMin", "massa", "alturaProjetil"])
+const _sanitizeDec = (raw: string) => {
+  let v = raw.replace(/[^\d.,]/g, "")
+  const i = v.search(/[.,]/)
+  if (i !== -1) v = v.slice(0, i) + "," + v.slice(i + 1).replace(/[.,]/g, "")
+  return v
+}
+// Converte um comprimento em mm para polegadas (1 pol = 25,4 mm). Retorna null se não houver número.
+const _mmParaPol = (raw: string): string | null => {
+  const n = parseFloat(String(raw).replace(",", "."))
+  if (!isFinite(n) || n <= 0) return null
+  return `≈ ${(n / 25.4).toFixed(2).replace(".", ",")} pol.`
+}
 
 // ── Datas: o app/GDL usam DD/MM/AAAA; o <input type="date"> usa AAAA-MM-DD ──
 function brParaIso(br: string): string {
@@ -224,6 +241,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [calibreArmaPressaoPickerOpen, setCalibreArmaPressaoPickerOpen] = useState(false)
   const [calibreAntecargaPickerOpen, setCalibreAntecargaPickerOpen] = useState(false)
   const [tamborPickerOpen, setTamborPickerOpen] = useState(false)
+  const [numRaiasPickerOpen, setNumRaiasPickerOpen] = useState(false)
   const [canoSobresPickerOpen, setCanoSobresPickerOpen] = useState(false)
   const [calibrePickerOpen, setCalibrePickerOpen] = useState(false)
   // calibreCustomInput is now managed locally inside AllPickers
@@ -238,10 +256,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [materialAcessorioPickerOpen, setMaterialAcessorioPickerOpen] = useState(false)
   const [materialAcessorioItem, setMaterialAcessorioItem] = useState<string | null>(null)
   const [acessoriosEditando, setAcessoriosEditando] = useState(false)
+  const [draftAcessorioId, setDraftAcessorioId] = useState<string>("")
+  const [editingAcessorioIdx, setEditingAcessorioIdx] = useState<number | null>(null)
   const [tipoMunicaoPickerOpen, setTipoMunicaoPickerOpen] = useState(false)
   const [qtdMunicaoPickerOpen, setQtdMunicaoPickerOpen] = useState(false)
   const [tipoMunicaoCustom, setTipoMunicaoCustom] = useState("")
-  const [confirmDeleteAcessorios, setConfirmDeleteAcessorios] = useState(false)
+  const [confirmDeleteAcessorioIdx, setConfirmDeleteAcessorioIdx] = useState<number | null>(null)
 
   // ── Catálogo de armas ────────────────────────────────────────────────────
   const [catalogoMarcaPickerOpen, setCatalogoMarcaPickerOpen] = useState(false)
@@ -250,6 +270,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [tipoCartuchoPickerOpen, setTipoCartuchoPickerOpen] = useState(false)
   const [catalogoMarcaSel, setCatalogoMarcaSel] = useState("")
   const [catalogoModeloSel, setCatalogoModeloSel] = useState("")
+  const [catalogoModeloOutro, setCatalogoModeloOutro] = useState(false)
+  const [catalogoModeloCustomInput, setCatalogoModeloCustomInput] = useState("")
   const { buscarFicha, fichaParaWeaponEntry, loadingFicha } = useWeaponCatalog()
   const catalogoMarcas = useLiveQuery(() => useCatalogoBrands(weaponType ?? undefined), [weaponType]) ?? []
   const _catalogoBrand = weapons[activeWeaponIdx]?.brand
@@ -434,6 +456,35 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const activeWeapon = weapons[activeWeaponIdx] ?? null
   // Munições consumíveis: destinação vem antes do lacre de saída (se consumida, não há lacre de saída)
   const isMunicaoConsumivel = (["CARTUCHO","ESPOLETA","PROJÉTIL","ESTOJO"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
+
+  // Bloco padronizado de materiais/acabamentos das armas de fogo (cano, quadro, coronha).
+  // Usado por todos os blocos de arma de fogo para manter coerência.
+  const _selMat = "flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]"
+  const renderMateriaisArmaFogo = () => (
+    <>
+      <div className="mb-4">
+        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material e acabamento do cano</label>
+        <button type="button" onClick={() => setMaterialPickerOpen(true)} className={_selMat}>
+          <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.material || "Selecionar…"}</span>
+          <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+        </button>
+      </div>
+      <div className="mb-4">
+        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material e acabamento do quadro</label>
+        <button type="button" onClick={() => setMaterialQuadroPickerOpen(true)} className={_selMat}>
+          <span className={`truncate text-[15px] ${activeWeapon?.materialQuadro ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialQuadro || "Selecionar…"}</span>
+          <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+        </button>
+      </div>
+      <div className="mb-4">
+        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material e acabamento da coronha</label>
+        <button type="button" onClick={() => setMaterialCoronhaPickerOpen(true)} className={_selMat}>
+          <span className={`truncate text-[15px] ${activeWeapon?.materialCoroha ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialCoroha || "Selecionar…"}</span>
+          <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+        </button>
+      </div>
+    </>
+  )
 
   // Índice único da peça sendo editada (para chaves de foto por peça)
   const currentPhotoIdx = editingPieceIdx ?? savedPieces.length
@@ -843,6 +894,22 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setEditingPieceIdx(null)
   }
 
+  // Inicia uma NOVA peça garantindo que fotos/lacre da peça anterior não sejam herdados
+  const iniciarNovaPeca = (type: WeaponType) => {
+    setPhotoUrls(prev => {
+      const next = new Map<string, string>()
+      prev.forEach((v, k) => { if (k.startsWith("coleta-")) next.set(k, v) })
+      return next
+    })
+    setLacreNumero("")
+    setLacreSaidaNumero("")
+    setEditingPieceIdx(null)
+    setWeaponType(type)
+    setWeapons([makeWeaponEntry(type)])
+    setActiveWeaponIdx(0)
+    setPieceFormOpen(true)
+  }
+
   const resetFullExam = async () => {
     await descartarRascunho()
     // Se veio de uma REP importada (via EDITAR), reverte status para "importada" em vez de deletar
@@ -892,6 +959,80 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     salvarPecas(novas)
   }
 
+  // ── Acessórios (lista por peça) ────────────────────────────────────────────
+  const gerarAcessorioId = () => `acc${new Date().getTime().toString(36)}${Math.random().toString(36).slice(2, 7)}`
+
+  const limparRascunhoAcessorio = () => {
+    setWeaponDirect("tipoAcessorio" as any, [])
+    setWeaponDirect("tipoMira" as any, [])
+    setWeaponDirect("tipoCarregador" as any, [])
+    setWeaponDirect("capacidadeAcessorio" as any, "")
+    setWeaponDirect("materialAcessorio" as any, {} as any)
+    setWeaponDirect("origemAcessorio" as any, "")
+    setWeaponDirect("descricaoAcessorio" as any, "")
+    setWeaponDirect("lacreEntradaAcessorio" as any, "")
+    setWeaponDirect("lacreEntradaMesmoDaPeca" as any, false)
+    setWeaponDirect("lacreSaidaAcessorio" as any, "")
+    setWeaponDirect("lacreSaidaMesmoDaPeca" as any, false)
+  }
+
+  const novoAcessorio = () => {
+    limparRascunhoAcessorio()
+    setDraftAcessorioId(gerarAcessorioId())
+    setEditingAcessorioIdx(null)
+    setAcessoriosEditando(true)
+  }
+
+  const editarAcessorio = (idx: number) => {
+    const acc = activeWeapon?.acessorios?.[idx]
+    if (!acc) return
+    setWeaponDirect("tipoAcessorio" as any, acc.tipoAcessorio ?? [])
+    setWeaponDirect("tipoMira" as any, acc.tipoMira ?? [])
+    setWeaponDirect("tipoCarregador" as any, acc.tipoCarregador ?? [])
+    setWeaponDirect("capacidadeAcessorio" as any, acc.capacidade ?? "")
+    setWeaponDirect("materialAcessorio" as any, (acc.materialAcessorio ?? {}) as any)
+    setWeaponDirect("origemAcessorio" as any, acc.origemAcessorio ?? "")
+    setWeaponDirect("descricaoAcessorio" as any, acc.descricaoAcessorio ?? "")
+    setWeaponDirect("lacreEntradaAcessorio" as any, acc.lacreEntradaAcessorio ?? "")
+    setWeaponDirect("lacreEntradaMesmoDaPeca" as any, !!acc.lacreEntradaMesmoDaPeca)
+    setWeaponDirect("lacreSaidaAcessorio" as any, acc.lacreSaidaAcessorio ?? "")
+    setWeaponDirect("lacreSaidaMesmoDaPeca" as any, !!acc.lacreSaidaMesmoDaPeca)
+    setDraftAcessorioId(acc.id)
+    setEditingAcessorioIdx(idx)
+    setAcessoriosEditando(true)
+  }
+
+  const salvarAcessorio = () => {
+    if (!activeWeapon) return
+    const entry: AcessorioEntry = {
+      id:                       draftAcessorioId || gerarAcessorioId(),
+      tipoAcessorio:            activeWeapon.tipoAcessorio ?? [],
+      tipoMira:                 activeWeapon.tipoMira ?? [],
+      tipoCarregador:           activeWeapon.tipoCarregador ?? [],
+      capacidade:               activeWeapon.capacidadeAcessorio ?? "",
+      materialAcessorio:        activeWeapon.materialAcessorio ?? {},
+      origemAcessorio:          activeWeapon.origemAcessorio ?? "",
+      descricaoAcessorio:       activeWeapon.descricaoAcessorio ?? "",
+      lacreEntradaAcessorio:    activeWeapon.lacreEntradaAcessorio ?? "",
+      lacreEntradaMesmoDaPeca:  !!activeWeapon.lacreEntradaMesmoDaPeca,
+      lacreSaidaAcessorio:      activeWeapon.lacreSaidaAcessorio ?? "",
+      lacreSaidaMesmoDaPeca:    !!activeWeapon.lacreSaidaMesmoDaPeca,
+    }
+    const lista = [...(activeWeapon.acessorios ?? [])]
+    if (editingAcessorioIdx !== null && editingAcessorioIdx >= 0) lista[editingAcessorioIdx] = entry
+    else lista.push(entry)
+    setWeaponDirect("acessorios" as any, lista as any)
+    limparRascunhoAcessorio()
+    setEditingAcessorioIdx(null)
+    setAcessoriosEditando(false)
+  }
+
+  const removerAcessorio = (idx: number) => {
+    if (!activeWeapon) return
+    const lista = (activeWeapon.acessorios ?? []).filter((_, i) => i !== idx)
+    setWeaponDirect("acessorios" as any, lista as any)
+  }
+
   const tituloMaterialAcessorio = (item: string): string => {
     const map: Record<string, string> = {
       "Varetas":            "Material das Varetas",
@@ -935,10 +1076,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const handleWeaponField =
     (field: keyof Omit<WeaponEntry, "type">) =>
     (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const value =
+      let value: string | boolean =
         event.target instanceof HTMLInputElement && event.target.type === "checkbox"
           ? event.target.checked
           : event.target.value
+      if (typeof value === "string") {
+        if (_CAMPOS_INT.has(field as string)) value = value.replace(/\D/g, "")
+        else if (_CAMPOS_DEC.has(field as string)) value = _sanitizeDec(value)
+      }
       setWeapons((prev) =>
         prev.map((w, i) => (i === activeWeaponIdx ? { ...w, [field]: value as never } : w))
       )
@@ -1937,8 +2082,20 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                                 {p.identificacao && <span className="text-[10px] text-[#9e8255]">Identificação: <span className="font-black text-[#50442f]">{p.identificacao}</span></span>}
                                 <span className="text-[10px] text-[#9e8255]">Série: <span className="font-black text-[#50442f]">{p.serial || <span className="italic text-[#c4ac82]">—</span>}</span></span>
-                                {p.tipoMira && p.tipoMira.length > 0 && <span className="text-[10px] text-[#9e8255]">Mira: <span className="font-black text-[#50442f]">{p.tipoMira.join(", ")}</span></span>}
-                                {p.tipoCarregador && p.tipoCarregador.length > 0 && <span className="text-[10px] text-[#9e8255]">Carregador: <span className="font-black text-[#50442f]">{p.tipoCarregador.join(", ")}{p.capacidadeCarregador ? ` · ${p.capacidadeCarregador}` : ""}</span></span>}
+                                {(() => {
+                                  const accs = p.acessorios ?? []
+                                  const miras = accs.flatMap(a => a.tipoMira ?? [])
+                                  const carregs = accs.filter(a => (a.tipoCarregador ?? []).length)
+                                    .map(a => a.tipoCarregador.join(", ") + (a.capacidade ? ` · ${a.capacidade}` : ""))
+                                  // Fallback p/ peças antigas (sem lista de acessórios)
+                                  const mirasFinal = miras.length ? miras : (p.tipoMira ?? [])
+                                  const carregsFinal = carregs.length ? carregs
+                                    : ((p.tipoCarregador ?? []).length ? [p.tipoCarregador.join(", ") + (p.capacidadeCarregador ? ` · ${p.capacidadeCarregador}` : "")] : [])
+                                  return (<>
+                                    {mirasFinal.length > 0 && <span className="text-[10px] text-[#9e8255]">Mira: <span className="font-black text-[#50442f]">{mirasFinal.join(", ")}</span></span>}
+                                    {carregsFinal.length > 0 && <span className="text-[10px] text-[#9e8255]">Carregador: <span className="font-black text-[#50442f]">{carregsFinal.join(" | ")}</span></span>}
+                                  </>)
+                                })()}
                               </div>
                             </div>
 
@@ -2310,7 +2467,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               <div className="grid grid-cols-2 gap-3 p-3 pt-0">
                                 {types.map((type) => (
                                   <button key={type} type="button"
-                                    onClick={() => { setWeaponType(type); setWeapons([makeWeaponEntry(type)]); setActiveWeaponIdx(0); setPieceFormOpen(true) }}
+                                    onClick={() => iniciarNovaPeca(type)}
                                     className="flex min-h-[52px] items-center justify-center rounded-xl border-2 border-[#e8dfc8] bg-[#fdfaf4] px-2 py-3 text-center transition active:scale-[.96] active:bg-[#ece6da]"
                                   >
                                     <span className="text-[12px] font-black uppercase leading-tight tracking-[0.05em] text-[#1a1410]">{type}</span>
@@ -2739,9 +2896,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                   {/* ── Lacre de Entrada ── */}
                   <LacreInput
-                    label="Lacre de Entrada"
+                    label="Lacre/Embalagem de Entrada"
                     gdlRequired
-                    slotKey="lacre-entrada-form"
+                    slotKey={`lacre-entrada-${effectivePhotoIdx}`}
                     value={activeWeapon?.lacreEntradaPeca ?? lacreNumero}
                     onChange={v => { setLacreNumero(v); setWeaponDirect("lacreEntradaPeca" as any, v) }}
                     allPhotoUrls={photoUrls}
@@ -2749,6 +2906,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     onRemove={handlePhotoRemove}
                     onView={setViewerPhoto}
                     placeholder="Nº do lacre de entrada"
+                    photoSlots={[
+                      { sub: "frente", label: "Frente emb." },
+                      { sub: "verso", label: "Verso emb." },
+                      { sub: "lacre", label: "Lacre" },
+                    ]}
                   />
 
                   {/* ── Data de Entrada ── */}
@@ -2765,6 +2927,87 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                   {/* ── Campos base ── */}
                   {!(["PROJÉTIL","PÓLVORA","ESPOLETA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && <div className="space-y-5">
+                    {/* Tipo de produção — antes do Fabricante (se ARTESANAL, não há fabricante) */}
+                    {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                      <div className="rounded-2xl border border-[#d3c4a8] bg-white p-4 shadow-sm">
+                        <label className="mb-3 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de produção</label>
+                        <div className="flex gap-2">
+                          {(["INDUSTRIAL", "ARTESANAL"]).map(tipo => (
+                            <button
+                              key={tipo}
+                              type="button"
+                              onClick={() => { setWeaponDirect("tipoProd", tipo); if (tipo === "ARTESANAL") { setWeaponDirect("serialEstado", ""); setWeaponDirect("brand", ""); setWeaponDirect("model", "") } }}
+                              className={`flex-1 rounded-xl border-2 py-3 text-sm font-black tracking-[0.12em] transition active:scale-[.97] ${
+                                activeWeapon?.tipoProd === tipo
+                                  ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                                  : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                              }`}
+                            >
+                              {tipo}
+                            </button>
+                          ))}
+                        </div>
+                        {activeWeapon?.tipoProd === "ARTESANAL" && (
+                          <p className="mt-3 text-[12px] font-medium leading-snug text-[#9e7f45]">Peça artesanal — sem fabricante/modelo definidos.</p>
+                        )}
+
+                        {/* Bloco de número de série — só para INDUSTRIAL */}
+                        {activeWeapon?.tipoProd === "INDUSTRIAL" && (
+                          <div className="mt-4 border-t border-[#e8dfc8] pt-4">
+                            <label className="mb-3 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                              Número de série — estado
+                              <HelpBtn title="Número de série" text="Indica a condição em que o número de série se encontra na arma. LEGÍVEL: completamente visível. PARCIAL: parte dos algarismos visível. SUPRIMIDO: intencionalmente removido ou apagado. NÃO APARENTE: não localizado no exame visual." />
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {(["LEGÍVEL", "PARCIAL", "SUPRIMIDO", "NÃO APARENTE"]).map(est => (
+                                <button
+                                  key={est}
+                                  type="button"
+                                  onClick={() => setWeaponDirect("serialEstado", est)}
+                                  className={`rounded-xl border-2 py-2.5 text-xs font-black tracking-[0.08em] transition active:scale-[.97] ${
+                                    activeWeapon?.serialEstado === est
+                                      ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a]"
+                                      : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                                  }`}
+                                >
+                                  {est}
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Input do número — só para LEGÍVEL ou PARCIAL */}
+                            {(activeWeapon?.serialEstado === "LEGÍVEL" || activeWeapon?.serialEstado === "PARCIAL") && (
+                              <div className="mt-3">
+                                <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                                  Número de série
+                                  {activeWeapon?.serialEstado === "PARCIAL" && (
+                                    <span className="ml-2 text-[10px] font-semibold normal-case tracking-normal text-[#b89a58]">(registrar parte visível)</span>
+                                  )}
+                                </label>
+                                <input
+                                  value={activeWeapon?.serial ?? ""}
+                                  onChange={handleWeaponField("serial")}
+                                  className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                                  placeholder={
+                                    activeWeapon?.type === "REVÓLVER" ? "Ex.: TE123456" :
+                                    activeWeapon?.type === "PISTOLA" ? "Ex.: T1G23456" :
+                                    activeWeapon?.type === "PISTOLETE" ? "Ex.: T1G23456" :
+                                    activeWeapon?.type === "GARRUCHA" ? "Ex.: GR123456" :
+                                    activeWeapon?.type === "ESPINGARDA" ? "Ex.: SG-123456" :
+                                    activeWeapon?.type === "CARABINA" ? "Ex.: CB123456" :
+                                    activeWeapon?.type === "FUZIL" ? "Ex.: FZ123456" :
+                                    activeWeapon?.type === "METRALHADORA" ? "Ex.: MT123456" :
+                                    activeWeapon?.type === "SUBMETRALHADORA" ? "Ex.: SM123456" :
+                                    activeWeapon?.type === "ARMA DE CHOQUE" ? "Ex.: AC123456" :
+                                    "Ex.: ABC-123456"
+                                  }
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div className="grid gap-5 md:grid-cols-3">
                       {/* Identificação — armas de fogo usam campo próprio; demais usam model */}
                       {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
@@ -2827,30 +3070,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             placeholder={activeWeapon?.type === "CARTUCHO" ? "Ex.: CBC 9mm, RP .40…" : "Ex.: RT 627"} />
                         </div>
                       )}
-                      {/* Calibre — exibido antes do Fabricante para todos os tipos */}
-                      {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && activeWeapon?.type !== "CARREGADOR" && activeWeapon?.type !== "ARMA DE ANTECARGA" && (
-                        <div>
-                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                            Calibre
-                            <HelpBtn title="Calibre" text="Designação nominal da munição compatível com a arma ou peça. Ex.: .38 SPL, 9 mm Luger, 12 Ga. Para projéteis deflagrados, utilize o campo de diâmetro medido." />
-                          </label>
-                          <button type="button" onClick={() => {
-                            if (activeWeapon?.type === "ARMA DE ANTECARGA") setCalibreAntecargaPickerOpen(true);
-                            else setCalibrePickerOpen(true);
-                          }}
-                            className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[16px] ${activeWeapon?.caliber ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                              {activeWeapon?.caliber || "Selecionar calibre…"}
-                            </span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                      )}
-
                       {/* Fabricante e Modelo com Catálogo Integrado */}
                       {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA","ESTOJO","CARTUCHO"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                         <>
-                          {/* Fabricante — seletor. Armas de fogo usam o catálogo; munições usam a lista de fabricantes de munição */}
+                          {/* Fabricante — seletor. Armas de fogo usam o catálogo; munições usam a lista de fabricantes de munição.
+                              Oculto para arma de fogo ARTESANAL (peça artesanal não tem fabricante). */}
+                          {!(_ARMAS_FOGO_GDL.includes(activeWeapon?.type as WeaponType) && activeWeapon?.tipoProd === "ARTESANAL") && (
                           <div>
                             <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                               Fabricante
@@ -2888,8 +3113,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               </button>
                             )}
                           </div>
-                          
-                          {/* Slot Modelo. ESTOJO usa "Número de lote" (após País); CARTUCHO usa o Tipo construtivo (seletor). */}
+                          )}
+
+                          {/* Slot Modelo. ESTOJO usa "Número de lote" (após País); CARTUCHO usa o Tipo construtivo (seletor).
+                              Arma de fogo ARTESANAL não tem modelo → oculto. */}
                           {activeWeapon?.type === "ESTOJO" ? null : activeWeapon?.type === "CARTUCHO" ? (
                             <div>
                               <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
@@ -2907,7 +3134,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                               </button>
                             </div>
-                          ) : (
+                          ) : (_ARMAS_FOGO_GDL.includes(activeWeapon?.type as WeaponType) && activeWeapon?.tipoProd === "ARTESANAL") ? null : (
                             <div>
                               <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                                 Modelo
@@ -2915,11 +3142,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               </label>
                               <button
                                 type="button"
-                                onClick={() => { if (activeWeapon?.brand) setCatalogoModeloPickerOpen(true) }}
-                                className={`flex h-14 w-full items-center justify-between rounded-2xl border px-4 text-left shadow-sm transition ${activeWeapon?.brand ? "border-[#cdbf9e] bg-[#fbf8f2] focus:border-[#9e7f45]" : "border-[#e0d5bc] bg-[#f5f2eb] opacity-50 cursor-not-allowed"}`}
+                                onClick={() => { setCatalogoModeloOutro(false); setCatalogoModeloPickerOpen(true) }}
+                                className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]"
                               >
                                 <span className={`truncate text-[16px] ${activeWeapon?.model ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
-                                  {activeWeapon?.model || (activeWeapon?.brand ? "Selecionar modelo…" : "Selecione o fabricante primeiro")}
+                                  {activeWeapon?.model || "Selecionar modelo…"}
                                 </span>
                                 <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                               </button>
@@ -2951,6 +3178,26 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           )}
 
                         </>
+                      )}
+
+                      {/* Calibre — exibido logo após Fabricante/Modelo */}
+                      {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && activeWeapon?.type !== "CARREGADOR" && activeWeapon?.type !== "ARMA DE ANTECARGA" && (
+                        <div>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Calibre
+                            <HelpBtn title="Calibre" text="Designação nominal da munição compatível com a arma ou peça. Ex.: .38 SPL, 9 mm Luger, 12 Ga. Para projéteis deflagrados, utilize o campo de diâmetro medido." />
+                          </label>
+                          <button type="button" onClick={() => {
+                            if (activeWeapon?.type === "ARMA DE ANTECARGA") setCalibreAntecargaPickerOpen(true);
+                            else setCalibrePickerOpen(true);
+                          }}
+                            className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
+                            <span className={`truncate text-[16px] ${activeWeapon?.caliber ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                              {activeWeapon?.caliber || "Selecionar calibre…"}
+                            </span>
+                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                          </button>
+                        </div>
                       )}
 
                       {/* Cano sobressalente — apenas ESPINGARDA */}
@@ -3027,120 +3274,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       )}
                     </div>
 
-                    {/* Tipo de produção — apenas armas de fogo */}
-                    {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
-                      <div className="rounded-2xl border border-[#d3c4a8] bg-white p-4 shadow-sm">
-                        <label className="mb-3 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de produção</label>
-                        <div className="flex gap-2">
-                          {(["INDUSTRIAL", "ARTESANAL"]).map(tipo => (
-                            <button
-                              key={tipo}
-                              type="button"
-                              onClick={() => { setWeaponDirect("tipoProd", tipo); if (tipo === "ARTESANAL") setWeaponDirect("serialEstado", "") }}
-                              className={`flex-1 rounded-xl border-2 py-3 text-sm font-black tracking-[0.12em] transition active:scale-[.97] ${
-                                activeWeapon?.tipoProd === tipo
-                                  ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
-                                  : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
-                              }`}
-                            >
-                              {tipo}
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* Bloco de número de série — só para INDUSTRIAL */}
-                        {activeWeapon?.tipoProd === "INDUSTRIAL" && (
-                          <div className="mt-4 border-t border-[#e8dfc8] pt-4">
-                            <label className="mb-3 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                              Número de série — estado
-                              <HelpBtn title="Número de série" text="Indica a condição em que o número de série se encontra na arma. LEGÍVEL: completamente visível. PARCIAL: parte dos algarismos visível. SUPRIMIDO: intencionalmente removido ou apagado. NÃO APARENTE: não localizado no exame visual." />
-                            </label>
-                            <div className="grid grid-cols-2 gap-2">
-                              {(["LEGÍVEL", "PARCIAL", "SUPRIMIDO", "NÃO APARENTE"]).map(est => (
-                                <button
-                                  key={est}
-                                  type="button"
-                                  onClick={() => setWeaponDirect("serialEstado", est)}
-                                  className={`rounded-xl border-2 py-2.5 text-xs font-black tracking-[0.08em] transition active:scale-[.97] ${
-                                    activeWeapon?.serialEstado === est
-                                      ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a]"
-                                      : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
-                                  }`}
-                                >
-                                  {est}
-                                </button>
-                              ))}
-                            </div>
-
-                            {/* Input do número — só para LEGÍVEL ou PARCIAL */}
-                            {(activeWeapon?.serialEstado === "LEGÍVEL" || activeWeapon?.serialEstado === "PARCIAL") && (
-                              <div className="mt-3">
-                                <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                                  Número de série
-                                  {activeWeapon?.serialEstado === "PARCIAL" && (
-                                    <span className="ml-2 text-[10px] font-semibold normal-case tracking-normal text-[#b89a58]">(registrar parte visível)</span>
-                                  )}
-                                </label>
-                                <input
-                                  value={activeWeapon?.serial ?? ""}
-                                  onChange={handleWeaponField("serial")}
-                                  className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                                  placeholder={
-                                    activeWeapon?.type === "REVÓLVER" ? "Ex.: TE123456" :
-                                    activeWeapon?.type === "PISTOLA" ? "Ex.: T1G23456" :
-                                    activeWeapon?.type === "PISTOLETE" ? "Ex.: T1G23456" :
-                                    activeWeapon?.type === "GARRUCHA" ? "Ex.: GR123456" :
-                                    activeWeapon?.type === "ESPINGARDA" ? "Ex.: SG-123456" :
-                                    activeWeapon?.type === "CARABINA" ? "Ex.: CB123456" :
-                                    activeWeapon?.type === "FUZIL" ? "Ex.: FZ123456" :
-                                    activeWeapon?.type === "METRALHADORA" ? "Ex.: MT123456" :
-                                    activeWeapon?.type === "SUBMETRALHADORA" ? "Ex.: SM123456" :
-                                    activeWeapon?.type === "ARMA DE CHOQUE" ? "Ex.: AC123456" :
-                                    "Ex.: ABC-123456"
-                                  }
-                                />
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
                   </div>}
 
                   {/* ── REVÓLVER ── */}
                   {activeWeapon?.type === "REVÓLVER" && (<>
                     <CollapsibleSection title="Características físicas" defaultOpen={true}>
-                      {/* Material — picker */}
-                      <div className="mb-4">
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
-                        <button type="button" onClick={() => setMaterialPickerOpen(true)}
-                          className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                          <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                            {activeWeapon?.material || "Selecionar material…"}
-                          </span>
-                          <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                        </button>
-                      </div>
-                      {/* Acabamento — picker */}
-                      <div className="mb-4">
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Acabamento</label>
-                        <button type="button" onClick={() => setAcabamentoPickerOpen(true)}
-                          className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                          <span className={`truncate text-[15px] ${activeWeapon?.acabamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                            {activeWeapon?.acabamento || "Selecionar acabamento…"}
-                          </span>
-                          <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                        </button>
-                      </div>
-                      <div className="mb-4">
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material do quadro</label>
-                        <button type="button" onClick={() => setMaterialQuadroPickerOpen(true)}
-                          className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                          <span className={`truncate text-[15px] ${activeWeapon?.materialQuadro ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialQuadro || "Selecionar material…"}</span>
-                          <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                        </button>
-                      </div>
+                      {renderMateriaisArmaFogo()}
                       {/* Sistema de acionamento — picker */}
                       <div className="mb-4">
                         <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
@@ -3179,9 +3318,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           </div>
                           <div className="px-4 py-3">
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de raias</label>
-                            <input value={String(activeWeapon?.numEstrias ?? "")} onChange={handleWeaponField("numEstrias")}
-                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                              placeholder="Ex.: 6" />
+                            <button type="button" onClick={() => setNumRaiasPickerOpen(true)}
+                              className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                              <span className={`truncate text-[15px] ${activeWeapon?.numEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                                {activeWeapon?.numEstrias || "Selecionar…"}
+                              </span>
+                              <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                            </button>
                           </div>
                           </>)}
                         </div>
@@ -3193,11 +3336,37 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                           <div key={field}>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                            <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                            <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                               className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                               placeholder={ph} />
+                            {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
+                              <p className="mt-1 px-1 text-[11px] font-medium text-[#9e7f45]">{_mmParaPol(String(activeWeapon?.[field] ?? ""))}</p>
+                            )}
                           </div>
                         ))}
+                      </div>
+                      {/* Rebatimento do tambor — esquerda/direita */}
+                      <div className="mt-4">
+                        <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                          Rebatimento do tambor
+                          <HelpBtn title="Rebatimento do tambor" text="Lado para o qual o tambor é basculado (aberto) para carregamento/extração. Na maioria dos revólveres o tambor rebate para a esquerda." />
+                        </label>
+                        <div className="flex gap-2">
+                          {(["Esquerda", "Direita"]).map(lado => (
+                            <button
+                              key={lado}
+                              type="button"
+                              onClick={() => setWeaponDirect("rebatimentoTambor", activeWeapon?.rebatimentoTambor === lado ? "" : lado)}
+                              className={`flex-1 rounded-xl border-2 py-3 text-sm font-black tracking-[0.12em] transition active:scale-[.97] ${
+                                activeWeapon?.rebatimentoTambor === lado
+                                  ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                                  : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                              }`}
+                            >
+                              {lado}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </CollapsibleSection>
 
@@ -3349,38 +3518,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {activeWeapon?.type === "CARABINA" && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
-                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.material || "Selecionar material…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Acabamento</label>
-                          <button type="button" onClick={() => setAcabamentoPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.acabamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.acabamento || "Selecionar acabamento…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material da coronha</label>
-                          <button type="button" onClick={() => setMaterialCoronhaPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.materialCoroha ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialCoroha || "Selecionar material…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material do quadro</label>
-                          <button type="button" onClick={() => setMaterialQuadroPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.materialQuadro ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialQuadro || "Selecionar material…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
+                        {renderMateriaisArmaFogo()}
                         <div className="mb-4">
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
                           <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
@@ -3412,9 +3550,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </div>
                             <div className="px-4 py-3">
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de raias</label>
-                              <input value={String(activeWeapon?.numEstrias ?? "")} onChange={handleWeaponField("numEstrias")}
-                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                placeholder="Ex.: 6" />
+                              <button type="button" onClick={() => setNumRaiasPickerOpen(true)}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                                <span className={`truncate text-[15px] ${activeWeapon?.numEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.numEstrias || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -3422,13 +3564,15 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           {([
                             ["compCano",             "Comprimento do cano",  "Ex.: 510 mm"],
                             ["compTotal",            "Comprimento total",    "Ex.: 940 mm"],
-                            ["capacidadeCarregador", "Capacidade (munições)","Ex.: Sete"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
+                              {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
+                                <p className="mt-1 px-1 text-[11px] font-medium text-[#9e7f45]">{_mmParaPol(String(activeWeapon?.[field] ?? ""))}</p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -3581,30 +3725,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {(activeWeapon?.type === "PISTOLA" || activeWeapon?.type === "PISTOLETE") && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
-                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.material || "Selecionar material…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Acabamento</label>
-                          <button type="button" onClick={() => setAcabamentoPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.acabamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.acabamento || "Selecionar acabamento…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material do quadro</label>
-                          <button type="button" onClick={() => setMaterialQuadroPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.materialQuadro ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialQuadro || "Selecionar material…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
+                        {renderMateriaisArmaFogo()}
                         <div className="mb-4">
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
                           <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
@@ -3636,9 +3757,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </div>
                             <div className="px-4 py-3">
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de raias</label>
-                              <input value={String(activeWeapon?.numEstrias ?? "")} onChange={handleWeaponField("numEstrias")}
-                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                placeholder="Ex.: 6" />
+                              <button type="button" onClick={() => setNumRaiasPickerOpen(true)}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                                <span className={`truncate text-[15px] ${activeWeapon?.numEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.numEstrias || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -3646,13 +3771,15 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           {([
                             ["compCano",             "Comprimento do cano",     "Ex.: 100 mm"],
                             ["compTotal",            "Comprimento total",       "Ex.: 180 mm"],
-                            ["capacidadeCarregador", "Capacidade do carregador","Ex.: 17 cartuchos"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
+                              {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
+                                <p className="mt-1 px-1 text-[11px] font-medium text-[#9e7f45]">{_mmParaPol(String(activeWeapon?.[field] ?? ""))}</p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -3660,7 +3787,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       <CollapsibleCard title="Mecanismo de funcionamento">
                         <div className="space-y-2">
                           {([
-                            ["carregadorPresente",  "Carregador presente"],
                             ["carregadorFuncional", "Carregador funcional"],
                             ["ferrolhoFuncional",   "Ferrolho funcional"],
                             ["percussorFuncional",  "Percussor funcional"],
@@ -3807,30 +3933,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {activeWeapon?.type === "ESPINGARDA" && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
-                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.material || "Selecionar material…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Acabamento</label>
-                          <button type="button" onClick={() => setAcabamentoPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.acabamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.acabamento || "Selecionar acabamento…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material da coronha</label>
-                          <button type="button" onClick={() => setMaterialCoronhaPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.materialCoroha ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialCoroha || "Selecionar material…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
+                        {renderMateriaisArmaFogo()}
                         <div className="mb-4">
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
                           <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
@@ -3845,13 +3948,15 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["compTotal",            "Comprimento total",    "Ex.: 940 mm"],
                             ["numCanos",             "Número de canos",      "Ex.: 1, 2"],
                             ["tamanhoCamara",        "Tamanho da câmara",    "Ex.: 2 ¾ polegadas"],
-                            ["capacidadeCarregador", "Capacidade (munições)","Ex.: Sete"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
+                              {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
+                                <p className="mt-1 px-1 text-[11px] font-medium text-[#9e7f45]">{_mmParaPol(String(activeWeapon?.[field] ?? ""))}</p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -3999,14 +4104,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {activeWeapon?.type === "FUZIL" && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
-                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.material || "Selecionar material…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
+                        {renderMateriaisArmaFogo()}
                         <div className="mb-4">
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
                           <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
@@ -4038,39 +4136,29 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </div>
                             <div className="px-4 py-3">
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de raias</label>
-                              <input value={String(activeWeapon?.numEstrias ?? "")} onChange={handleWeaponField("numEstrias")}
-                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                placeholder="Ex.: 6" />
+                              <button type="button" onClick={() => setNumRaiasPickerOpen(true)}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                                <span className={`truncate text-[15px] ${activeWeapon?.numEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.numEstrias || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
                             </div>
                           </div>
-                        </div>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material da coronha</label>
-                          <button type="button" onClick={() => setMaterialCoronhaPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.materialCoroha ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialCoroha || "Selecionar material…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material do quadro</label>
-                          <button type="button" onClick={() => setMaterialQuadroPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.materialQuadro ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialQuadro || "Selecionar material…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
                         </div>
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
                             ["compCano",             "Comprimento do cano",   "Ex.: 410 mm"],
                             ["compTotal",            "Comprimento total",     "Ex.: 860 mm"],
-                            ["capacidadeCarregador", "Capacidade (munições)", "Ex.: Trinta"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
+                              {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
+                                <p className="mt-1 px-1 text-[11px] font-medium text-[#9e7f45]">{_mmParaPol(String(activeWeapon?.[field] ?? ""))}</p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -4223,38 +4311,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {(activeWeapon?.type === "METRALHADORA" || activeWeapon?.type === "SUBMETRALHADORA") && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
-                          <button type="button" onClick={() => setMaterialPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.material ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.material || "Selecionar material…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Acabamento</label>
-                          <button type="button" onClick={() => setAcabamentoPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.acabamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.acabamento || "Selecionar acabamento…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material da coronha</label>
-                          <button type="button" onClick={() => setMaterialCoronhaPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.materialCoroha ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialCoroha || "Selecionar material…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material do quadro</label>
-                          <button type="button" onClick={() => setMaterialQuadroPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.materialQuadro ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialQuadro || "Selecionar material…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
+                        {renderMateriaisArmaFogo()}
                         <div className="mb-4">
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
                           <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
@@ -4286,9 +4343,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </div>
                             <div className="px-4 py-3">
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de raias</label>
-                              <input value={String(activeWeapon?.numEstrias ?? "")} onChange={handleWeaponField("numEstrias")}
-                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                placeholder="Ex.: 6" />
+                              <button type="button" onClick={() => setNumRaiasPickerOpen(true)}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                                <span className={`truncate text-[15px] ${activeWeapon?.numEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.numEstrias || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -4296,14 +4357,16 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           {([
                             ["compCano",             "Comprimento do cano",  "Ex.: 260 mm"],
                             ["compTotal",            "Comprimento total",    "Ex.: 690 mm"],
-                            ["capacidadeCarregador", "Capacidade (munições)","Ex.: Cem"],
                             ["modoFogo",             "Modo de fogo",         "Ex.: semi, auto"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
+                              {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
+                                <p className="mt-1 px-1 text-[11px] font-medium text-[#9e7f45]">{_mmParaPol(String(activeWeapon?.[field] ?? ""))}</p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -4484,9 +4547,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
+                              {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
+                                <p className="mt-1 px-1 text-[11px] font-medium text-[#9e7f45]">{_mmParaPol(String(activeWeapon?.[field] ?? ""))}</p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -4648,9 +4714,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           {/* N° de raias */}
                           <div className="mb-4">
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">N° de raias</label>
-                            <input value={String(activeWeapon?.numEstrias ?? "")} onChange={handleWeaponField("numEstrias")}
-                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                              placeholder="Ex.: 6" />
+                            <button type="button" onClick={() => setNumRaiasPickerOpen(true)}
+                              className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                              <span className={`truncate text-[15px] ${activeWeapon?.numEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                                {activeWeapon?.numEstrias || "Selecionar…"}
+                              </span>
+                              <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                            </button>
                           </div>
                           {/* Cavados/Ressaltos e Raiamento — calculados */}
                           {(() => {
@@ -4699,9 +4769,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                               <div key={field}>
                                 <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                                <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                                <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                   className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                   placeholder={ph} />
+                                {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
+                                  <p className="mt-1 px-1 text-[11px] font-medium text-[#9e7f45]">{_mmParaPol(String(activeWeapon?.[field] ?? ""))}</p>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -4843,7 +4916,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         {activeWeapon?.estadoProjetil === "ÍNTEGRO" && (
                           <div className="mb-4">
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre real (mm)</label>
-                            <input value={String(activeWeapon?.diametro ?? "")} onChange={handleWeaponField("diametro")}
+                            <input value={String(activeWeapon?.diametro ?? "")} onChange={handleWeaponField("diametro")} inputMode="decimal"
                               className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                               placeholder="Ex.: 9,02" />
                           </div>
@@ -4852,7 +4925,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Massa (g)</label>
                           <input
                             value={String(activeWeapon?.massa ?? "")}
-                            onChange={handleWeaponField("massa" as keyof Omit<WeaponEntry,"type">)}
+                            onChange={handleWeaponField("massa" as keyof Omit<WeaponEntry,"type">)} inputMode="decimal"
                             className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                             placeholder="Ex.: 7,162"
                           />
@@ -4875,7 +4948,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Altura (mm)</label>
                             <input
                               value={String(activeWeapon?.alturaProjetil ?? "")}
-                              onChange={handleWeaponField("alturaProjetil" as keyof Omit<WeaponEntry,"type">)}
+                              onChange={handleWeaponField("alturaProjetil" as keyof Omit<WeaponEntry,"type">)} inputMode="decimal"
                               className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                               placeholder="Ex.: 14,20"
                             />
@@ -4932,13 +5005,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Massa (g)</label>
-                            <input value={String(activeWeapon?.massa ?? "")} onChange={handleWeaponField("massa" as keyof Omit<WeaponEntry,"type">)}
+                            <input value={String(activeWeapon?.massa ?? "")} onChange={handleWeaponField("massa" as keyof Omit<WeaponEntry,"type">)} inputMode="decimal"
                               className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                               placeholder="Ex.: 2,500" />
                           </div>
                           <div>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Quantidade</label>
-                            <input value={String(activeWeapon?.quantidade ?? "")} onChange={handleWeaponField("quantidade")}
+                            <input value={String(activeWeapon?.quantidade ?? "")} onChange={handleWeaponField("quantidade")} inputMode="numeric"
                               className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                               placeholder="Ex.: 1 frasco" />
                           </div>
@@ -5035,7 +5108,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           </div>
                           <div>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Quantidade</label>
-                            <input value={String(activeWeapon?.quantidade ?? "")} onChange={handleWeaponField("quantidade")}
+                            <input value={String(activeWeapon?.quantidade ?? "")} onChange={handleWeaponField("quantidade")} inputMode="numeric"
                               className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                               placeholder="Ex.: 5" />
                           </div>
@@ -5103,9 +5176,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
+                              {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
+                                <p className="mt-1 px-1 text-[11px] font-medium text-[#9e7f45]">{_mmParaPol(String(activeWeapon?.[field] ?? ""))}</p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -5143,6 +5219,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {activeWeapon?.type === "GARRUCHA" && (
                     <div className="space-y-4">
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                        {renderMateriaisArmaFogo()}
                         <div className="grid gap-5">
                           <div>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de canos</label>
@@ -5367,9 +5444,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
+                              {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
+                                <p className="mt-1 px-1 text-[11px] font-medium text-[#9e7f45]">{_mmParaPol(String(activeWeapon?.[field] ?? ""))}</p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -5419,6 +5499,69 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {/* ── ARMA DE PRESSÃO ── */}
                   {activeWeapon?.type === "ARMA DE PRESSÃO" && (
                     <div className="space-y-4" style={{ marginTop: '-0.625rem' }}>
+                      {/* Tipo de produção — antes do Fabricante (se ARTESANAL, não há fabricante) */}
+                      <div className="rounded-2xl border border-[#d3c4a8] bg-white p-4 shadow-sm">
+                        <label className="mb-3 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de produção</label>
+                        <div className="flex gap-2">
+                          {(["INDUSTRIAL", "ARTESANAL"]).map(tipo => (
+                            <button
+                              key={tipo}
+                              type="button"
+                              onClick={() => { setWeaponDirect("tipoProd", tipo); if (tipo === "ARTESANAL") { setWeaponDirect("serialEstado", ""); setWeaponDirect("brand", "") } }}
+                              className={`flex-1 rounded-xl border-2 py-3 text-sm font-black tracking-[0.12em] transition active:scale-[.97] ${
+                                activeWeapon?.tipoProd === tipo
+                                  ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                                  : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                              }`}
+                            >
+                              {tipo}
+                            </button>
+                          ))}
+                        </div>
+                        {activeWeapon?.tipoProd === "ARTESANAL" && (
+                          <p className="mt-3 text-[12px] font-medium leading-snug text-[#9e7f45]">Peça artesanal — sem fabricante definido.</p>
+                        )}
+
+                        {/* Bloco de número de série — só para INDUSTRIAL */}
+                        {activeWeapon?.tipoProd === "INDUSTRIAL" && (
+                          <div className="mt-4 border-t border-[#e8dfc8] pt-4">
+                            <label className="mb-3 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                              Número de série — estado
+                              <HelpBtn title="Número de série" text="Indica a condição em que o número de série se encontra na arma. LEGÍVEL: completamente visível. PARCIAL: parte dos algarismos visível. SUPRIMIDO: intencionalmente removido ou apagado. NÃO APARENTE: não localizado no exame visual." />
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {(["LEGÍVEL", "PARCIAL", "SUPRIMIDO", "NÃO APARENTE"]).map(est => (
+                                <button
+                                  key={est}
+                                  type="button"
+                                  onClick={() => setWeaponDirect("serialEstado", est)}
+                                  className={`rounded-xl border-2 py-2.5 text-xs font-black tracking-[0.08em] transition active:scale-[.97] ${
+                                    activeWeapon?.serialEstado === est
+                                      ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a]"
+                                      : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                                  }`}
+                                >
+                                  {est}
+                                </button>
+                              ))}
+                            </div>
+
+                            {(activeWeapon?.serialEstado === "LEGÍVEL" || activeWeapon?.serialEstado === "PARCIAL") && (
+                              <div className="mt-3">
+                                <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                                  Número de série
+                                </label>
+                                <input
+                                  value={activeWeapon?.serial ?? ""}
+                                  onChange={handleWeaponField("serial")}
+                                  className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                                  placeholder="Ex.: ABC-123456"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                       <div className="grid gap-5 md:grid-cols-2">
                         <div>
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
@@ -5444,6 +5587,17 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                           </button>
                         </div>
+                        {activeWeapon?.tipoProd !== "ARTESANAL" && (
+                        <div>
+                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
+                            Fabricante
+                            <HelpBtn title="Fabricante" text="Empresa responsável pela fabricação. Ex.: Rossi, Crosman, Gamo, CBC." />
+                          </label>
+                          <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
+                            className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            placeholder="Ex.: Rossi, Crosman, Gamo…" />
+                        </div>
+                        )}
                       </div>
                       <CollapsibleSection title="Características físicas" defaultOpen={true}>
                         <div className="mb-4">
@@ -5482,9 +5636,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 {lbl}
                                 <HelpBtn title={lbl} text={help} />
                               </label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
+                              {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
+                                <p className="mt-1 px-1 text-[11px] font-medium text-[#9e7f45]">{_mmParaPol(String(activeWeapon?.[field] ?? ""))}</p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -5657,9 +5814,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)}
+                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
+                              {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
+                                <p className="mt-1 px-1 text-[11px] font-medium text-[#9e7f45]">{_mmParaPol(String(activeWeapon?.[field] ?? ""))}</p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -5876,58 +6036,57 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                   {/* ── Acessórios e Embalagem (opcional) ── */}
                   {(["REVÓLVER", "PISTOLA", "PISTOLETE", "GARRUCHA", "ESPINGARDA", "CARABINA", "FUZIL", "METRALHADORA", "SUBMETRALHADORA", "ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (() => {
-                    const hasData = !!(
-                      (activeWeapon?.tipoAcessorio?.length ?? 0) > 0 ||
-                      activeWeapon?.lacreEntradaAcessorio ||
-                      activeWeapon?.lacreSaidaAcessorio ||
-                      activeWeapon?.origemAcessorio ||
-                      Object.keys(activeWeapon?.materialAcessorio ?? {}).length > 0 ||
-                      activeWeapon?.descricaoAcessorio
-                    )
-                    const clearAcessorios = () => {
-                      setAcessoriosEditando(false)
-                      setWeaponDirect("tipoAcessorio" as any, [])
-                      setWeaponDirect("lacreEntradaAcessorio" as any, "")
-                      setWeaponDirect("lacreSaidaAcessorio" as any, "")
-                      setWeaponDirect("origemAcessorio" as any, "")
-                      setWeaponDirect("materialAcessorio" as any, {} as any)
-                      setWeaponDirect("descricaoAcessorio" as any, "")
-                    }
+                    const lista = activeWeapon?.acessorios ?? []
                     const temMira = activeWeapon?.tipoAcessorio?.includes("Mira")
                     const temCarregador = activeWeapon?.tipoAcessorio?.includes("Carregador")
 
-                    /* ── Estado 1: card-resumo (salvo, não editando) ── */
-                    if (hasData && !acessoriosEditando) return (
-                      <div className="overflow-hidden rounded-xl border border-[#ddd0b3] bg-white shadow-sm">
-                        <div className="flex items-stretch">
-                          <button type="button" onClick={() => setAcessoriosEditando(true)}
-                            className="flex flex-1 items-center gap-2.5 px-3 py-2.5 text-left transition active:bg-[#f5efe3]">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a]">
-                              <Package className="h-4 w-4" />
+                    /* ── Lista de acessórios salvos (não editando) ── */
+                    if (!acessoriosEditando && lista.length > 0) return (
+                      <div className="space-y-2">
+                        {lista.map((acc, idx) => (
+                          <div key={acc.id} className="overflow-hidden rounded-xl border border-[#ddd0b3] bg-white shadow-sm">
+                            <div className="flex items-stretch">
+                              <button type="button" onClick={() => editarAcessorio(idx)}
+                                className="flex flex-1 items-center gap-2.5 px-3 py-2.5 text-left transition active:bg-[#f5efe3]">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a]">
+                                  <Package className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#b89a58]">Acessório {idx + 1}</div>
+                                  <div className="truncate text-[13px] font-black leading-tight text-[#26221b]">
+                                    {acc.tipoAcessorio?.length
+                                      ? acc.tipoAcessorio.join(", ")
+                                      : <span className="font-medium italic text-[#b8a070]">Sem itens</span>}
+                                  </div>
+                                </div>
+                                <Pencil className="h-3.5 w-3.5 shrink-0 text-[#c8a96e]" />
+                              </button>
+                              <div className="my-2 w-px shrink-0 bg-[#e8dfc8]" />
+                              <button type="button" onClick={() => setConfirmDeleteAcessorioIdx(idx)}
+                                className="flex w-10 shrink-0 items-center justify-center text-[#c87070] transition active:bg-[#fdf0f0]">
+                                <X className="h-4 w-4" />
+                              </button>
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#b89a58]">Acessórios e Embalagem</div>
-                              <div className="truncate text-[13px] font-black leading-tight text-[#26221b]">
-                                {activeWeapon?.tipoAcessorio?.length
-                                  ? activeWeapon.tipoAcessorio.join(", ")
-                                  : <span className="font-medium italic text-[#b8a070]">Sem itens selecionados</span>}
+                            {(acc.tipoMira?.length || acc.tipoCarregador?.length || acc.lacreEntradaAcessorio || acc.lacreSaidaAcessorio || acc.origemAcessorio) && (
+                              <div className="border-t border-[#f0e8d8] bg-[#fdfaf5] px-3 py-1.5">
+                                <div className="flex flex-wrap gap-x-3 gap-y-0">
+                                  {acc.tipoMira?.length ? <span className="text-[10px] text-[#9e8255]">Mira: <span className="font-black text-[#50442f]">{acc.tipoMira.join(", ")}</span></span> : null}
+                                  {acc.tipoCarregador?.length ? <span className="text-[10px] text-[#9e8255]">Carregador: <span className="font-black text-[#50442f]">{acc.tipoCarregador.join(", ")}{acc.capacidade ? ` · ${acc.capacidade}` : ""}</span></span> : null}
+                                  {acc.lacreEntradaAcessorio && <span className="text-[10px] text-[#9e8255]">Lacre ent.: <span className="font-black text-[#50442f]">{acc.lacreEntradaAcessorio}</span></span>}
+                                  {acc.lacreSaidaAcessorio  && <span className="text-[10px] text-[#9e8255]">Lacre saí.: <span className="font-black text-[#50442f]">{acc.lacreSaidaAcessorio}</span></span>}
+                                  {acc.origemAcessorio       && <span className="text-[10px] text-[#9e8255]">Origem: <span className="font-black text-[#50442f]">{acc.origemAcessorio}</span></span>}
+                                </div>
                               </div>
-                            </div>
-                            <Pencil className="h-3.5 w-3.5 shrink-0 text-[#c8a96e]" />
-                          </button>
-                          <div className="my-2 w-px shrink-0 bg-[#e8dfc8]" />
-                          <button type="button" onClick={() => setConfirmDeleteAcessorios(true)}
-                            className="flex w-10 shrink-0 items-center justify-center text-[#c87070] transition active:bg-[#fdf0f0]">
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                        <div className="border-t border-[#f0e8d8] bg-[#fdfaf5] px-3 py-1.5">
-                          <div className="flex flex-wrap gap-x-3 gap-y-0">
-                            {activeWeapon?.lacreEntradaAcessorio && <span className="text-[10px] text-[#9e8255]">Lacre ent.: <span className="font-black text-[#50442f]">{activeWeapon.lacreEntradaAcessorio}</span></span>}
-                            {activeWeapon?.lacreSaidaAcessorio  && <span className="text-[10px] text-[#9e8255]">Lacre saí.: <span className="font-black text-[#50442f]">{activeWeapon.lacreSaidaAcessorio}</span></span>}
-                            {activeWeapon?.origemAcessorio       && <span className="text-[10px] text-[#9e8255]">Origem: <span className="font-black text-[#50442f]">{activeWeapon.origemAcessorio}</span></span>}
+                            )}
                           </div>
-                        </div>
+                        ))}
+                        <button type="button" onClick={novoAcessorio}
+                          className="flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-[#cdbf9e] bg-[#fbf8f2] px-5 py-3 transition active:bg-[#ece6da]">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#e8dfc8]">
+                            <Plus className="h-5 w-5 text-[#8d7854]" />
+                          </div>
+                          <p className="text-sm font-black uppercase tracking-[0.14em] text-[#50442f]">Adicionar acessório</p>
+                        </button>
                       </div>
                     )
 
@@ -5936,10 +6095,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       <div className="overflow-hidden rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3]">
                         <button
                           type="button"
-                          onClick={() => setAcessoriosEditando(false)}
+                          onClick={() => { limparRascunhoAcessorio(); setEditingAcessorioIdx(null); setAcessoriosEditando(false) }}
                           className="flex w-full items-center justify-between px-5 py-4 border-b border-[#ede3ce] transition active:bg-[#f0e8d0]"
                         >
-                          <span className="text-sm font-black uppercase tracking-[0.14em] text-[#50442f]">Acessórios e Embalagem</span>
+                          <span className="text-sm font-black uppercase tracking-[0.14em] text-[#50442f]">{editingAcessorioIdx !== null ? `Editando acessório ${editingAcessorioIdx + 1}` : "Novo acessório"}</span>
                           <ChevronUp className="h-4 w-4 text-[#9e7f45]" />
                         </button>
                         <div className="px-5 pt-5 pb-6 space-y-5">
@@ -5988,7 +6147,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               {activeWeapon?.type !== "REVÓLVER" && (
                                 <div>
                                   <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Capacidade</label>
-                                  <input value={String(activeWeapon?.capacidadeCarregador ?? "")} onChange={handleWeaponField("capacidadeCarregador")}
+                                  <input value={String(activeWeapon?.capacidadeAcessorio ?? "")} onChange={handleWeaponField("capacidadeAcessorio")}
                                     className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45]"
                                     placeholder="Ex.: 17 cartuchos" />
                                 </div>
@@ -6062,17 +6221,19 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               className="mb-4 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] disabled:opacity-50"
                               placeholder="Nº do lacre de entrada" />
                             {!activeWeapon?.lacreEntradaMesmoDaPeca && (
-                              <div className="grid grid-cols-2 gap-3">
+                              <div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3 sm:gap-2">
                                 {([
-                                  { key: "emb_ent_f", label: "Lacre Ent. (Frente)" },
-                                  { key: "emb_ent_v", label: "Lacre Ent. (Verso)" },
+                                  { key: "emb_ent_f", label: "Embalagem Frente" },
+                                  { key: "emb_ent_v", label: "Embalagem Verso" },
+                                  { key: "emb_ent_l", label: "Lacre" },
                                 ] as const).map((p) => {
-                                  const photoKey = `acc_${p.key}_${effectivePhotoIdx}`
+                                  const photoKey = `acc-${draftAcessorioId}-${p.key}`
                                   return (
                                     <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
                                       photoUrl={photoUrls.get(photoKey)}
                                       onCapture={handlePhotoCapture} onRemove={handlePhotoRemove}
-                                      onView={(url) => setViewerPhoto(url)} />
+                                      onView={(url) => setViewerPhoto(url)}
+                                      onScan={p.key === "emb_ent_l" ? (text) => setWeaponDirect("lacreEntradaAcessorio" as any, text) : undefined} />
                                   )
                                 })}
                               </div>
@@ -6084,10 +6245,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Fotos do material</label>
                             <div className="grid grid-cols-2 gap-3">
                               {([
-                                { key: "mat_ant",  label: "Mat. Anterior" },
-                                { key: "mat_post", label: "Mat. Posterior" },
+                                { key: "mat_ant",  label: "Lateral Esquerda" },
+                                { key: "mat_post", label: "Lateral Direita" },
                               ] as const).map((p) => {
-                                const photoKey = `acc_${p.key}_${effectivePhotoIdx}`
+                                const photoKey = `acc-${draftAcessorioId}-${p.key}`
                                 return (
                                   <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
                                     photoUrl={photoUrls.get(photoKey)}
@@ -6126,42 +6287,44 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               className="mb-4 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] disabled:opacity-50"
                               placeholder="Nº do lacre de saída" />
                             {!activeWeapon?.lacreSaidaMesmoDaPeca && (
-                              <div className="grid grid-cols-2 gap-3">
+                              <div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3 sm:gap-2">
                                 {([
-                                  { key: "emb_sai_f", label: "Lacre Saí. (Frente)" },
-                                  { key: "emb_sai_v", label: "Lacre Saí. (Verso)" },
+                                  { key: "emb_sai_f", label: "Embalagem Frente" },
+                                  { key: "emb_sai_v", label: "Embalagem Verso" },
+                                  { key: "emb_sai_l", label: "Lacre" },
                                 ] as const).map((p) => {
-                                  const photoKey = `acc_${p.key}_${effectivePhotoIdx}`
+                                  const photoKey = `acc-${draftAcessorioId}-${p.key}`
                                   return (
                                     <PhotoSlot key={p.key} slotKey={photoKey} label={p.label}
                                       photoUrl={photoUrls.get(photoKey)}
                                       onCapture={handlePhotoCapture} onRemove={handlePhotoRemove}
-                                      onView={(url) => setViewerPhoto(url)} />
+                                      onView={(url) => setViewerPhoto(url)}
+                                      onScan={p.key === "emb_sai_l" ? (text) => setWeaponDirect("lacreSaidaAcessorio" as any, text) : undefined} />
                                   )
                                 })}
                               </div>
                             )}
                           </div>
 
-                          {/* Botões Cancelar / Salvar */}
+                          {/* Botões Cancelar / Salvar acessório */}
                           <div className="grid grid-cols-2 gap-3 border-t border-[#ede3ce] pt-4">
                             <button type="button"
-                              onClick={() => { if (!hasData) clearAcessorios(); else setAcessoriosEditando(false) }}
+                              onClick={() => { limparRascunhoAcessorio(); setEditingAcessorioIdx(null); setAcessoriosEditando(false) }}
                               className="rounded-2xl border border-[#a8894c] bg-[#efe1b5] py-3.5 text-sm font-black tracking-[0.14em] text-[#4b3b21] transition active:brightness-95">
                               CANCELAR
                             </button>
-                            <button type="button" onClick={() => setAcessoriosEditando(false)}
+                            <button type="button" onClick={salvarAcessorio}
                               className="rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-3.5 text-sm font-black tracking-[0.16em] text-[#f0d08a] shadow-[0_8px_20px_rgba(0,0,0,.25)] transition active:brightness-110">
-                              SALVAR
+                              {editingAcessorioIdx !== null ? "ATUALIZAR" : "SALVAR ACESSÓRIO"}
                             </button>
                           </div>
                         </div>
                       </div>
                     )
 
-                    /* ── Estado 3: botão "+ Adicionar" ── */
+                    /* ── Estado 3: botão "+ Adicionar" (nenhum acessório ainda) ── */
                     return (
-                      <button type="button" onClick={() => setAcessoriosEditando(true)}
+                      <button type="button" onClick={novoAcessorio}
                         className="flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-[#cdbf9e] bg-[#fbf8f2] px-5 py-4 transition active:bg-[#ece6da]">
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#e8dfc8]">
                           <Plus className="h-5 w-5 text-[#8d7854]" />
@@ -6508,7 +6671,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                     {(() => {
                       const piecePhotos = Array.from(photoUrls.entries()).filter(([k]) => k.startsWith(`piece-${effectivePhotoIdx}-`))
-                      const lacrePhotos = Array.from(photoUrls.entries()).filter(([k]) => k.startsWith("lacre-"))
+                      const lacrePhotos = Array.from(photoUrls.entries()).filter(([k]) => k.startsWith(`lacre-entrada-${effectivePhotoIdx}-`) || k.startsWith(`lacre-saida-${effectivePhotoIdx}-`))
                       return (
                         <div className="overflow-hidden rounded-2xl border-2 border-[#d3c4a8] bg-[#fbf8f3] shadow-sm">
                           {/* Área principal — abre tela de fotos da peça */}
@@ -6555,7 +6718,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 <button key={k} type="button" onClick={() => setViewerPhoto(url)} className="flex shrink-0 flex-col items-center gap-1">
                                   <img src={url} alt="lacre" className="h-9 w-9 rounded-lg border border-[#c8b47e] object-cover shadow-sm" />
                                   <span className="text-[9px] font-black uppercase tracking-[0.1em] text-[#8d7854]">
-                                    {k.startsWith("lacre-entrada-form") ? "Lacre E." : "Lacre S."}
+                                    {k.startsWith("lacre-entrada") ? "Lacre E." : "Lacre S."}
                                   </span>
                                 </button>
                               ))}
@@ -6597,8 +6760,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {/* ── Lacre de Saída (oculto quando a peça foi consumida) ── */}
                   {!(isMunicaoConsumivel && activeWeapon?.destinacao === "CONSUMIDO") && (
                     <LacreInput
-                      label="Lacre de Saída"
-                      slotKey="lacre-saida-form"
+                      label="Lacre/Embalagem de Saída"
+                      slotKey={`lacre-saida-${effectivePhotoIdx}`}
                       value={activeWeapon?.lacreSaidaPeca ?? lacreSaidaNumero}
                       onChange={v => { setLacreSaidaNumero(v); setWeaponDirect("lacreSaidaPeca" as any, v) }}
                       allPhotoUrls={photoUrls}
@@ -6606,6 +6769,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       onRemove={handlePhotoRemove}
                       onView={setViewerPhoto}
                       placeholder="Nº do lacre de saída"
+                      photoSlots={[
+                        { sub: "frente", label: "Frente emb." },
+                        { sub: "verso", label: "Verso emb." },
+                        { sub: "lacre", label: "Lacre" },
+                      ]}
                     />
                   )}
 
@@ -6959,6 +7127,60 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           }}
         />
 
+        {/* ── Picker: Número de raias ── */}
+        <AnimatePresence>
+          {numRaiasPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setNumRaiasPickerOpen(false)} />
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-md"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              >
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-black uppercase tracking-[0.2em] text-[#6b5838]">Número de raias</span>
+                    <button type="button" onClick={() => setNumRaiasPickerOpen(false)}
+                      className="rounded-xl border border-[#cdbf9e] bg-[#efe1b5] p-1.5 text-[#6b5838]">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  <div className="grid grid-cols-4 gap-2">
+                    {Array.from({ length: 12 }, (_, k) => String(k + 1)).map((n) => {
+                      const selected = activeWeapon?.numEstrias === n
+                      return (
+                        <button key={n} type="button"
+                          onClick={() => { setWeaponDirect("numEstrias", n); setNumRaiasPickerOpen(false) }}
+                          className={`rounded-xl border-2 py-3 text-[15px] font-black transition active:scale-[.97] ${
+                            selected
+                              ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                              : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                          }`}>
+                          {n}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <button type="button"
+                    onClick={() => { setWeaponDirect("numEstrias", "Indeterminado"); setNumRaiasPickerOpen(false) }}
+                    className={`mt-3 w-full rounded-xl border-2 py-3.5 text-[14px] font-black uppercase tracking-[0.1em] transition active:scale-[.98] ${
+                      activeWeapon?.numEstrias === "Indeterminado"
+                        ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                        : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                    }`}>
+                    Indeterminado
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
         {/* ── Picker: Tambor sobressalente (revólver) ── */}
         <AnimatePresence>
           {tamborPickerOpen && (
@@ -7187,18 +7409,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           confirmDeleteCarregador={confirmDeleteCarregador}
           onDeleteCarregador={() => { setWeaponDirect("tipoCarregador", []); setConfirmDeleteCarregador(false) }}
           onCancelDeleteCarregador={() => setConfirmDeleteCarregador(false)}
-          confirmDeleteAcessorios={confirmDeleteAcessorios}
-          onDeleteAcessorios={() => {
-            setAcessoriosEditando(false)
-            setWeaponDirect("tipoAcessorio" as any, [])
-            setWeaponDirect("lacreEntradaAcessorio" as any, "")
-            setWeaponDirect("lacreSaidaAcessorio" as any, "")
-            setWeaponDirect("origemAcessorio" as any, "")
-            setWeaponDirect("materialAcessorio" as any, {} as any)
-            setWeaponDirect("descricaoAcessorio" as any, "")
-            setConfirmDeleteAcessorios(false)
+          confirmDeleteAcessorioIdx={confirmDeleteAcessorioIdx}
+          onDeleteAcessorio={() => {
+            if (confirmDeleteAcessorioIdx !== null) removerAcessorio(confirmDeleteAcessorioIdx)
+            setConfirmDeleteAcessorioIdx(null)
           }}
-          onCancelDeleteAcessorios={() => setConfirmDeleteAcessorios(false)}
+          onCancelDeleteAcessorio={() => setConfirmDeleteAcessorioIdx(null)}
         />
 
         <ProfilePanel
@@ -7242,10 +7458,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-5 w-5 animate-spin text-[#9e7f45]" />
                     </div>
-                  ) : (catalogoMarcas ?? []).length === 0 ? (
-                    <p className="py-6 text-center text-[13px] text-[#a09070]">Nenhum fabricante encontrado para este tipo de arma.</p>
                   ) : (
-                    (catalogoMarcas as string[]).map((marca: string) => (
+                    ([...(catalogoMarcas ?? []), "Indeterminado"] as string[]).map((marca: string) => (
                       <button key={marca} type="button"
                         onClick={() => {
                           setWeaponDirect("brand", marca)
@@ -7396,26 +7610,66 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-5 w-5 animate-spin text-[#9e7f45]" />
                     </div>
-                  ) : (catalogoModelos ?? []).length === 0 ? (
-                    <p className="py-6 text-center text-[13px] text-[#a09070]">Nenhum modelo encontrado.</p>
                   ) : (
-                    (catalogoModelos as string[]).map((modelo: string) => (
-                      <button key={modelo} type="button"
+                    <>
+                      {(catalogoModelos ?? []).length === 0 && (
+                        <p className="py-4 text-center text-[13px] text-[#a09070]">Nenhum modelo no catálogo — use “Outro” abaixo para digitar.</p>
+                      )}
+                      {(catalogoModelos as string[]).map((modelo: string) => (
+                        <button key={modelo} type="button"
+                          onClick={async () => {
+                            setWeaponDirect("model", modelo)
+                            setCatalogoModeloSel(modelo)
+                            // Sem fabricante definido: descobre e preenche o fabricante do modelo
+                            if (!activeWeapon?.brand || activeWeapon.brand === "Indeterminado") {
+                              const marca = await buscarMarcaPorModelo(activeWeapon?.type, modelo)
+                              if (marca) setWeaponDirect("brand", marca)
+                            }
+                            setCatalogoModeloPickerOpen(false)
+                          }}
+                          className={`flex w-full items-center justify-between border-b border-[#e0d0b0] py-3.5 text-left text-[15px] transition ${
+                            activeWeapon?.model === modelo ? "font-black text-[#6b5838]" : "font-medium text-[#26221b] hover:text-[#6b5838]"
+                          }`}
+                        >
+                          {modelo}
+                          {activeWeapon?.model === modelo
+                            ? <CheckCircle2 className="h-4 w-4 text-[#9e7f45]" />
+                            : <ChevronRight className="h-4 w-4 text-[#b89a58]" />}
+                        </button>
+                      ))}
+                      {/* Outro — digitar manualmente */}
+                      <button type="button"
                         onClick={() => {
-                          setWeaponDirect("model", modelo) 
-                          setCatalogoModeloSel(modelo)
-                          setCatalogoModeloPickerOpen(false)
+                          setCatalogoModeloCustomInput(activeWeapon?.model && !(catalogoModelos ?? []).includes(activeWeapon.model) ? activeWeapon.model : "")
+                          setCatalogoModeloOutro(true)
                         }}
-                        className={`flex w-full items-center justify-between border-b border-[#e0d0b0] py-3.5 text-left text-[15px] last:border-0 transition ${
-                          activeWeapon?.model === modelo ? "font-black text-[#6b5838]" : "font-medium text-[#26221b] hover:text-[#6b5838]"
+                        className={`flex w-full items-center justify-between border-b border-[#e0d0b0] py-3.5 text-left text-[15px] transition ${
+                          catalogoModeloOutro ? "font-black text-[#6b5838]" : "font-medium text-[#26221b] hover:text-[#6b5838]"
                         }`}
                       >
-                        {modelo} 
-                        {activeWeapon?.model === modelo 
-                          ? <CheckCircle2 className="h-4 w-4 text-[#9e7f45]" />
-                          : <ChevronRight className="h-4 w-4 text-[#b89a58]" />}
+                        Outro
+                        <ChevronRight className="h-4 w-4 text-[#b89a58]" />
                       </button>
-                    ))
+                      {catalogoModeloOutro && (
+                        <div className="pb-4 pt-3 space-y-2">
+                          <input autoFocus value={catalogoModeloCustomInput} onChange={e => setCatalogoModeloCustomInput(e.target.value)}
+                            className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
+                            placeholder="Digite o modelo…" />
+                          <button type="button" disabled={!catalogoModeloCustomInput.trim()}
+                            onClick={() => {
+                              const v = catalogoModeloCustomInput.trim()
+                              if (!v) return
+                              setWeaponDirect("model", v)
+                              setCatalogoModeloSel(v)
+                              setCatalogoModeloOutro(false)
+                              setCatalogoModeloPickerOpen(false)
+                            }}
+                            className="w-full rounded-xl border-2 border-[#9e7f45] bg-[#9e7f45] py-2.5 text-sm font-black uppercase tracking-[0.1em] text-white transition disabled:opacity-40">
+                            Confirmar
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </motion.div>

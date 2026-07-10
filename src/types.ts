@@ -36,6 +36,7 @@ export type WeaponEntry = {
   acabamento: string
   compCano: string
   numCamaras: string
+  rebatimentoTambor: string
   tamborSobressalente: string
   tamborSobressalenteQtd: string
   canoSobressalente: string
@@ -189,6 +190,27 @@ export type WeaponEntry = {
   origemAcessorio: string
   materialAcessorio: Record<string, string>
   descricaoAcessorio: string
+  // Rascunho de capacidade do carregador do acessório (independente da capacidade
+  // da peça em capacidadeCarregador, que é usada nas Características / tipo CARREGADOR).
+  capacidadeAcessorio: string
+  // Lista de acessórios salvos (cada um independente). Os campos acima funcionam
+  // como rascunho do acessório em edição; ao salvar, viram um item desta lista.
+  acessorios: AcessorioEntry[]
+}
+
+export type AcessorioEntry = {
+  id: string
+  tipoAcessorio: string[]
+  tipoMira: string[]
+  tipoCarregador: string[]
+  capacidade: string
+  origemAcessorio: string
+  materialAcessorio: Record<string, string>
+  descricaoAcessorio: string
+  lacreEntradaAcessorio: string
+  lacreEntradaMesmoDaPeca: boolean
+  lacreSaidaAcessorio: string
+  lacreSaidaMesmoDaPeca: boolean
 }
 
 export type RecordItem = {

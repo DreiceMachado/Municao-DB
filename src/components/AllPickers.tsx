@@ -52,6 +52,13 @@ function PickerItem({ label, desc, selected, onSelect, last }: {
   )
 }
 
+// Normaliza calibre para comparar: minúsculas, sem espaços, ×→x, e ignora o que vem
+// depois do "(". Assim "9mm Luger (9x19mm NATO)" (catálogo/ficha) casa com
+// "9 mm Luger (9×19mm)" (opção do seletor).
+function normCal(s: string): string {
+  return (s ?? "").toLowerCase().split("(")[0].replace(/×/g, "x").replace(/\s+/g, "").trim()
+}
+
 type PickersProps = {
   materialPickerOpen: boolean
   formatoPickerOpen: boolean
@@ -90,7 +97,7 @@ export function AllPickers(props: PickersProps) {
     if (weapon.type === "ESTOJO" || weapon.type === "CARTUCHO") return ["Latão","Aço","Aço inoxidável","Alumínio","Cobre","Bimetálico (aço/latão)","Niquelado","Polímero / plástico"]
     if (weapon.type === "FACA") return ["Aço inoxidável","Aço carbono","Aço inox cirúrgico","Aço damasco","Aço revestido (titânio / DLC)","Liga metálica","Cerâmica","Ferro","Indeterminado"]
     if (weapon.type === "CARREGADOR") return ["Polímero","Polímero reforçado (P-Mag)","Aço","Aço inoxidável","Alumínio","Liga de alumínio","Latão","Plástico ABS","Indeterminado"]
-    if (FIREARMS.includes(weapon.type as WeaponType)) return ["Aço","Aço inoxidável","Alumínio","Liga de alumínio","Titânio","Latão","Polímero","Madeira","Inox escovado","Indeterminado"]
+    if (FIREARMS.includes(weapon.type as WeaponType)) return ["Aço oxidado","Aço inoxidável","Aço fosfatado","Aço niquelado","Aço cromado","Aço brunido","Alumínio anodizado","Liga de alumínio","Titânio","Latão","Polímero","Madeira","Inox escovado","Indeterminado"]
     return ["Chumbo","Liga de chumbo","Chumbo endurecido","Encamisado (FMJ)","Semiencamisado","Ponta oca (HP)","Encamisado de aço","Cobre","Latão","Aço","Aço inoxidável","Alumínio","Tungstênio","Bismuto","Polímero","Niquelado"]
   }
 
@@ -99,7 +106,7 @@ export function AllPickers(props: PickersProps) {
     if (weapon.type === "FACA") return "Material da lâmina"
     if (weapon.type === "ARMA DE PRESSÃO") return "Material da arma de pressão"
     if (weapon.type === "CARREGADOR") return "Material do carregador"
-    if (FIREARMS.includes(weapon.type as WeaponType)) return "Material da arma"
+    if (FIREARMS.includes(weapon.type as WeaponType)) return "Material e acabamento do cano"
     return "Material do projétil"
   }
 
@@ -560,17 +567,10 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title={materialTitle()} onClose={() => close("material")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {materialOptions().map((mat, idx, arr) => {
-                  const sel = weapon.material.split(",").map(s => s.trim()).filter(Boolean).includes(mat)
-                  return (
-                    <PickerItem key={mat} label={mat} selected={sel} last={idx === arr.length - 1}
-                      onSelect={() => {
-                        const cur = weapon.material.split(",").map(s => s.trim()).filter(Boolean)
-                        const nxt = sel ? cur.filter(m => m !== mat) : [...cur, mat]
-                        setDirect("material", nxt.join(", "))
-                      }} />
-                  )
-                })}
+                {materialOptions().map((mat, idx, arr) => (
+                  <PickerItem key={mat} label={mat} selected={weapon.material === mat} last={idx === arr.length - 1}
+                    onSelect={() => { setDirect("material", weapon.material === mat ? "" : mat); close("material") }} />
+                ))}
               </div>
             </motion.div>
           </>
@@ -843,7 +843,10 @@ export function AllPickers(props: PickersProps) {
                   { c: "ch", l: "Suíça" },{ c: "se", l: "Suécia" },{ c: "fi", l: "Finlândia" },
                   { c: "no", l: "Noruega" },{ c: "jp", l: "Japão" },{ c: "kr", l: "Coreia do Sul" },
                   { c: "tr", l: "Turquia" },{ c: "pk", l: "Paquistão" },{ c: "in", l: "Índia" },
-                  { c: "za", l: "África do Sul" },{ c: "", l: "Indeterminado" },
+                  { c: "za", l: "África do Sul" },{ c: "mx", l: "México" },{ c: "ca", l: "Canadá" },
+                  { c: "cl", l: "Chile" },{ c: "co", l: "Colômbia" },{ c: "py", l: "Paraguai" },
+                  { c: "bo", l: "Bolívia" },{ c: "rs", l: "Sérvia" },{ c: "hu", l: "Hungria" },
+                  { c: "tw", l: "Taiwan" },{ c: "ph", l: "Filipinas" },{ c: "", l: "Indeterminado" },
                 ]).map(({ c, l }, idx, arr) => {
                   const selected = weapon.paisFabricacao === l
                   return (
@@ -875,7 +878,9 @@ export function AllPickers(props: PickersProps) {
               <div className="flex-1 overflow-y-auto px-4 pb-8">
                 {calibreOptions().map(({ l, d }, idx, arr) => {
                   const isOutro = l === "Outro"
-                  const selected = weapon.caliber === l || (isOutro && weapon.caliber === "__outro__")
+                  const exact = weapon.caliber === l
+                  // Casa exato OU normalizado (ficha/catálogo vêm com formato diferente)
+                  const selected = exact || (!isOutro && !!weapon.caliber && normCal(weapon.caliber) === normCal(l)) || (isOutro && weapon.caliber === "__outro__")
                   return (
                     <div key={l}>
                       <PickerItem label={l} desc={d} selected={selected} last={idx === arr.length - 1}
@@ -884,7 +889,9 @@ export function AllPickers(props: PickersProps) {
                             setCalibreCustomInput(weapon.caliber && !calibreOptions().some(o => o.l === weapon.caliber) ? weapon.caliber : "")
                             setDirect("caliber", "__outro__")
                           } else {
-                            setDirect("caliber", selected ? "" : l)
+                            // Desmarca só se for exatamente igual; se veio da ficha (formato diferente),
+                            // normaliza para o valor da opção em vez de perder.
+                            setDirect("caliber", exact ? "" : l)
                             close("calibre")
                           }
                         }} />
@@ -1023,7 +1030,7 @@ export function AllPickers(props: PickersProps) {
           <>
             <motion.div className={backdropClass} {...backdropAnim} onClick={() => close("materialCoronha")} />
             <motion.div className={sheetClass} {...sheetAnim}>
-              <SheetHeader title="Material da coronha" onClose={() => close("materialCoronha")} />
+              <SheetHeader title="Material e acabamento da coronha" onClose={() => close("materialCoronha")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
                 {["Polímero sintético","Madeira (mogno)","Madeira (faia)","Madeira (carvalho)","Madeira laminada","Fibra de vidro","Fibra de carbono","Metal (dobrável/retrátil)","Plástico reforçado","Borracha / soft-touch","Indeterminado"].map((opt, idx, arr) => (
                   <PickerItem key={opt} label={opt} selected={weapon.materialCoroha === opt} last={idx === arr.length - 1}
@@ -1041,7 +1048,7 @@ export function AllPickers(props: PickersProps) {
           <>
             <motion.div className={backdropClass} {...backdropAnim} onClick={() => close("materialQuadro")} />
             <motion.div className={sheetClass} {...sheetAnim}>
-              <SheetHeader title="Material do quadro" onClose={() => close("materialQuadro")} />
+              <SheetHeader title="Material e acabamento do quadro" onClose={() => close("materialQuadro")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
                 {["Aço oxidado","Aço inoxidável","Aço fosfatado","Alumínio forjado","Liga de alumínio","Polímero reforçado","Titânio","Aço niquelado","Indeterminado"].map((opt, idx, arr) => (
                   <PickerItem key={opt} label={opt} selected={weapon.materialQuadro === opt} last={idx === arr.length - 1}

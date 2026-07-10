@@ -150,6 +150,7 @@ CREATE TABLE armas_fogo (
   comp_cano           TEXT,
   comp_total          TEXT,
   num_camaras         TEXT,
+  rebatimento_tambor  TEXT,
   num_canos           TEXT,
   cap_carregador      TEXT,
   tipo_raiamento      TEXT,
@@ -227,7 +228,10 @@ CREATE TABLE acessorios (
   descricao   TEXT,
   lacre_entrada TEXT,
   lacre_saida   TEXT,
-  origem      TEXT
+  origem      TEXT,
+  tipo_mira       TEXT[],              -- tipos de mira (quando tipo = 'Mira')
+  tipo_carregador TEXT[],              -- tipos de carregador (quando tipo = 'Carregador')
+  capacidade      TEXT                 -- capacidade do carregador acessório
 );
 
 -- Peças/canos sobressalentes
@@ -366,6 +370,11 @@ CREATE TABLE armas_pressao (
 
   marca               TEXT,
   modelo              TEXT,
+  numero_serie        TEXT,
+  serial_estado       TEXT CHECK (serial_estado IN (
+                        'LEGÍVEL', 'PARCIAL', 'SUPRIMIDO', 'NÃO APARENTE'
+                      )),
+  tipo_producao       TEXT CHECK (tipo_producao IN ('INDUSTRIAL', 'ARTESANAL')),
   sistema_acionamento TEXT,
   comp_cano           TEXT,
   estado_conservacao  TEXT,

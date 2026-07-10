@@ -97,6 +97,7 @@ export function detalhePayload(
         comp_cano:           s(d.compCano),
         comp_total:          s(d.compTotal),
         num_camaras:         s(d.numCamaras),
+        rebatimento_tambor:  s(d.rebatimentoTambor),
         num_canos:           s(d.numCanos),
         cap_carregador:      s(d.capacidadeCarregador),
         tipo_raiamento:      s(d.tipoRaiamento),
@@ -225,6 +226,9 @@ export function detalhePayload(
         ...calibre,
         marca:               s(d.brand),
         modelo:              s(d.model),
+        numero_serie:        s(d.serial),
+        serial_estado:       enumOrNull(d.serialEstado, SERIAL_ESTADOS),
+        tipo_producao:       enumOrNull(d.tipoProd, TIPOS_PRODUCAO),
         sistema_acionamento: s(d.sistemaAcionamento),
         comp_cano:           s(d.compCano),
         estado_conservacao:  s(d.desgasteObs),
@@ -297,24 +301,60 @@ export function coletaPayload(
 }
 
 // ── ACESSÓRIOS — uma linha por tipo de acessório selecionado ──────────────────
+type AcessorioLike = {
+  tipoAcessorio?: string[]
+  tipoMira?: string[]
+  tipoCarregador?: string[]
+  capacidade?: string
+  materialAcessorio?: Record<string, string>
+  origemAcessorio?: string
+  descricaoAcessorio?: string
+  lacreEntradaAcessorio?: string
+  lacreSaidaAcessorio?: string
+}
+
 export function acessoriosPayload(
   armaId: string,
   d: WeaponEntry,
 ): Record<string, unknown>[] {
-  const tipos = Array.isArray(d.tipoAcessorio) ? d.tipoAcessorio : []
-  const materiais = d.materialAcessorio ?? {}
-  return tipos
-    .map((t) => (t ?? "").toString().trim())
-    .filter((t) => t !== "")
-    .map((tipo) => ({
-      arma_id:       armaId,
-      tipo,
-      material:      s(materiais[tipo]),
-      descricao:     s(d.descricaoAcessorio),
-      lacre_entrada: s(d.lacreEntradaAcessorio),
-      lacre_saida:   s(d.lacreSaidaAcessorio),
-      origem:        s(d.origemAcessorio),
-    }))
+  // Nova estrutura: lista de acessórios independentes. Fallback: bloco único (formato antigo).
+  const lista = Array.isArray(d.acessorios) ? d.acessorios : []
+  const fonte: AcessorioLike[] = lista.length > 0
+    ? lista
+    : [{
+        tipoAcessorio:         d.tipoAcessorio,
+        tipoMira:              d.tipoMira,
+        tipoCarregador:        d.tipoCarregador,
+        capacidade:            d.capacidadeAcessorio,
+        materialAcessorio:     d.materialAcessorio,
+        origemAcessorio:       d.origemAcessorio,
+        descricaoAcessorio:    d.descricaoAcessorio,
+        lacreEntradaAcessorio: d.lacreEntradaAcessorio,
+        lacreSaidaAcessorio:   d.lacreSaidaAcessorio,
+      }]
+
+  const rows: Record<string, unknown>[] = []
+  for (const acc of fonte) {
+    const tipos = Array.isArray(acc.tipoAcessorio) ? acc.tipoAcessorio : []
+    const materiais = acc.materialAcessorio ?? {}
+    for (const tRaw of tipos) {
+      const tipo = (tRaw ?? "").toString().trim()
+      if (!tipo) continue
+      rows.push({
+        arma_id:         armaId,
+        tipo,
+        material:        s(materiais[tipo]),
+        descricao:       s(acc.descricaoAcessorio),
+        lacre_entrada:   s(acc.lacreEntradaAcessorio),
+        lacre_saida:     s(acc.lacreSaidaAcessorio),
+        origem:          s(acc.origemAcessorio),
+        tipo_mira:       tipo === "Mira" ? arr(acc.tipoMira) : null,
+        tipo_carregador: tipo === "Carregador" ? arr(acc.tipoCarregador) : null,
+        capacidade:      tipo === "Carregador" ? s(acc.capacidade) : null,
+      })
+    }
+  }
+  return rows
 }
 
 // ── SOBRESSALENTES — tambor e/ou cano sobressalente ───────────────────────────
