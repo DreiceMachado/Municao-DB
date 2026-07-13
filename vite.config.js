@@ -20,6 +20,21 @@ export default defineConfig(({ command }) => ({
             },
         },
     },
+    // "preview" serve o BUNDLE de produção (rápido no celular, ao contrário do dev
+    // que serve arquivos soltos). Mesmo host/proxy do dev.
+    preview: {
+        host: true,
+        allowedHosts: true,
+        port: 5173,
+        proxy: {
+            '/api': {
+                target: 'http://127.0.0.1:3001',
+                changeOrigin: true,
+                proxyTimeout: 600000,
+                timeout: 600000,
+            },
+        },
+    },
     resolve: {
         alias: {
             "@": path.resolve(__dirname, "./src"),

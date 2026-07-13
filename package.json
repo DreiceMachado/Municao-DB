@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "concurrently -n API,VITE,QR -c blue,green,cyan \"node --env-file=.env api.js\" \"vite\" \"node qr-dev.js\"",
     "dev:cel": "concurrently -n API,VITE,NGROK -c blue,green,magenta \"node --env-file=.env api.js\" \"vite\" \"node --env-file=.env tunel-app.js\"",
+    "cel": "vite build && concurrently -n API,APP,QR -c blue,green,cyan \"node --env-file=.env api.js\" \"vite preview\" \"node qr-dev.js\"",
     "start": "node --env-file=.env server.js",
     "build": "tsc -b && vite build",
     "preview": "vite preview"

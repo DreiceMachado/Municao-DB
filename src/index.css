@@ -22,6 +22,17 @@ body,
   min-height: 100%;
   margin: 0;
   overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* iOS dá zoom automático (e não volta) ao focar um campo com fonte < 16px.
+   Em telas de toque, força 16px nos campos para o zoom nunca disparar. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }
 
 body {

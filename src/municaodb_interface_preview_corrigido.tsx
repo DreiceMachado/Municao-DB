@@ -216,6 +216,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [examType, setExamType] = useState<"EFICIÊNCIA" | "CONSTATAÇÃO" | null>(null)
   const [repMinimized, setRepMinimized] = useState(false)
   const [repCardColapsado, setRepCardColapsado] = useState(false)
+  const [confirmExcluirCard, setConfirmExcluirCard] = useState(false)
   const [repGdlCarregando, setRepGdlCarregando] = useState(false)
   const [repGdlErro, setRepGdlErro] = useState<string | null>(null)
   const [repCarregadaLocal, setRepCarregadaLocal] = useState(false)
@@ -1798,7 +1799,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
               drag="x"
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.7}
-              onDragEnd={(_, info) => { if (Math.abs(info.offset.x) > 90) setRepCardColapsado(true) }}
+              onDragEnd={(_, info) => {
+                if (info.offset.x < -100) setConfirmExcluirCard(true)   // ← esquerda = excluir
+                else if (info.offset.x > 100) setRepCardColapsado(true) // → direita = parquear
+              }}
               initial={{ y: 80, opacity: 0 }}
               animate={{ y: 0, opacity: 1, x: 0 }}
               exit={{ x: 300, opacity: 0 }}
@@ -1814,7 +1818,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <CircleDot className="h-6 w-6" />
                   </div>
                   <div className="flex-1 text-left">
-                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#ccb780]">REP em andamento · arraste para o lado</div>
+                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#ccb780]">REP em andamento · ← excluir · parquear →</div>
                     <div className="text-sm font-black text-[#f0d08a]">{examType}</div>
                   </div>
                   <div className="rounded-xl bg-[#f1d58d] px-4 py-2 text-xs font-black text-[#12213d]">
@@ -1837,6 +1841,37 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
             >
               <CircleDot className="h-5 w-5" />
             </motion.button>
+          )}
+        </AnimatePresence>
+
+        {/* Confirmação de exclusão do card minimizado (arrastar para a esquerda) */}
+        <AnimatePresence>
+          {confirmExcluirCard && (
+            <>
+              <motion.div className="fixed inset-0 z-[95] bg-black/60 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setConfirmExcluirCard(false)} />
+              <motion.div className="fixed inset-0 z-[96] flex items-end justify-center p-4 sm:items-center sm:p-6"
+                initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}>
+                <div className="w-full max-w-xs overflow-hidden rounded-3xl border border-[#e8c0c0] bg-[#f5efe3] shadow-[0_32px_80px_rgba(0,0,0,.55)]">
+                  <div className="bg-[linear-gradient(180deg,#2e1414_0%,#1a0a0a_100%)] px-6 py-5">
+                    <div className="text-xl font-black text-[#ffb3b3]">Excluir REP em andamento?</div>
+                    <div className="mt-1 text-xs leading-relaxed text-[#e08080]">As modificações feitas serão perdidas. REPs importadas continuam disponíveis em Importar REPs.</div>
+                  </div>
+                  <div className="flex gap-3 p-4">
+                    <button type="button" onClick={() => setConfirmExcluirCard(false)}
+                      className="flex-1 rounded-2xl border border-[#d3c4a8] bg-[#ece6da] py-4 text-sm font-bold uppercase tracking-[0.12em] text-[#6b5838] active:brightness-95">
+                      Cancelar
+                    </button>
+                    <button type="button" onClick={() => { setConfirmExcluirCard(false); resetFullExam() }}
+                      className="flex-1 rounded-2xl border-2 border-[#b03030] bg-[linear-gradient(180deg,#8b2020_0%,#5c1515_100%)] py-4 text-sm font-black uppercase tracking-[0.12em] text-[#ffd4d4] active:brightness-90">
+                      Sim, excluir
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
 
@@ -2717,12 +2752,18 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         {/* Institucional → número de inscrição + instituição */}
                         {activeWeapon?.institucional === true && (
                           <div className="space-y-3 border-t border-[#e8dfc8] px-4 py-4">
-                            <div>
-                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Nº de inscrição da arma</label>
-                              <input value={activeWeapon?.inscricaoInstitucional ?? ""} onChange={handleWeaponField("inscricaoInstitucional" as keyof Omit<WeaponEntry,"type">)}
-                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                placeholder="Ex.: SINARM/SIGMA nº 123456" />
-                            </div>
+                            <LacreInput
+                              label="Nº de inscrição da arma"
+                              slotKey={`inscricao-inst-${effectivePhotoIdx}`}
+                              value={activeWeapon?.inscricaoInstitucional ?? ""}
+                              onChange={v => setWeaponDirect("inscricaoInstitucional" as any, v)}
+                              allPhotoUrls={photoUrls}
+                              onCapture={handlePhotoCapture}
+                              onRemove={handlePhotoRemove}
+                              onView={setViewerPhoto}
+                              placeholder="Ex.: SINARM/SIGMA nº 123456"
+                              help={<HelpBtn title="Nº de inscrição da arma" text="Número de inscrição/registro da arma no órgão (SINARM/SIGMA, etc.). Toque na câmera ao lado para tirar ou anexar a foto da inscrição." />}
+                            />
                             <div>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Instituição</label>
                               <input value={activeWeapon?.instituicao ?? ""} onChange={handleWeaponField("instituicao" as keyof Omit<WeaponEntry,"type">)}
@@ -3258,8 +3299,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                               </button>
 
-                              {/* Botão Preencher ficha — sempre logo abaixo do Modelo */}
-                              {TIPOS_COM_CATALOGO.includes(activeWeapon?.type as WeaponType) && activeWeapon?.brand && activeWeapon?.model && (
+                              {/* Botão Preencher ficha — só quando fabricante E modelo são do catálogo
+                                  (some quando o usuário digitou "Outro" manual, pois não há ficha). */}
+                              {TIPOS_COM_CATALOGO.includes(activeWeapon?.type as WeaponType) && activeWeapon?.brand && activeWeapon?.model
+                                && (catalogoMarcas ?? []).includes(activeWeapon.brand)
+                                && (catalogoModelos ?? []).includes(activeWeapon.model) && (
                                 <button
                                   type="button"
                                   disabled={loadingFicha}

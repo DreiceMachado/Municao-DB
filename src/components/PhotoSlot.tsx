@@ -1,7 +1,6 @@
 import React, { useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { Camera, ChevronRight, Image as ImageIcon, ScanLine, X } from "lucide-react"
-import { BrowserMultiFormatReader } from "@zxing/browser"
 import { PhotoEditor } from "./PhotoEditor"
 
 type Props = {
@@ -35,6 +34,8 @@ export function PhotoSlot({ label, slotKey, photoUrl, onCapture, onRemove, onVie
     setLendoCodigo(true)
     const url = URL.createObjectURL(file)
     try {
+      // Carrega o ZXing só agora (import dinâmico) — não pesa no início do app.
+      const { BrowserMultiFormatReader } = await import("@zxing/browser")
       const reader = new BrowserMultiFormatReader()
       const result = await reader.decodeFromImageUrl(url)
       onScan(result.getText())

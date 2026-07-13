@@ -25,10 +25,6 @@
           var r = e.reason;
           mostra('PROMISE: ' + (r && (r.stack || r.message) || r));
         });
-        // Se em 5s o app não montou, avisa (erro de módulo/MIME não dispara onerror).
-        setTimeout(function () {
-          mostra('O app não montou em 5s.\nSe você está vendo ESTA mensagem, a HTML carregou mas o módulo JS falhou (provável bloqueio do ngrok no /src/main.tsx).\n\nSe NÃO vê nem esta mensagem, a página servida não é o app (aviso do ngrok ou cache).');
-        }, 5000);
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
