@@ -367,6 +367,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       }
       setSourceImportedRepDbId(localRep.id)
       setRepCarregadaLocal(true)
+      // Garante que a REP apareça em "Importar REPs" mesmo que ainda não tenha status.
+      if (localRep.id != null && !localRep.repStatus) {
+        await db.laudos.update(localRep.id, { repStatus: "importada", atualizadoEm: new Date().toISOString() })
+        recarregarLista()
+      }
       return
     }
 
@@ -385,32 +390,36 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
         return
       }
       const { form: f, pecas: p, lacres } = mapearRepGdl(dados)
-      setForm(prev => ({
-        ...prev,
-        caseNumber:         prev.caseNumber         || f.caseNumber,
-        date:               prev.date               || f.date,
-        observacoes:        prev.observacoes        || f.observacoes,
-        solicitante:        prev.solicitante        || f.solicitante,
-        remetenteCidade:    prev.remetenteCidade    || f.remetenteCidade,
-        remetenteOrgao:     prev.remetenteOrgao     || f.remetenteOrgao,
-        naturezaExame:      prev.naturezaExame      || f.naturezaExame,
-        naturezaOcorrencia: prev.naturezaOcorrencia || f.naturezaOcorrencia,
-        dataEntrada:        prev.dataEntrada        || f.dataEntrada,
-        horaEntrada:        prev.horaEntrada        || f.horaEntrada,
-        enderecoExame:      prev.enderecoExame      || f.enderecoExame,
-        oficio:             prev.oficio             || f.oficio,
-        ipApfd:             prev.ipApfd             || f.ipApfd,
-        processo:           prev.processo           || f.processo,
-      }))
+      const novoForm = {
+        ...form,
+        examNumber:         numLimpo,
+        caseNumber:         form.caseNumber         || f.caseNumber,
+        date:               form.date               || f.date,
+        observacoes:        form.observacoes        || f.observacoes,
+        solicitante:        form.solicitante        || f.solicitante,
+        remetenteCidade:    form.remetenteCidade    || f.remetenteCidade,
+        remetenteOrgao:     form.remetenteOrgao     || f.remetenteOrgao,
+        naturezaExame:      form.naturezaExame      || f.naturezaExame,
+        naturezaOcorrencia: form.naturezaOcorrencia || f.naturezaOcorrencia,
+        dataEntrada:        form.dataEntrada        || f.dataEntrada,
+        horaEntrada:        form.horaEntrada        || f.horaEntrada,
+        enderecoExame:      form.enderecoExame      || f.enderecoExame,
+        oficio:             form.oficio             || f.oficio,
+        ipApfd:             form.ipApfd             || f.ipApfd,
+        processo:           form.processo           || f.processo,
+      }
+      setForm(novoForm)
+      // Mescla peças do GDL com as já existentes (síncrono, para persistir na fonte).
+      let pecasMescladas = savedPieces
       if (p.length > 0) {
-        setSavedPieces(prev => {
-          if (prev.length === 0) return p
-          // Mescla peças do GDL com peças existentes do BalísticaDB
+        if (savedPieces.length === 0) {
+          pecasMescladas = p
+        } else {
           const merged = p.map((gdlPeca, i) => {
             // Tenta encontrar pelo gdlPartsId, senão usa posição
             const existente = (gdlPeca.gdlPartsId
-              ? prev.find(e => e.gdlPartsId === gdlPeca.gdlPartsId)
-              : undefined) ?? prev[i]
+              ? savedPieces.find(e => e.gdlPartsId === gdlPeca.gdlPartsId)
+              : undefined) ?? savedPieces[i]
             if (!existente) return gdlPeca
             // Dados do BalísticaDB têm prioridade; GDL preenche apenas campos vazios
             return {
@@ -423,9 +432,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           })
           // Mantém peças que o usuário adicionou que não existem no GDL
           const gdlIds = new Set(p.map(g => g.gdlPartsId).filter(Boolean))
-          const soNoBD = prev.filter(e => !e.gdlPartsId || !gdlIds.has(e.gdlPartsId))
-          return [...merged, ...soNoBD]
-        })
+          const soNoBD = savedPieces.filter(e => !e.gdlPartsId || !gdlIds.has(e.gdlPartsId))
+          pecasMescladas = [...merged, ...soNoBD]
+        }
+        setSavedPieces(pecasMescladas)
       }
       const fotos = dados.arquivos?.filter(a => a.base64).map(a => a.base64!) ?? []
       if (fotos.length > 0) setGdlFotos(fotos)
@@ -433,8 +443,50 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
         setLacreNumero(lacres[0].entrada)
         setLacreSaidaNumero(lacres[0].saida)
       }
-      // Marca a REP como "importada" no pipeline de estágios
-      await atualizarRepStatus(laudoLocalId, "importada")
+      // Grava a REP importada como uma FONTE preservada (com repStatus "importada")
+      // e passa a editar numa CÓPIA de trabalho (rascunho) — exatamente como o fluxo
+      // de EDITAR. Assim, ao excluir, apaga-se só o rascunho e a REP continua na lista
+      // de "Importar REPs" com os dados originais importados (não some).
+      const agoraImp = new Date().toISOString()
+      const fonteLocalId = laudoLocalId
+      const fonteExistente = await db.laudos.where("localId").equals(fonteLocalId).first()
+      let fonteId: number
+      if (fonteExistente?.id != null) {
+        await db.laudos.update(fonteExistente.id, {
+          ...novoForm,
+          repStatus: "importada",
+          syncStatus: "pending",
+          atualizadoEm: agoraImp,
+        })
+        fonteId = fonteExistente.id
+      } else {
+        fonteId = (await db.laudos.add({
+          localId: fonteLocalId,
+          ...novoForm,
+          status: "rascunho",
+          syncStatus: "pending",
+          repStatus: "importada",
+          criadoEm: agoraImp,
+          atualizadoEm: agoraImp,
+        })) as number
+      }
+      // Persiste as peças importadas NA FONTE (para não se perderem ao excluir o rascunho)
+      await db.armas.where("laudoLocalId").equals(fonteLocalId).delete()
+      for (const peca of pecasMescladas) {
+        await db.armas.add({
+          localId: generateId(),
+          laudoLocalId: fonteLocalId,
+          tipo: peca.type as WeaponType,
+          dadosJson: JSON.stringify(peca),
+          syncStatus: "pending",
+          criadoEm: agoraImp,
+        })
+      }
+      // Cria a cópia de trabalho a partir da fonte e passa a editá-la.
+      const draftLocalId = await obterOuCriarRascunhoDeRep(fonteLocalId)
+      if (draftLocalId) setLaudoLocalId(draftLocalId)
+      await db.laudos.update(fonteId, { repStatus: "editando", atualizadoEm: agoraImp })
+      setSourceImportedRepDbId(fonteId)
       recarregarLista()
     } catch {
       setRepGdlErro('Falha ao conectar com o servidor')
@@ -926,12 +978,27 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   }
 
   const resetFullExam = async () => {
-    await descartarRascunho()
-    // Se veio de uma REP importada (via EDITAR), reverte status para "importada" em vez de deletar
-    if (sourceImportedRepDbId != null) {
-      await db.laudos.update(sourceImportedRepDbId, { repStatus: "importada", atualizadoEm: new Date().toISOString() })
+    // Descobre se há uma REP importada envolvida: a fonte guardada OU o próprio laudo
+    // atual, caso ele já tenha repStatus (importada/editando).
+    const atual = await db.laudos.where("localId").equals(laudoLocalId).first()
+    const repImportadaId = sourceImportedRepDbId ?? (atual?.repStatus ? atual.id : undefined)
+
+    if (repImportadaId != null) {
+      // Excluir FORA do "Importar REPs" NUNCA apaga a REP: apenas reverte o status
+      // para "importada" e descarta a edição/rascunho — a REP continua na lista.
+      if (atual && atual.id !== repImportadaId && !atual.repStatus) {
+        // laudoLocalId é um rascunho SEPARADO da REP → apaga só o rascunho
+        await descartarRascunho()
+      } else {
+        // laudoLocalId É a própria REP → não apaga; só troca o laudo de trabalho
+        setLaudoLocalId(generateId())
+      }
+      await db.laudos.update(repImportadaId, { repStatus: "importada", atualizadoEm: new Date().toISOString() })
       await recarregarLista()
       setSourceImportedRepDbId(undefined)
+    } else {
+      // Exame novo comum (sem REP importada) → apaga o rascunho normalmente
+      await descartarRascunho()
     }
     resetPieceForm()
     setSavedPieces([])
@@ -941,6 +1008,15 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setExamType(null)
     setRepMinimized(false)
     setRepCarregadaLocal(false)
+    // Limpa o formulário (inclui o Nº da REP no campo de busca) e o estado de import,
+    // senão o número pesquisado continua no campo depois de excluir.
+    setForm({ ...emptyForm, expert: nomePerito })
+    setSourceImportedRepDbId(undefined)
+    setModoEdicao(false)
+    setLacreNumero("")
+    setLacreSaidaNumero("")
+    setGdlFotos([])
+    setRepGdlErro(null)
   }
 
   const savePiece = () => {
@@ -1967,107 +2043,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                     <div className="space-y-5">
                       <div>
-                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número do exame</label>
-                      {/* REPs importadas disponíveis para este tipo */}
-                      {(() => {
-                        const isEficiencia = (nat?: string) => {
-                          const n = (nat ?? "").toUpperCase()
-                          return n === "B602" || n.includes("EFICI")
-                        }
-                        const isConstatacao = (nat?: string) => {
-                          const n = (nat ?? "").toUpperCase()
-                          return n === "B601" || n.includes("CONSTAT")
-                        }
-                        const _sp: Record<string, number> = { importada: 1, editando: 2, no_gdl: 3, sincronizada: 4 }
-                        const _repMapDropdown = new Map<string, RecordItem>()
-                        for (const l of laudosDB) {
-                          if (l.repStatus !== "importada" && l.repStatus !== "editando") continue
-                          const k = `${l.number}/${l.year}`
-                          const prev = _repMapDropdown.get(k)
-                          const currP = _sp[l.repStatus] ?? 0
-                          const prevP = prev ? (_sp[prev.repStatus ?? ""] ?? 0) : -1
-                          if (currP > prevP) _repMapDropdown.set(k, l)
-                        }
-                        const repsImportadas = [..._repMapDropdown.values()].filter(l => {
-                          if (examType === "EFICIÊNCIA") return isEficiencia(l.naturezaExame)
-                          if (examType === "CONSTATAÇÃO") return isConstatacao(l.naturezaExame)
-                          return false
-                        })
-                        if (repsImportadas.length > 0) return (
-                          <div className="mb-3">
-                            <div className="relative">
-                              <select
-                                value={form.examNumber ? `${form.examNumber}/${form.examYear}` : ""}
-                                onChange={async e => {
-                                  if (!e.target.value) return
-                                  const [num, ano] = e.target.value.split("/")
-                                  // Localiza a REP exata pelo localId da opção selecionada — evita
-                                  // falha de carregamento quando o número/ano salvo tem formatação
-                                  // diferente do texto exibido no dropdown.
-                                  const selecionada = repsImportadas.find(r => `${r.number}/${r.year}` === e.target.value)
-                                  const localRep = selecionada
-                                    ? await db.laudos.where("localId").equals(selecionada.id).first()
-                                    : await db.laudos.filter(l => l.examNumber === num && l.examYear === ano).first()
-                                  if (localRep) {
-                                    setForm({
-                                      examNumber:         localRep.examNumber         ?? num ?? "",
-                                      examYear:           localRep.examYear           ?? ano ?? "",
-                                      caseNumber:         localRep.caseNumber         ?? "",
-                                      unit:               localRep.unit               || emptyForm.unit,
-                                      expert:             localRep.expert             || emptyForm.expert,
-                                      date:               localRep.date               || emptyForm.date,
-                                      observacoes:        localRep.observacoes        ?? "",
-                                      solicitante:        localRep.solicitante        ?? "",
-                                      remetenteCidade:    localRep.remetenteCidade    ?? "",
-                                      remetenteOrgao:     localRep.remetenteOrgao     ?? "",
-                                      naturezaExame:      localRep.naturezaExame      ?? "",
-                                      naturezaOcorrencia: localRep.naturezaOcorrencia ?? "",
-                                      dataEntrada:        localRep.dataEntrada        ?? "",
-                                      horaEntrada:        localRep.horaEntrada        ?? "",
-                                      enderecoExame:      localRep.enderecoExame      ?? "",
-                                      oficio:             localRep.oficio             ?? "",
-                                      ipApfd:             localRep.ipApfd             ?? "",
-                                      processo:           localRep.processo           ?? "",
-                                      documentos:         localRep.documentos         ?? "[]",
-                                    })
-                                    // Carrega as peças da REP importada
-                                    const armasImportadas = await db.armas
-                                      .where("laudoLocalId").equals(localRep.localId)
-                                      .toArray()
-                                    if (armasImportadas.length > 0) {
-                                      const pecas = armasImportadas.map(a => JSON.parse(a.dadosJson) as import("./types").WeaponEntry)
-                                      setSavedPieces(pecas)
-                                    }
-                                    // Marca como em edição para não duplicar em "REPs disponíveis"
-                                    if (localRep.repStatus === "importada" && localRep.id != null) {
-                                      await db.laudos.update(localRep.id, { repStatus: "editando", atualizadoEm: new Date().toISOString() })
-                                      await recarregarLista()
-                                    }
-                                    setSourceImportedRepDbId(localRep.id)
-                                    setRepCarregadaLocal(true)
-                                    setRepGdlErro(null)
-                                  } else {
-                                    setSourceImportedRepDbId(undefined)
-                                    setForm(f => ({ ...f, examNumber: num ?? "", examYear: ano ?? f.examYear }))
-                                    setRepCarregadaLocal(false)
-                                  }
-                                }}
-                                className="h-14 w-full appearance-none rounded-2xl border-2 border-[#9e7f45] bg-[#fffbf2] pl-4 pr-10 text-[15px] font-bold text-[#3a2e1a] outline-none transition focus:ring-2 focus:ring-[#dcc17c]/40 shadow-sm cursor-pointer"
-                              >
-                                <option value="">— Selecionar REP importada —</option>
-                                {repsImportadas.map(l => (
-                                  <option key={l.id} value={`${l.number}/${l.year}`}>
-                                    {l.number}/{l.year}
-                                  </option>
-                                ))}
-                              </select>
-                              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#9e7f45]" />
-                            </div>
-                            <p className="mt-1 text-[11px] text-[#9e8c6e]">{repsImportadas.length} REP(s) disponível(is) — ou digite abaixo para outra</p>
-                          </div>
-                        )
-                        return null
-                      })()}
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">REP</label>
                       <div className="flex items-center gap-3">
                         <div className="relative flex-1">
                           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />

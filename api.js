@@ -1,7 +1,7 @@
 import fs           from 'fs'
 import path         from 'path'
 import { fileURLToPath } from 'url'
-import { exec, execFile } from 'child_process'
+import { exec, execFile, spawn } from 'child_process'
 import { promisify } from 'util'
 import express       from 'express'
 
@@ -28,45 +28,21 @@ app.post('/api/rep', async (req, res) => {
   }
 
   const numeroSeguro = numero.trim().replace(/"/g, '')
-  const opts = {
-    cwd:       AUTOMACAO,
-    timeout:   300_000,  // 5 min — extração pode demorar
-    maxBuffer: 10 * 1024 * 1024,
-    env: {
-      ...process.env,
-      PYTHONIOENCODING: 'utf-8',
-      PYTHONUTF8:       '1',
-      // Só sobrescreve se explicitamente configurado; senão o load_dotenv() do Python usa o .env
-      ...(process.env.GDL_USUARIO ? { REP_USUARIO: process.env.GDL_USUARIO } : {}),
-      ...(process.env.GDL_SENHA   ? { REP_SENHA:   process.env.GDL_SENHA   } : {}),
-    },
-  }
 
+  // Importa APENAS esta REP usando o worker persistente: a 1ª busca abre o navegador
+  // e faz login (lenta); as próximas reaproveitam a sessão logada (rápidas).
   try {
-    await execAsync(`"${PYTHON}" -X utf8 main.py "${numeroSeguro}"`, opts)
+    const resultado = await enviarComandoWorker(
+      { action: 'importar-rep', rep_numero: numeroSeguro },
+      300_000,
+    )
+    if (!resultado || resultado.ok === false) {
+      return res.status(500).json({ erro: resultado?.erro || 'Falha na extração do GDL' })
+    }
+    return res.json(resultado)
   } catch (err) {
-    // stdout tem os prints do Python; stderr tem o EPIPE do driver Playwright (ruído)
-    const detalhe = err.stdout || err.stderr || err.message
-    return res.status(500).json({ erro: 'Falha na extração do GDL', detalhe })
+    return res.status(500).json({ erro: 'Falha na extração do GDL', detalhe: err.message })
   }
-
-  const nomeBase = numero.trim().replace(/\//g, '-').replace(/\./g, '')
-  let arquivos = []
-  try {
-    arquivos = fs.readdirSync(DADOS)
-      .filter(f => f.startsWith(`rep_${nomeBase}_`) && f.endsWith('.json'))
-      .sort()
-      .reverse()
-  } catch {
-    return res.status(500).json({ erro: 'Pasta de dados não encontrada' })
-  }
-
-  if (!arquivos.length) {
-    return res.status(404).json({ erro: 'Dados da REP não foram gerados' })
-  }
-
-  const conteudo = JSON.parse(fs.readFileSync(path.join(DADOS, arquivos[0]), 'utf8'))
-  return res.json(conteudo)
 })
 
 // ── Helpers GDL ──────────────────────────────────────────────────────────────
@@ -86,6 +62,71 @@ function baseOpts() {
       ...(process.env.GDL_SENHA   ? { REP_SENHA:   process.env.GDL_SENHA   } : {}),
     },
   }
+}
+
+// ── Worker persistente do GDL (navegador logado reaproveitado) ────────────────
+// Mantém o gdl_worker.py vivo: a 1ª chamada abre o navegador e faz login (lento);
+// as seguintes reutilizam a MESMA sessão (rápido). Usado só pelo /api/rep (import
+// de 1 REP). NÃO afeta a importação em lote (que continua usando o main.py).
+let _gdlWorker  = null
+let _gdlBuf     = ''
+let _gdlPending = null          // { resolve, reject, timer } — 1 comando por vez
+let _gdlChain   = Promise.resolve()
+
+function _iniciarWorker() {
+  const w = spawn(PYTHON, ['-X', 'utf8', 'gdl_worker.py'], {
+    cwd: AUTOMACAO,
+    env: {
+      ...process.env,
+      PYTHONIOENCODING: 'utf-8',
+      PYTHONUTF8:       '1',
+      ...(process.env.GDL_USUARIO ? { REP_USUARIO: process.env.GDL_USUARIO } : {}),
+      ...(process.env.GDL_SENHA   ? { REP_SENHA:   process.env.GDL_SENHA   } : {}),
+    },
+  })
+  w.stdout.setEncoding('utf8')
+  w.stdout.on('data', chunk => {
+    _gdlBuf += chunk
+    let idx
+    while ((idx = _gdlBuf.indexOf('\n')) >= 0) {
+      const linha = _gdlBuf.slice(0, idx).trim()
+      _gdlBuf = _gdlBuf.slice(idx + 1)
+      if (!linha) continue
+      const p = _gdlPending
+      _gdlPending = null
+      if (p) {
+        clearTimeout(p.timer)
+        try { p.resolve(JSON.parse(linha)) }
+        catch { p.reject(new Error('Resposta inválida do worker: ' + linha.slice(0, 200))) }
+      }
+    }
+  })
+  w.stderr.on('data', d => process.stderr.write('[gdl_worker] ' + d))
+  w.on('exit', code => {
+    console.error(`[gdl_worker] encerrou (code ${code})`)
+    if (_gdlPending) { clearTimeout(_gdlPending.timer); _gdlPending.reject(new Error('Worker do GDL encerrou')); _gdlPending = null }
+    _gdlWorker = null
+    _gdlBuf = ''
+  })
+  return w
+}
+
+// Envia um comando ao worker e resolve com o JSON de resposta. Serializa as chamadas
+// (1 navegador → 1 comando por vez).
+function enviarComandoWorker(cmd, timeoutMs = 300_000) {
+  const executar = () => new Promise((resolve, reject) => {
+    if (!_gdlWorker) _gdlWorker = _iniciarWorker()
+    const timer = setTimeout(() => {
+      _gdlPending = null
+      try { _gdlWorker && _gdlWorker.kill() } catch { /* ignora */ }
+      reject(new Error('Tempo esgotado aguardando o worker do GDL'))
+    }, timeoutMs)
+    _gdlPending = { resolve, reject, timer }
+    _gdlWorker.stdin.write(JSON.stringify(cmd) + '\n')
+  })
+  const p = _gdlChain.then(executar, executar)
+  _gdlChain = p.catch(() => {})  // um erro não trava a fila
+  return p
 }
 
 function lerUltimoJson(prefixo) {
