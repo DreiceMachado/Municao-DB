@@ -57,7 +57,22 @@ function PickerItem({ label, desc, selected, onSelect, last }: {
 // depois do "(". Assim "9mm Luger (9x19mm NATO)" (catálogo/ficha) casa com
 // "9 mm Luger (9×19mm)" (opção do seletor).
 function normCal(s: string): string {
-  return (s ?? "").toLowerCase().split("(")[0].replace(/×/g, "x").replace(/\s+/g, "").trim()
+  return (s ?? "").toLowerCase().split("(")[0]
+    .replace(/×/g, "x").replace(/,/g, ".").replace(/\+p/g, "")
+    .replace(/\s+/g, "").trim()
+}
+
+// Normaliza país para comparar: ignora anotações após "(" e o 2º país após "/".
+// Assim "Alemanha (variantes US)" e "Brasil / Turquia" casam com "Alemanha"/"Brasil".
+function normPais(s: string): string {
+  return (s ?? "").toLowerCase().split("(")[0].split("/")[0].replace(/\s+/g, " ").trim()
+}
+
+// Normaliza texto livre (material/acabamento) só p/ DESTAQUE: minúsculas + espaços.
+// Não corta parênteses — evita casar "madeira" com 3 opções "Madeira (mogno/faia/…)".
+// O campo mantém o valor descritivo do catálogo; isto só acende a opção quando coincide.
+function normTxt(s: string): string {
+  return (s ?? "").toLowerCase().replace(/\s+/g, " ").trim()
 }
 
 type PickersProps = {
@@ -98,7 +113,7 @@ export function AllPickers(props: PickersProps) {
     if (weapon.type === "ESTOJO" || weapon.type === "CARTUCHO") return ["Latão","Aço","Aço inoxidável","Alumínio","Cobre","Bimetálico (aço/latão)","Niquelado","Polímero / plástico"]
     if (weapon.type === "FACA") return ["Aço inoxidável","Aço carbono","Aço inox cirúrgico","Aço damasco","Aço revestido (titânio / DLC)","Liga metálica","Cerâmica","Ferro","Indeterminado"]
     if (weapon.type === "CARREGADOR") return ["Polímero","Polímero reforçado (P-Mag)","Aço","Aço inoxidável","Alumínio","Liga de alumínio","Latão","Plástico ABS","Indeterminado"]
-    if (FIREARMS.includes(weapon.type as WeaponType)) return ["Aço oxidado","Aço inoxidável","Aço fosfatado","Aço niquelado","Aço cromado","Aço brunido","Alumínio anodizado","Liga de alumínio","Titânio","Latão","Polímero","Madeira","Inox escovado","Indeterminado"]
+    if (FIREARMS.includes(weapon.type as WeaponType)) return ["Aço","Aço oxidado","Aço inoxidável","Aço fosfatado","Aço niquelado","Aço cromado","Aço brunido","Alumínio anodizado","Liga de alumínio","Liga metálica","Titânio","Latão","Polímero","Madeira","Inox escovado","Indeterminado"]
     return ["Chumbo","Liga de chumbo","Chumbo endurecido","Cobre","Latão","Aço","Aço inoxidável","Alumínio","Tungstênio","Bismuto","Polímero","Niquelado","Indeterminado"]
   }
 
@@ -194,7 +209,7 @@ export function AllPickers(props: PickersProps) {
     ]
     if (weapon.type === "ARMA DE CHOQUE") return []
     if (weapon.type === "ARMA DE ANTECARGA") return [
-      { l: "Alzas abertas (alça + dianteira)", d: "Mira de alça traseira e ponto frontal fixos; padrão histórico" },
+      { l: "Alzas abertas (alça + dianteira)", d: "Mira de alça traseira e ponto frontal fixos (miras metálicas abertas)" },
       { l: "Alzas abertas reguláveis", d: "Alça traseira com ajuste de elevação; usada em rifles de precisão antigos" },
       { l: "Mira de vôo (tangent sight)", d: "Alça graduada deslizante para diferentes distâncias" },
       telescopica, outro,
@@ -265,6 +280,7 @@ export function AllPickers(props: PickersProps) {
     if (weapon.type === "REVÓLVER") return [
       { l: "Ação simples (SA)", d: "Cão deve ser amartilhado manualmente antes de cada disparo" },
       { l: "Ação dupla (DA)", d: "Gatilho arma e dispara o cão em um único movimento" },
+      { l: "Ação dupla / ação simples (DA/SA)", d: "Dispara em ação dupla e permite amartilhar o cão para ação simples" },
       { l: "Ação dupla exclusiva (DAO)", d: "Sempre DA; cão retorna à posição de repouso após cada disparo" },
       { l: "Indeterminado", d: "Sistema não pôde ser determinado" },
     ]
@@ -293,6 +309,7 @@ export function AllPickers(props: PickersProps) {
       { l: "Ferrolho deslizante (pump-action)", d: "Bombeamento manual da coronha dianteira" },
       { l: "Semi-automático (autocarregável)", d: "Gases ou recuo ciclam automaticamente após cada disparo" },
       { l: "Tiro a tiro (single-shot)", d: "Carregamento manual individual a cada disparo" },
+      { l: "Tambor de revólver (SA/DA)", d: "Carabina de tambor rotativo (revolving), tipo Rossi Circuit Judge" },
       { l: "Indeterminado", d: "Sistema não pôde ser determinado" },
     ]
     if (weapon.type === "FUZIL") return [
@@ -359,13 +376,13 @@ export function AllPickers(props: PickersProps) {
   }
 
   const calibreOptions = () => {
-    if (weapon.type === "REVÓLVER" || weapon.type === "PISTOLA") return [
+    if (weapon.type === "PISTOLA") return [
       { l: "9 mm Luger (9×19mm)", d: "Padrão NATO e policial mundial" },
       { l: ".38 SPL", d: "O mais comum no Brasil; padrão policial" },
       { l: ".357 Magnum", d: "Revólveres e carabinas; compatível com .38 SPL" },
       { l: ".40 S&W", d: "Padrão policial brasileiro" },
       { l: ".45 ACP", d: "Grande diâmetro; alto poder de parada" },
-      { l: ".45 Colt", d: "Calibre histórico; revólveres de porte e lever-action" },
+      { l: ".45 Colt", d: ".45 Colt (.45 Long Colt); revólveres de porte e lever-action" },
       { l: ".380 ACP (9 mm Curto)", d: "Pistolas compactas de porte dissimulado" },
       { l: ".357 SIG", d: "Alta velocidade em cano curto; uso policial especializado" },
       { l: ".38 Super Auto", d: "Alta velocidade; competições e forças especiais" },
@@ -383,6 +400,50 @@ export function AllPickers(props: PickersProps) {
       { l: "Outro", d: "Informar calibre não listado" },
       { l: "Indeterminado", d: "Calibre não pôde ser determinado" },
     ]
+    if (weapon.type === "REVÓLVER") return [
+      { l: "9 mm Luger (9×19mm)", d: "Padrão NATO e policial mundial" },
+      { l: ".38 SPL", d: "O mais comum no Brasil; padrão policial" },
+      { l: ".357 Magnum", d: "Revólveres e carabinas; compatível com .38 SPL" },
+      { l: ".40 S&W", d: "Padrão policial brasileiro" },
+      { l: ".45 ACP", d: "Grande diâmetro; alto poder de parada" },
+      { l: ".45 Colt", d: ".45 Colt (.45 Long Colt); revólveres de porte e lever-action" },
+      { l: ".380 ACP (9 mm Curto)", d: "Revólveres compactos; calibre de porte" },
+      { l: ".357 SIG", d: "Alta velocidade em cano curto; uso policial especializado" },
+      { l: ".38 Super Auto", d: "Alta velocidade; competições e forças especiais" },
+      { l: ".32 ACP (7,65mm)", d: "Revólveres compactos antigos" },
+      { l: ".32 S&W Long", d: "Revólveres compactos; antigo padrão policial" },
+      { l: ".32 H&R Magnum", d: "Evolução do .32 S&W Long; revólveres modernos" },
+      { l: ".25 ACP (6,35mm)", d: "Revólveres de bolso; baixo poder de parada" },
+      { l: "9 mm Makarov (9×18mm)", d: "Padrão soviético" },
+      { l: "10 mm Auto", d: "Alta energia; base do .40 S&W" },
+      { l: ".44 SPL", d: "Versão de menor pressão do .44 Magnum" },
+      { l: ".44 Magnum", d: "Revólveres de grande porte" },
+      { l: ".22 LR", d: "Rimfire; revólveres de treinamento" },
+      { l: ".22 WMR (.22 Mag)", d: "Rimfire magnum" },
+      { l: "5,7×28 mm FN", d: "Alta penetração; revólveres modernos" },
+      { l: ".38 S&W", d: ".38 S&W (.38-200 / .380 Revolver); Webley Mk IV, Enfield No.2 Mk I" },
+      { l: ".22 LR / .22 WMR", d: "Tambores intercambiáveis rimfire; Ruger Single-Six" },
+      { l: ".357 Magnum / 9 mm", d: "Tambores intercambiáveis .357 Magnum e 9 mm Luger" },
+      { l: ".327 Federal Magnum", d: ".327 Federal Magnum; aceita .32 H&R e .32 S&W Long" },
+      { l: ".45 Colt / .410", d: "Câmara mista .45 Colt / .410 Bore; Taurus Judge" },
+      { l: ".454 Casull", d: ".454 Casull; alta pressão, revólveres de caça" },
+      { l: ".454 Casull / .45 Colt / .410", d: "Taurus Raging Judge; aceita .454 Casull, .45 Colt e .410" },
+      { l: ".357 Mag / .44 Mag / .454 Casull", d: "Magnum Research BFR; conversões multicalibre" },
+      { l: ".460 S&W Magnum", d: ".460 S&W Magnum; aceita .454 Casull e .45 Colt (S&W X-Frame)" },
+      { l: ".500 S&W Magnum", d: ".500 S&W Magnum; S&W X-Frame" },
+      { l: ".45-70 Government", d: ".45-70 Government; Magnum Research BFR" },
+      { l: ".36 (pólvora negra)", d: "Percussão / cap-and-ball .36 (Ø 9,1 mm); Colt 1851 Navy, Pietta" },
+      { l: ".44 (pólvora negra)", d: "Percussão / cap-and-ball .44 (Ø 11,2 mm); Remington 1858, Uberti" },
+      { l: ".442 Webley", d: ".442 Webley (.442 RIC); revólveres Webley RIC" },
+      { l: ".455 Webley", d: ".455 Webley Mk II; Webley Mk VI" },
+      { l: "7,62×38R Nagant", d: "7,62×38mmR Nagant; revólver Nagant M1895" },
+      { l: "8 mm Mle 1892 (Lebel)", d: "8 mm French Ordnance (8×27mmR); revólver Modèle 1892" },
+      { l: "8 mm Rast-Gasser", d: "8 mm Gasser (8×27mmR); revólver Rast & Gasser M1898" },
+      { l: "10,35 mm Italiano (Bodeo)", d: "10,35 mm Italian Ordnance; revólver Bodeo Mod. 1889" },
+      { l: "11 mm Spanish (.44)", d: "11×17,5R Spanish; revólver Orbea Hermanos Mod. 1884" },
+      { l: "Outro", d: "Informar calibre não listado" },
+      { l: "Indeterminado", d: "Calibre não pôde ser determinado" },
+    ]
     if (weapon.type === "ESPINGARDA") return [
       { l: "12 Ga (2¾\")", d: "O mais comum no Brasil" },
       { l: "12 Ga (3\")", d: "Câmara magnum" },
@@ -392,6 +453,8 @@ export function AllPickers(props: PickersProps) {
       { l: "28 Ga", d: "Calibre esportivo" },
       { l: ".410 Bore (2½\")", d: "Menor calibre de espingarda" },
       { l: ".410 Bore (3\")", d: "Versão magnum do .410" },
+      { l: ".36 (.410 Bore)", d: "Designação antiga do .410; espingardas de pequeno porte" },
+      { l: ".22 LR", d: "Espingarda de alma lisa .22 (garden gun)" },
       { l: "Outro", d: "Informar calibre não listado" },
       { l: "Indeterminado", d: "Calibre não pôde ser determinado" },
     ]
@@ -412,6 +475,11 @@ export function AllPickers(props: PickersProps) {
       { l: ".45 ACP", d: "Carabinas pistoleiras" },
       { l: ".30-06 Springfield", d: "Clássico americano; bolt-action" },
       { l: "6,5mm Creedmoor", d: "Precisão de longa distância" },
+      { l: ".38 SPL / .357 Magnum", d: "Lever-action; aceita .38 SPL e .357 Magnum" },
+      { l: ".357 Magnum / .44 Magnum", d: "Lever-action; mesma munição de revólver" },
+      { l: ".45-70 Government", d: ".45-70 Government; lever-action e monotiro de grande porte" },
+      { l: "Diversos (.22 a .45-70)", d: "Monotiro de calibre variável (ex.: Winchester 1885)" },
+      { l: ".45 Colt / .410", d: "Câmara mista .45 Colt/.410; carabina de tambor Rossi Circuit Judge" },
       { l: "Outro", d: "Informar calibre não listado" },
       { l: "Indeterminado", d: "Calibre não pôde ser determinado" },
     ]
@@ -426,7 +494,7 @@ export function AllPickers(props: PickersProps) {
       { l: "6,5mm Creedmoor", d: "Fuzis de precisão de longa distância" },
       { l: ".338 Lapua Magnum", d: "Precisão extrema; atirador de elite" },
       { l: ".50 BMG (12,7×99mm)", d: "Anti-material; Barrett e similares" },
-      { l: ".30-06 Springfield", d: "Clássico americano; fuzis históricos" },
+      { l: ".30-06 Springfield", d: "Clássico americano; carabinas bolt-action de caça" },
       { l: "Outro", d: "Informar calibre não listado" },
       { l: "Indeterminado", d: "Calibre não pôde ser determinado" },
     ]
@@ -438,12 +506,12 @@ export function AllPickers(props: PickersProps) {
       { l: "12,7×99 mm (.50 BMG)", d: "Metralhadoras pesadas; M2 Browning" },
       { l: "12,7×108 mm", d: "DShK, NSV, Kord; pesada soviética/russa" },
       { l: "14,5×114 mm", d: "KPV; metralhadoras antiaéreas soviéticas" },
-      { l: ".30-06 Springfield", d: "Browning M1917/M1919, BAR; padrão americano histórico" },
-      { l: ".303 British", d: "Vickers, Bren, Lewis; padrão britânico histórico" },
+      { l: ".30-06 Springfield", d: "Browning M1917/M1919 e BAR; cartucho .30-06 (7,62×63mm)" },
+      { l: ".303 British", d: "Vickers, Bren, Lewis; cartucho britânico 7,7×56mmR" },
       { l: "7,92×57 mm Mauser", d: "MG34/MG42, Maxim MG08, ZB vz.26" },
       { l: "7,5×54 mm French", d: "Châtellerault FM 24/29; padrão francês" },
       { l: "7,7×58 mm Arisaka", d: "Metralhadoras japonesas (Type 92/99)" },
-      { l: "8×50R Lebel", d: "Hotchkiss M1914; padrão francês histórico" },
+      { l: "8×50R Lebel", d: "Hotchkiss M1914; cartucho francês 8mm Lebel" },
       { l: "8×59 RB Breda", d: "Breda M37; padrão italiano" },
       { l: "Outro", d: "Informar calibre não listado" },
       { l: "Indeterminado", d: "Calibre não pôde ser determinado" },
@@ -455,6 +523,9 @@ export function AllPickers(props: PickersProps) {
       { l: ".380 ACP (9mm Curto)", d: "Submetralhadoras compactas de porte" },
       { l: "5,7×28 mm FN", d: "FN P90; alta penetração em coletes" },
       { l: "10 mm Auto", d: "Alta energia; uso policial especializado" },
+      { l: "4,6×30 mm HK", d: "HK MP7; PDW de alta penetração" },
+      { l: ".32 ACP (7,65mm)", d: "Škorpion vz. 61; pistola-metralhadora compacta" },
+      { l: "7,62×25 mm Tokarev", d: "PPSh-41, PPS-43; padrão soviético histórico" },
       { l: "Outro", d: "Informar calibre não listado" },
       { l: "Indeterminado", d: "Calibre não pôde ser determinado" },
     ]
@@ -466,13 +537,13 @@ export function AllPickers(props: PickersProps) {
       { l: ".38 SPL", d: "Padrão policial brasileiro; garruchas de dois canos" },
       { l: ".357 Magnum", d: "Alta energia; garruchas de maior porte" },
       { l: ".44 Magnum", d: "Garruchas de grande porte" },
-      { l: ".45 Colt", d: "Clássico americano; garruchas históricas" },
+      { l: ".45 Colt", d: "Clássico americano; garruchas e derringers de grande calibre" },
       { l: ".45 Colt / .410", d: "Câmara mista .45 Colt/.410; Bond Arms, American Derringer" },
       { l: ".45 ACP", d: "Garruchas modernas de grande calibre" },
       { l: ".410 Bore (2½\")", d: "Calibre de espingarda; garruchas mistas" },
       { l: ".45-70 Government", d: "Derringer monotiro de grande calibre; Bond Arms Cyclops" },
-      { l: ".41 Rimfire", d: "Remington Model 95 (double derringer); histórico" },
-      { l: ".32 S&W", d: "Garruchas/revólveres de bolso; calibre histórico" },
+      { l: ".41 Rimfire", d: "Remington Model 95 (double derringer); fogo circular .41" },
+      { l: ".32 S&W", d: "Garruchas/revólveres de bolso; .32 S&W (curto)" },
       { l: "9 mm Luger", d: "Garruchas modernas de porte" },
       { l: "Outro", d: "Informar calibre não listado" },
       { l: "Indeterminado", d: "Calibre não pôde ser determinado" },
@@ -505,7 +576,7 @@ export function AllPickers(props: PickersProps) {
       { l: "10 mm Auto",               d: "Ø 10,16 mm — pistolas de alta energia" },
       { l: ".44 SPL / .44 Magnum",     d: "Ø 10,9 mm — revólveres de grande porte" },
       { l: ".45 ACP",                  d: "Ø 11,43 mm — pistolas de grande porte" },
-      { l: ".45 Colt",                 d: "Ø 11,43 mm — revólveres históricos e lever-action" },
+      { l: ".45 Colt",                 d: "Ø 11,43 mm — revólveres e lever-action" },
       { l: "5,56×45mm / .223 Rem",    d: "Ø 5,7 mm — fuzis e carabinas táticas" },
       { l: "7,62×39mm",                d: "Ø 7,92 mm — AK e derivados" },
       { l: "7,62×51mm / .308 Win",    d: "Ø 7,92 mm — fuzis e carabinas de precisão" },
@@ -530,7 +601,7 @@ export function AllPickers(props: PickersProps) {
       { l: ".44 SPL", d: "Revólveres de grande porte" },
       { l: ".44 Magnum", d: "Alta energia" },
       { l: ".45 ACP", d: "Pistolas de grande porte" },
-      { l: ".45 Colt", d: "Revólveres e lever-action históricos" },
+      { l: ".45 Colt", d: "Revólveres e carabinas lever-action" },
       { l: ".223 Rem / 5,56×45mm", d: "Fuzis e carabinas táticas" },
       { l: ".308 Win / 7,62×51mm", d: "Fuzis e carabinas de precisão" },
       { l: "7,62×39 mm", d: "AK e derivados" },
@@ -578,7 +649,7 @@ export function AllPickers(props: PickersProps) {
               <SheetHeader title={materialTitle()} onClose={() => close("material")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
                 {ordenarOpcoes(materialOptions()).map((mat, idx, arr) => (
-                  <PickerItem key={mat} label={mat} selected={weapon.material === mat} last={idx === arr.length - 1}
+                  <PickerItem key={mat} label={mat} selected={weapon.material === mat || (!!weapon.material && normTxt(weapon.material) === normTxt(mat))} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("material", weapon.material === mat ? "" : mat); close("material") }} />
                 ))}
               </div>
@@ -856,12 +927,16 @@ export function AllPickers(props: PickersProps) {
                   { c: "za", l: "África do Sul" },{ c: "mx", l: "México" },{ c: "ca", l: "Canadá" },
                   { c: "cl", l: "Chile" },{ c: "co", l: "Colômbia" },{ c: "py", l: "Paraguai" },
                   { c: "bo", l: "Bolívia" },{ c: "rs", l: "Sérvia" },{ c: "hu", l: "Hungria" },
-                  { c: "tw", l: "Taiwan" },{ c: "ph", l: "Filipinas" },{ c: "", l: "Indeterminado" },
+                  { c: "tw", l: "Taiwan" },{ c: "ph", l: "Filipinas" },{ c: "pl", l: "Polônia" },
+                  { c: "dk", l: "Dinamarca" },{ c: "hr", l: "Croácia" },{ c: "sg", l: "Singapura" },
+                  { c: "", l: "União Soviética" },{ c: "", l: "Tchecoslováquia" },{ c: "", l: "Iugoslávia" },
+                  { c: "", l: "Indeterminado" },
                 ]).map(({ c, l }, idx, arr) => {
-                  const selected = weapon.paisFabricacao === l
+                  const exact = weapon.paisFabricacao === l
+                  const selected = exact || (!!weapon.paisFabricacao && normPais(weapon.paisFabricacao) === normPais(l))
                   return (
                     <button key={l} type="button"
-                      onClick={() => { setDirect("paisFabricacao", selected ? "" : l); close("pais") }}
+                      onClick={() => { setDirect("paisFabricacao", exact ? "" : l); close("pais") }}
                       className={`flex w-full items-center gap-4 py-3.5 text-left ${idx < arr.length - 1 ? "border-b border-[#e5d9c3]" : ""}`}>
                       {c
                         ? <img src={`https://flagcdn.com/32x24/${c}.png`} alt={l} className="h-5 w-auto rounded-sm shadow-sm shrink-0" />
@@ -1042,8 +1117,8 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Material e acabamento da coronha" onClose={() => close("materialCoronha")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {ordenarOpcoes(["Polímero sintético","Madeira (mogno)","Madeira (faia)","Madeira (carvalho)","Madeira laminada","Fibra de vidro","Fibra de carbono","Metal (dobrável/retrátil)","Plástico reforçado","Borracha / soft-touch","Indeterminado"]).map((opt, idx, arr) => (
-                  <PickerItem key={opt} label={opt} selected={weapon.materialCoroha === opt} last={idx === arr.length - 1}
+                {ordenarOpcoes(["Madeira","Polímero","Borracha","Metal","Material sintético","Sem coronha","Polímero sintético","Madeira (mogno)","Madeira (faia)","Madeira (carvalho)","Madeira laminada","Fibra de vidro","Fibra de carbono","Metal (dobrável/retrátil)","Plástico reforçado","Borracha / soft-touch","Indeterminado"]).map((opt, idx, arr) => (
+                  <PickerItem key={opt} label={opt} selected={weapon.materialCoroha === opt || (!!weapon.materialCoroha && normTxt(weapon.materialCoroha) === normTxt(opt))} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("materialCoroha", weapon.materialCoroha === opt ? "" : opt); close("materialCoronha") }} />
                 ))}
               </div>
@@ -1060,8 +1135,8 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Material e acabamento do quadro" onClose={() => close("materialQuadro")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {ordenarOpcoes(["Aço oxidado","Aço inoxidável","Aço fosfatado","Alumínio forjado","Liga de alumínio","Polímero reforçado","Titânio","Aço niquelado","Indeterminado"]).map((opt, idx, arr) => (
-                  <PickerItem key={opt} label={opt} selected={weapon.materialQuadro === opt} last={idx === arr.length - 1}
+                {ordenarOpcoes(["Aço","Aço oxidado","Aço inoxidável","Aço fosfatado","Alumínio forjado","Liga de alumínio","Liga metálica","Liga de zinco (Zamak)","Polímero","Polímero reforçado","Titânio","Aço niquelado","Indeterminado"]).map((opt, idx, arr) => (
+                  <PickerItem key={opt} label={opt} selected={weapon.materialQuadro === opt || (!!weapon.materialQuadro && normTxt(weapon.materialQuadro) === normTxt(opt))} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("materialQuadro", weapon.materialQuadro === opt ? "" : opt); close("materialQuadro") }} />
                 ))}
               </div>
@@ -1083,7 +1158,7 @@ export function AllPickers(props: PickersProps) {
                 ] : [
                   "Polido / espelhado","Brunido / escurecido","Fosco","Revestimento preto","Titânio","DLC (Diamond-Like Carbon)","Pintado","Envernizado","Oxidado","Indeterminado",
                 ]).map((opt, idx, arr) => (
-                  <PickerItem key={opt} label={opt} selected={weapon.acabamento === opt} last={idx === arr.length - 1}
+                  <PickerItem key={opt} label={opt} selected={weapon.acabamento === opt || (!!weapon.acabamento && normTxt(weapon.acabamento) === normTxt(opt))} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("acabamento", weapon.acabamento === opt ? "" : opt); close("acabamento") }} />
                 ))}
               </div>

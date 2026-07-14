@@ -148,7 +148,7 @@ function GaleriaFotos({ fotos }: { fotos: FotoLocal[] }) {
 // ── Detalhe de cada tipo de peça ─────────────────────────────────────────────
 
 function PecaDetalhe({ d, fotos }: { d: WeaponEntry; fotos: FotoLocal[] }) {
-  const isArmaFogo = ["REVÓLVER","PISTOLA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"].includes(d.type)
+  const isArmaFogo = ["REVÓLVER","PISTOLA","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","ARMA DE ANTECARGA"].includes(d.type)
   const isPistola  = d.type === "PISTOLA"
   const isFuzilMtr = d.type === "FUZIL" || d.type === "METRALHADORA"
   const isProjetil = d.type === "PROJÉTIL"

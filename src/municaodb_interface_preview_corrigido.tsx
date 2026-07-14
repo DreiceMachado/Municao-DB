@@ -5548,17 +5548,21 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               ))}
                             </div>
                           </div>
-                          <div>
-                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Comprimento do cano (cm)</label>
-                            <input value={activeWeapon?.compCano ?? ""} onChange={handleWeaponField("compCano")}
-                              className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                              placeholder="Ex.: 7,5" />
-                          </div>
-                          <div>
-                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Comprimento total (cm)</label>
-                            <input value={activeWeapon?.compTotal ?? ""} onChange={handleWeaponField("compTotal")}
-                              className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
-                              placeholder="Ex.: 15,0" />
+                          <div className="grid gap-4 md:grid-cols-2">
+                            {([
+                              ["compCano",  "Comprimento do cano", "Ex.: 90 mm"],
+                              ["compTotal", "Comprimento total",   "Ex.: 180 mm"],
+                            ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
+                              <div key={field}>
+                                <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
+                                <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
+                                  className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                                  placeholder={ph} />
+                                {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
+                                  <p className="mt-1 px-1 text-[11px] font-medium text-[#9e7f45]">{_mmParaPol(String(activeWeapon?.[field] ?? ""))}</p>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </CollapsibleSection>
