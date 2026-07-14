@@ -75,6 +75,11 @@ export async function sincronizar(): Promise<void> {
 async function sincronizarLaudos(peritoId: string | null) {
   const pendentes = await db.laudos.where("syncStatus").equals("pending").toArray()
   for (const laudo of pendentes) {
+    // Não sincroniza a REP FONTE preservada (importada/editando): ela é só uma
+    // cópia local para o usuário não reimportar. O que vai para a nuvem é o
+    // rascunho de trabalho (sem repStatus) e o laudo finalizado (sincronizada/no_gdl).
+    // Evita gravar 2 laudos por REP no Supabase.
+    if (laudo.repStatus === "importada" || laudo.repStatus === "editando") continue
     const payload: Record<string, unknown> = {
       local_id:            laudo.localId,
       numero_exame:        laudo.examNumber,

@@ -20,6 +20,7 @@ export type WeaponType =
   | "PÓLVORA"
   | "ESPOLETA"
   | "CARREGADOR"
+  | "OUTRO"
 
 export type WeaponEntry = {
   type: WeaponType
@@ -163,6 +164,12 @@ export type WeaponEntry = {
   tipoEspoleta: string
   // ARMA DE PRESSÃO
   adaptadaArmaFogo: boolean | null
+  // OUTRO (peça genérica — parâmetros do GDL "OUTROS")
+  medida: string                // GDL Medida: UNIDADES/GRAMAS/ML/KG/PORÇÃO/AMOSTRA/HECTARE/m2
+  quantDescricao: string        // GDL "Quant. Descrição"
+  examinadoInLoco: boolean      // GDL "Examinado In Loco"
+  codigoVestigio: string        // GDL "Código do Vestígio"
+  resultadoPSA: string          // GDL "Resultado PSA": NEGATIVO/POSITIVO/POSITIVO FRACO
   // GDL — identificação da peça
   idPeca: string
   gdlPartsId: string

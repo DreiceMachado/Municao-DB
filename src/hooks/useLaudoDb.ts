@@ -23,6 +23,9 @@ type FormState = {
   oficio: string
   ipApfd: string
   processo: string
+  // Documentos vinculados (IP/APFD, Processo, BO, REP) em JSON — precisa estar aqui
+  // senão o campo era descartado no nível de tipo ao salvar/finalizar o laudo.
+  documentos: string
 }
 
 function laudoToRecordItem(l: Laudo): RecordItem {
@@ -99,16 +102,21 @@ export function useLaudoDb() {
 
   const salvarPecas = useCallback(
     async (pieces: WeaponEntry[]) => {
-      await db.armas.where("laudoLocalId").equals(laudoLocalId).delete()
+      // Reaproveita o localId (e criadoEm) das peças já existentes por posição, para
+      // NÃO gerar um id novo a cada save — senão o Supabase acumula linhas `pecas`
+      // órfãs (o upsert usa local_id como chave) e as peças "se soltam".
+      const existentes = await db.armas.where("laudoLocalId").equals(laudoLocalId).sortBy("id")
       const agora = new Date().toISOString()
-      for (const piece of pieces) {
+      await db.armas.where("laudoLocalId").equals(laudoLocalId).delete()
+      for (let i = 0; i < pieces.length; i++) {
+        const anterior = existentes[i]
         await db.armas.add({
-          localId: generateId(),
+          localId: anterior?.localId ?? generateId(),
           laudoLocalId,
-          tipo: piece.type as WeaponType,
-          dadosJson: JSON.stringify(piece),
+          tipo: pieces[i].type as WeaponType,
+          dadosJson: JSON.stringify(pieces[i]),
           syncStatus: "pending",
-          criadoEm: agora,
+          criadoEm: anterior?.criadoEm ?? agora,
         })
       }
     },
@@ -152,15 +160,18 @@ export function useLaudoDb() {
           atualizadoEm: agora,
         })
       }
+      // Reaproveita localId/criadoEm das peças por posição (ver salvarPecas).
+      const existentesFin = await db.armas.where("laudoLocalId").equals(laudoLocalId).sortBy("id")
       await db.armas.where("laudoLocalId").equals(laudoLocalId).delete()
-      for (const piece of pieces) {
+      for (let i = 0; i < pieces.length; i++) {
+        const anterior = existentesFin[i]
         await db.armas.add({
-          localId: generateId(),
+          localId: anterior?.localId ?? generateId(),
           laudoLocalId,
-          tipo: piece.type as WeaponType,
-          dadosJson: JSON.stringify(piece),
+          tipo: pieces[i].type as WeaponType,
+          dadosJson: JSON.stringify(pieces[i]),
           syncStatus: "pending",
-          criadoEm: agora,
+          criadoEm: anterior?.criadoEm ?? agora,
         })
       }
       await recarregarLista()

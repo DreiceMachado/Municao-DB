@@ -1,4 +1,5 @@
 import type { WeaponType } from "../../types"
+import { Package } from "lucide-react"
 import antecargaImg from "../../assets/icons/pecas/antecarga.png"
 import armaChoqueImg from "../../assets/icons/pecas/arma-choque.png"
 import armaPressaoImg from "../../assets/icons/pecas/arma-pressao.png"
@@ -49,6 +50,7 @@ const IMG_ICONS: Partial<Record<WeaponType, string>> = {
 
 export function PieceIcon({ type, className = "h-14 w-auto" }: Props) {
   const img = IMG_ICONS[type]
-  if (!img) return null
+  // Tipos sem ícone próprio (ex.: OUTRO) caem num ícone genérico.
+  if (!img) return <Package aria-hidden="true" className={`${className} object-contain`} />
   return <img src={img} alt="" aria-hidden="true" draggable={false} className={`${className} object-contain`} />
 }

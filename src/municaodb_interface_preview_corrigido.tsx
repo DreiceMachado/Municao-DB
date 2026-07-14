@@ -125,6 +125,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const { laudoLocalId, setLaudoLocalId, laudos: laudosDB, salvarForm, finalizarLaudo, salvarPecas, salvarFotoNoBanco, removerFotoNoBanco, recarregarLista, descartarRascunho } = useLaudoDb()
   const [salvouExame, setSalvouExame] = useState(false)
   const [modoEdicao, setModoEdicao] = useState(false)
+  // Quando o exame foi aberto via "Importar do GDL" — só nesse modo aparece o Buscar (importar do GDL).
+  const [modoImportarGdl, setModoImportarGdl] = useState(false)
   const [activeSection, setActiveSection] = useState<Section>("exames")
   const [nomePerito, setNomePerito] = useState("Perito responsável")
 
@@ -212,6 +214,22 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [typePickerOpen, setTypePickerOpen] = useState(false)
   const [changePieceTypeOpen, setChangePieceTypeOpen] = useState(false)
   const [infoGeraisOpen, setInfoGeraisOpen] = useState(false)
+  // Cabeçalhos de "Informações gerais" que faltaram na importação e o usuário adicionou para preencher.
+  const [infoAdicionados, setInfoAdicionados] = useState<Set<string>>(new Set())
+  // Cabeçalhos gerais (natureza do exame → endereço do exame), na ordem de exibição.
+  const CAMPOS_INFO_GERAIS: [keyof typeof form, string][] = [
+    ["naturezaExame",      "Natureza do exame"],
+    ["solicitante",        "Solicitante"],
+    ["remetenteOrgao",     "Órgão remetente"],
+    ["remetenteCidade",    "Cidade remetente"],
+    ["naturezaOcorrencia", "Natureza da ocorrência"],
+    ["oficio",             "Ofício requisitante"],
+    ["ipApfd",             "IP / APFD"],
+    ["processo",           "Processo"],
+    ["dataEntrada",        "Data de entrada"],
+    ["horaEntrada",        "Hora"],
+    ["enderecoExame",      "Endereço do exame"],
+  ]
   const [addDocOpen, setAddDocOpen] = useState(false)
   const [examType, setExamType] = useState<"EFICIÊNCIA" | "CONSTATAÇÃO" | null>(null)
   const [repMinimized, setRepMinimized] = useState(false)
@@ -282,7 +300,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const catalogoMarcas = useLiveQuery(() => useCatalogoBrands(weaponType ?? undefined), [weaponType]) ?? []
   const _catalogoBrand = weapons[activeWeaponIdx]?.brand
   const catalogoModelos = useLiveQuery(() => useCatalogoModels(weaponType ?? undefined, _catalogoBrand), [weaponType, _catalogoBrand]) ?? []
-  const TIPOS_COM_CATALOGO: WeaponType[] = ["PISTOLA","PISTOLETE","REVÓLVER","GARRUCHA","ESPINGARDA","FUZIL","CARABINA","SUBMETRALHADORA"]
+  const TIPOS_COM_CATALOGO: WeaponType[] = ["PISTOLA","PISTOLETE","REVÓLVER","GARRUCHA","ESPINGARDA","FUZIL","CARABINA","SUBMETRALHADORA","METRALHADORA","ARMA DE CHOQUE","ARMA DE ANTECARGA"]
   const [coletaActivePieceIdx, setColetaActivePieceIdx] = useState<number | null>(null)
   const [coletaPhotoUrls, setColetaPhotoUrls] = useState<Map<string, string>>(new Map())
   const [coletaQtdProjeteisPicker, setColetaQtdProjeteisPicker] = useState(false)
@@ -330,11 +348,23 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
   const [profileView, setProfileView] = useState<ProfileView>(null)
   const [selectedLaudoId, setSelectedLaudoId] = useState<string | null>(null)
+  // Aviso quando a REP buscada já está em andamento (evita duplicar).
+  const [repDuplicadaDialog, setRepDuplicadaDialog] = useState<{ localId: string; number: string; year: string } | null>(null)
   // Profile email/password states are now local to ProfilePanel component
 
   const handleImportarGdl = async () => {
     const numLimpo = form.examNumber.trim().replace(/[^0-9]/g, '')
     if (!numLimpo) { setRepGdlErro('Digite o número da REP antes de buscar'); return }
+
+    // Evita duplicar: se já existe uma REP com esse número/ano EM ANDAMENTO
+    // (importada/editando), avisa o usuário e oferece abrir a existente.
+    const jaEmAndamento = await db.laudos
+      .filter(l => l.examNumber === numLimpo && l.examYear === form.examYear && (l.repStatus === "importada" || l.repStatus === "editando"))
+      .first()
+    if (jaEmAndamento) {
+      setRepDuplicadaDialog({ localId: jaEmAndamento.localId, number: numLimpo, year: form.examYear })
+      return
+    }
 
     // Verifica se já existe registro local com dados completos
     const localRep = await db.laudos
@@ -835,6 +865,17 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     const idParaSincronizar = laudoLocalId
     await finalizarLaudo(form, savedPieces)
     await atualizarRepStatus(idParaSincronizar, "sincronizada")
+    // Limpa a REP FONTE preservada: o rascunho finalizado virou o laudo oficial,
+    // então a fonte não precisa mais existir (evita duplicar no pipeline/nuvem).
+    if (sourceImportedRepDbId != null) {
+      const fonte = await db.laudos.get(sourceImportedRepDbId)
+      if (fonte?.id != null) {
+        await db.armas.where("laudoLocalId").equals(fonte.localId).delete()
+        await db.fotos.where("laudoLocalId").equals(fonte.localId).delete()
+        await db.laudos.delete(fonte.id)
+      }
+      setSourceImportedRepDbId(undefined)
+    }
     recarregarLista()
     setModoEdicao(false)
     setSalvouExame(true)
@@ -914,8 +955,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     }
     setPhotoUrls(fotoMap)
     setPhotoSyncMap({})
-    setExamType("EFICIÊNCIA")
+    // Deriva o tipo de exame pela natureza (B601 = CONSTATAÇÃO, B602 = EFICIÊNCIA).
+    {
+      const _nat = (laudo.naturezaExame ?? "").toUpperCase()
+      setExamType(_nat.includes("CONSTAT") || _nat === "B601" ? "CONSTATAÇÃO" : "EFICIÊNCIA")
+    }
     setModoEdicao(true)
+    setModoImportarGdl(false)
+    setInfoAdicionados(new Set())
     setRepMinimized(false) // sempre abre em tela cheia ao editar
     setSelectedLaudoId(null)
     setActiveSection("exames")
@@ -1017,6 +1064,43 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setLacreSaidaNumero("")
     setGdlFotos([])
     setRepGdlErro(null)
+    setModoImportarGdl(false)
+    setInfoAdicionados(new Set())
+  }
+
+  // Começa uma REP totalmente nova: laudo de trabalho novo e TODO o estado zerado.
+  // Não apaga nada do banco — apenas descarta o que estava em edição na tela.
+  const iniciarNovaRep = () => {
+    setLaudoLocalId(generateId())
+    setForm({ ...emptyForm, expert: nomePerito })
+    setSavedPieces([])
+    setWeapons([])
+    setWeaponType(null)
+    setActiveWeaponIdx(0)
+    setPieceFormOpen(false)
+    setEditingPieceIdx(null)
+    setPhotoUrls(new Map())
+    setColetaPhotoUrls(new Map())
+    setColetaActivePieceIdx(null)
+    setGdlFotos([])
+    setLacreNumero("")
+    setLacreSaidaNumero("")
+    setSourceImportedRepDbId(undefined)
+    setModoEdicao(false)
+    setModoImportarGdl(false)
+    setInfoAdicionados(new Set())
+    setRepCarregadaLocal(false)
+    setRepGdlErro(null)
+    setExamType(null)
+    setRepMinimized(false)
+    setTypePickerOpen(true)
+  }
+
+  // Remove/cancela um cabeçalho de informações gerais (o X do card): tira da lista
+  // de adicionados e limpa o valor, fazendo o card sumir.
+  const removerInfoAdicionado = (key: keyof typeof form) => {
+    setInfoAdicionados(prev => { const n = new Set(prev); n.delete(key as string); return n })
+    setForm(f => ({ ...f, [key]: "" }))
   }
 
   const savePiece = () => {
@@ -1341,7 +1425,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         <p className="mt-0.5 text-[12px] text-[#eadab0]">Cadastro e gestão de exames em andamento</p>
                       </div>
                       <button type="button"
-                        onClick={() => { setWeaponType(null); setWeapons([]); setSavedPieces([]); setExamType(null); setRepMinimized(false); setTypePickerOpen(true) }}
+                        onClick={iniciarNovaRep}
                         className="flex h-12 items-center gap-2 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#e1c580_0%,#caa65c_100%)] px-6 text-sm font-black tracking-wide text-[#1d2433] shadow transition hover:brightness-105">
                         + NOVA REP
                       </button>
@@ -1820,7 +1904,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       <button
                         key={t}
                         type="button"
-                        onClick={() => { setTypePickerOpen(false); setExamType(t) }}
+                        onClick={() => { setTypePickerOpen(false); setExamType(t); setModoImportarGdl(false) }}
                         className="flex w-full items-center justify-between rounded-2xl border-2 border-[#d3c4a8] bg-white px-5 py-5 text-left transition active:scale-[.97] active:bg-[#ece6da]"
                       >
                         <div>
@@ -1841,7 +1925,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       <div className="h-px flex-1 bg-[#d3c4a8]" />
                     </div>
                     <button type="button"
-                      onClick={() => { setTypePickerOpen(false); setExamType("EFICIÊNCIA"); setRepMinimized(false); setRepGdlErro(null) }}
+                      onClick={() => { setTypePickerOpen(false); setExamType("EFICIÊNCIA"); setRepMinimized(false); setRepGdlErro(null); setModoImportarGdl(true) }}
                       className="flex w-full items-center justify-between rounded-2xl border-2 border-[#8e7340] bg-[#12213d] px-5 py-4 text-left transition active:scale-[.97]">
                       <div>
                         <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.12em] text-[#f0d08a]">
@@ -1859,6 +1943,43 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       className="w-full rounded-2xl border border-[#d3c4a8] bg-[#ece6da] py-4 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838] active:brightness-95">
                       Cancelar
                     </button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Aviso: REP já em andamento (evita duplicar) ── */}
+        <AnimatePresence>
+          {repDuplicadaDialog && (
+            <>
+              <motion.div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setRepDuplicadaDialog(null)} />
+              <motion.div className="fixed inset-0 z-[75] flex items-center justify-center p-4"
+                initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}>
+                <div className="w-full max-w-sm rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_32px_80px_rgba(0,0,0,.55)] overflow-hidden">
+                  <div className="bg-[linear-gradient(180deg,#7a5320_0%,#4d3413_100%)] px-6 py-5">
+                    <div className="text-lg font-black text-[#f0d08a]">REP já em andamento</div>
+                  </div>
+                  <div className="p-5">
+                    <p className="text-sm leading-relaxed text-[#4e4636]">
+                      A REP <b>{repDuplicadaDialog.number}/{repDuplicadaDialog.year}</b> já está em andamento.
+                      Para não criar uma duplicada, abra a existente em vez de importar de novo.
+                    </p>
+                    <div className="mt-5 grid grid-cols-2 gap-3">
+                      <button type="button" onClick={() => setRepDuplicadaDialog(null)}
+                        className="rounded-2xl border border-[#d3c4a8] bg-[#ece6da] py-3 text-sm font-bold uppercase tracking-[0.12em] text-[#6b5838] active:brightness-95">
+                        Cancelar
+                      </button>
+                      <button type="button"
+                        onClick={() => { const d = repDuplicadaDialog; setRepDuplicadaDialog(null); if (d) handleEditarLaudo(d.localId) }}
+                        className="rounded-2xl bg-[#12213d] py-3 text-sm font-black uppercase tracking-[0.12em] text-[#f0d08a] active:bg-[#1a2c4f]">
+                        Abrir existente
+                      </button>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -2044,46 +2165,119 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <div className="space-y-5">
                       <div>
                         <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">REP</label>
-                      <div className="flex items-center gap-3">
-                        <div className="relative flex-1">
-                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                          <input value={form.examNumber}
-                            onChange={e => { handleField("examNumber")(e); setRepCarregadaLocal(false) }}
-                            onKeyDown={e => e.key === 'Enter' && handleImportarGdl()}
-                            placeholder="Nº REP"
-                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm" />
+                      {/* REPs já importadas disponíveis para este tipo — para abrir/continuar uma sem reimportar.
+                          Aparece só nos exames (EFICIÊNCIA/CONSTATAÇÃO), não no "Importar do GDL". */}
+                      {!modoImportarGdl && (() => {
+                        const isEficiencia = (nat?: string) => {
+                          const n = (nat ?? "").toUpperCase()
+                          return n === "B602" || n.includes("EFICI")
+                        }
+                        const isConstatacao = (nat?: string) => {
+                          const n = (nat ?? "").toUpperCase()
+                          return n === "B601" || n.includes("CONSTAT")
+                        }
+                        const _sp: Record<string, number> = { importada: 1, editando: 2, no_gdl: 3, sincronizada: 4 }
+                        const _repMapDropdown = new Map<string, RecordItem>()
+                        for (const l of laudosDB) {
+                          if (l.repStatus !== "importada" && l.repStatus !== "editando") continue
+                          const k = `${l.number}/${l.year}`
+                          const prev = _repMapDropdown.get(k)
+                          const currP = _sp[l.repStatus] ?? 0
+                          const prevP = prev ? (_sp[prev.repStatus ?? ""] ?? 0) : -1
+                          if (currP > prevP) _repMapDropdown.set(k, l)
+                        }
+                        const repsImportadas = [..._repMapDropdown.values()].filter(l => {
+                          if (examType === "EFICIÊNCIA") return isEficiencia(l.naturezaExame)
+                          if (examType === "CONSTATAÇÃO") return isConstatacao(l.naturezaExame)
+                          return false
+                        })
+                        if (repsImportadas.length > 0) return (
+                          <div className="mb-3">
+                            <div className="relative">
+                              <select
+                                value={form.examNumber ? `${form.examNumber}/${form.examYear}` : ""}
+                                onChange={e => {
+                                  if (!e.target.value) return
+                                  const selecionada = repsImportadas.find(r => `${r.number}/${r.year}` === e.target.value)
+                                  if (!selecionada || selecionada.id == null) return
+                                  // Se a REP já está EM ANDAMENTO (editando), avisa e abre a existente —
+                                  // sem criar uma cópia duplicada.
+                                  if (selecionada.repStatus === "editando") {
+                                    setRepDuplicadaDialog({ localId: selecionada.id, number: selecionada.number, year: selecionada.year })
+                                    return
+                                  }
+                                  // Importada (primeira vez): abre reaproveitando/criando o rascunho
+                                  // (handleEditarLaudo evita duplicar drafts).
+                                  handleEditarLaudo(selecionada.id)
+                                }}
+                                className="h-14 w-full appearance-none rounded-2xl border-2 border-[#9e7f45] bg-[#fffbf2] pl-4 pr-10 text-[15px] font-bold text-[#3a2e1a] outline-none transition focus:ring-2 focus:ring-[#dcc17c]/40 shadow-sm cursor-pointer"
+                              >
+                                <option value="">— Selecionar REP importada —</option>
+                                {repsImportadas.map(l => (
+                                  <option key={l.id} value={`${l.number}/${l.year}`}>
+                                    {l.number}/{l.year}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#9e7f45]" />
+                            </div>
+                            <p className="mt-1 text-[11px] text-[#9e8c6e]">{repsImportadas.length} REP(s) disponível(is) — ou digite abaixo para importar outra</p>
+                          </div>
+                        )
+                        return null
+                      })()}
+                      {/* Nº REP + ano: sempre no modo Importar GDL; nos exames aparece
+                          só depois de escolher uma REP no dropdown acima. */}
+                      {(modoImportarGdl || form.examNumber.trim()) && (
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        {/* Nº REP + ano: no celular ficam sozinhos numa linha (largura toda);
+                            no desktop dividem a linha com o Buscar. */}
+                        <div className="flex items-center gap-2 sm:flex-1">
+                          <div className="relative flex-1">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
+                            <input value={form.examNumber}
+                              onChange={e => { handleField("examNumber")(e); setRepCarregadaLocal(false) }}
+                              onKeyDown={e => { if (e.key === 'Enter' && modoImportarGdl) handleImportarGdl() }}
+                              placeholder="Nº REP"
+                              className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-3 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm" />
+                          </div>
+                          <span className="text-2xl font-black text-[#9e7f45]">/</span>
+                          <div className="relative shrink-0">
+                            <select value={form.examYear} onChange={e => setForm(f => ({ ...f, examYear: e.target.value }))}
+                              className="h-14 w-auto appearance-none rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-3 pr-8 text-[16px] text-center outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm cursor-pointer">
+                              {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 5 + i).map(y => (
+                                <option key={y} value={String(y)}>{y}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9e7f45]" />
+                          </div>
                         </div>
-                        <span className="text-2xl font-black text-[#9e7f45]">/</span>
-                        <div className="relative shrink-0">
-                          <select value={form.examYear} onChange={e => setForm(f => ({ ...f, examYear: e.target.value }))}
-                            className="h-14 w-auto appearance-none rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-3 pr-8 text-[16px] text-center outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm cursor-pointer">
-                            {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 5 + i).map(y => (
-                              <option key={y} value={String(y)}>{y}</option>
-                            ))}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9e7f45]" />
-                        </div>
-                        {repCarregadaLocal ? (
-                          <div className="flex h-14 items-center gap-1.5 rounded-2xl bg-[#1a4a2e] px-4 text-[13px] font-black text-[#7de8a0] shadow-sm">
+                        {/* Buscar (importar do GDL) aparece SÓ no modo "Importar do GDL".
+                            No celular fica em linha própria (largura toda); no desktop, ao lado. */}
+                        {modoImportarGdl && (repCarregadaLocal ? (
+                          <div className="flex h-12 w-full sm:h-14 sm:w-auto items-center justify-center gap-1.5 rounded-2xl bg-[#1a4a2e] px-4 text-[13px] font-black text-[#7de8a0] shadow-sm">
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
                             Carregado
                           </div>
                         ) : (
                           <button type="button" onClick={handleImportarGdl}
                             disabled={repGdlCarregando || !form.examNumber.trim()}
-                            className="flex h-14 items-center gap-1.5 rounded-2xl bg-[#12213d] px-4 text-[13px] font-black text-[#f0d08a] shadow-sm disabled:opacity-40 active:bg-[#1a2c4f]">
+                            className="flex h-12 w-full sm:h-14 sm:w-auto items-center justify-center gap-1.5 rounded-2xl bg-[#12213d] px-4 text-[13px] font-black text-[#f0d08a] shadow-sm disabled:opacity-40 active:bg-[#1a2c4f]">
                             {repGdlCarregando
                               ? <Loader2 className="h-4 w-4 animate-spin" />
                               : <Database className="h-4 w-4" />}
                             {repGdlCarregando ? 'Buscando…' : 'Buscar'}
                           </button>
-                        )}
+                        ))}
                       </div>
+                      )}
                       {repGdlErro && (
                         <div className="mt-1.5 text-[12px] font-semibold text-red-600">{repGdlErro}</div>
                       )}
                     </div>
 
+                      {/* Número do caso: aparece só depois de escolher/importar a REP. */}
+                      {form.examNumber.trim() && (
                       <div>
                         <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número do caso</label>
                         <div className="relative">
@@ -2093,6 +2287,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm" />
                         </div>
                       </div>
+                      )}
                     </div>
                   </div>
 
@@ -2361,48 +2556,38 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             className="overflow-hidden"
                           >
                             <div className="space-y-4 px-4 pb-4 pt-3">
-                              {/* Natureza do exame — somente leitura */}
-                              {form.naturezaExame && (
-                                <div>
-                                  <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.14em] text-[#9e8255]">Natureza do exame</label>
-                                  <div className="flex h-12 items-center rounded-xl border border-[#e0d5be] bg-[#f5f0e8] px-4 text-[13px] font-medium text-[#6b5838]">{form.naturezaExame}</div>
+                              {/* Cabeçalhos como cards (igual ao BO): fundo + X para cancelar.
+                                  Só aparecem os presentes (somente-leitura) e os adicionados (input). */}
+                              {CAMPOS_INFO_GERAIS.some(([k]) => (form[k] as string) || infoAdicionados.has(k as string)) && (
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                  {CAMPOS_INFO_GERAIS
+                                    .filter(([k]) => (form[k] as string) || infoAdicionados.has(k as string))
+                                    .map(([key, label]) => {
+                                      const adicionado = infoAdicionados.has(key as string)
+                                      return (
+                                        <div key={key} className="rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] p-3">
+                                          <div className="mb-2 flex items-center justify-between">
+                                            <span className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6b5838]">{label}</span>
+                                            <button type="button"
+                                              onClick={() => removerInfoAdicionado(key)}
+                                              className="flex h-6 w-6 items-center justify-center rounded-full bg-[#fde8e8] text-[#c0392b]">
+                                              <X className="h-3.5 w-3.5" />
+                                            </button>
+                                          </div>
+                                          {adicionado ? (
+                                            key === "dataEntrada" ? (
+                                              <DateField value={form.dataEntrada} onChange={v => setForm(f => ({ ...f, dataEntrada: v }))} />
+                                            ) : (
+                                              <input value={form[key] as string} onChange={handleField(key)} placeholder={label}
+                                                className="h-11 w-full rounded-lg border border-[#cdbf9e] bg-white px-3 text-[13px] outline-none transition focus:border-[#9e7f45]" />
+                                            )
+                                          ) : (
+                                            <div className="flex min-h-11 items-center rounded-lg border border-[#cdbf9e] bg-[#f5f0e8] px-3 text-[13px] font-medium text-[#6b5838]">{form[key] as string}</div>
+                                          )}
+                                        </div>
+                                      )
+                                    })}
                                 </div>
-                              )}
-                              {(form.solicitante || form.remetenteOrgao || form.remetenteCidade || form.naturezaOcorrencia || form.oficio || form.ipApfd || form.processo || form.dataEntrada || form.horaEntrada || form.enderecoExame) && (
-                              <>
-                              <div className="grid gap-4 sm:grid-cols-2">
-                                {([
-                                  ["solicitante",        "Solicitante"],
-                                  ["remetenteOrgao",     "Órgão remetente"],
-                                  ["remetenteCidade",    "Cidade remetente"],
-                                  ["naturezaOcorrencia", "Natureza da ocorrência"],
-                                  ["oficio",             "Ofício requisitante"],
-                                  ["ipApfd",             "IP / APFD"],
-                                  ["processo",           "Processo"],
-                                ] as [keyof typeof form, string][]).map(([key, label]) => (
-                                  <div key={key}>
-                                    <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.14em] text-[#9e8255]">{label}</label>
-                                    <div className="flex min-h-12 items-center rounded-xl border border-[#e0d5be] bg-[#f5f0e8] px-4 py-2 text-[13px] font-medium text-[#6b5838]">
-                                      {(form[key] as string) || "—"}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                              <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_0.55fr_2fr]">
-                                {([
-                                  ["dataEntrada",  "Data de entrada"],
-                                  ["horaEntrada",  "Hora"],
-                                  ["enderecoExame","Endereço do exame"],
-                                ] as [keyof typeof form, string][]).map(([key, label]) => (
-                                  <div key={key}>
-                                    <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.14em] text-[#9e8255]">{label}</label>
-                                    <div className="flex min-h-12 items-center rounded-xl border border-[#e0d5be] bg-[#f5f0e8] px-4 py-2 text-[13px] font-medium text-[#6b5838]">
-                                      {(form[key] as string) || "—"}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                              </>
                               )}
 
                               {/* Documentos vinculados — IP/APFD, Processo, BO, REP (número + ano) */}
@@ -2438,15 +2623,26 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                                 {addDocOpen ? (
                                   <div className="rounded-xl border-2 border-dashed border-[#c8b47e] bg-[#fdf8ef] p-3">
-                                    <div className="mb-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#9e7f45]">Tipo do documento</div>
+                                    <div className="mb-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#9e7f45]">Informações gerais</div>
+                                    {/* Tudo junto, sem separação: BO/REP (documentos com número/ano) e os
+                                        cabeçalhos que faltaram na importação (só aparecem os ausentes). */}
                                     <div className="grid grid-cols-2 gap-2">
-                                      {(["IP/APFD", "PROCESSO", "BO", "REP"] as const).map(tp => (
+                                      {(["BO", "REP"] as const).map(tp => (
                                         <button key={tp} type="button"
                                           onClick={() => { setDocumentos([...documentos, { tipo: tp, numero: "", ano: "" }]); setAddDocOpen(false) }}
-                                          className="rounded-lg border border-[#cdbf9e] bg-white py-2.5 text-[12px] font-black uppercase tracking-[0.1em] text-[#6b5838] active:bg-[#f0e8d5]">
+                                          className="rounded-lg border border-[#cdbf9e] bg-white py-2.5 text-[11px] font-black uppercase tracking-[0.08em] text-[#6b5838] active:bg-[#f0e8d5]">
                                           {tp}
                                         </button>
                                       ))}
+                                      {CAMPOS_INFO_GERAIS
+                                        .filter(([k]) => !((form[k] as string)?.trim()) && !infoAdicionados.has(k as string))
+                                        .map(([k, label]) => (
+                                          <button key={k} type="button"
+                                            onClick={() => { setInfoAdicionados(prev => { const n = new Set(prev); n.add(k as string); return n }); setInfoGeraisOpen(true); setAddDocOpen(false) }}
+                                            className="rounded-lg border border-[#cdbf9e] bg-white py-2.5 text-[11px] font-black uppercase tracking-[0.08em] text-[#6b5838] active:bg-[#f0e8d5]">
+                                            {label}
+                                          </button>
+                                        ))}
                                     </div>
                                     <button type="button" onClick={() => setAddDocOpen(false)}
                                       className="mt-4 w-full border-t border-[#e5d9c3] pt-3 pb-1 text-[12px] font-bold uppercase tracking-[0.12em] text-[#a09070] active:text-[#7a6540]">Cancelar</button>
@@ -2457,7 +2653,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                     className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#c8b47e] bg-[#fdf8ef] py-3 text-[12px] font-black uppercase tracking-[0.12em] text-[#9e7f45] active:bg-[#f0e8d5]"
                                   >
                                     <Plus className="h-4 w-4" />
-                                    Adicionar documento
+                                    Adicionar informação
                                   </button>
                                 )}
                               </div>
@@ -2495,7 +2691,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         label: "Outras armas",
                         open: showGroupOthers,
                         toggle: () => setShowGroupOthers(o => !o),
-                        types: ["FACA","ARMA DE PRESSÃO","ARMA DE CHOQUE"] as WeaponType[],
+                        types: ["FACA","ARMA DE PRESSÃO","ARMA DE CHOQUE","OUTRO"] as WeaponType[],
                       },
                     ]).map(({ key, label, open, toggle, types }) => (
                       <div key={key} className="mb-3 overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
@@ -2690,7 +2886,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   <div className="space-y-6">
                   <div className="space-y-3">
                     {/* Institucional — armas de fogo, pressão e antecarga */}
-                    {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE PRESSÃO","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                    {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE PRESSÃO","ARMA DE ANTECARGA","ARMA DE CHOQUE"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                       <div className="overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
                         <div className="border-b border-[#e8dfc8] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-4 py-3">
                           <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-[#ccb780]">
@@ -2855,14 +3051,15 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         "PÓLVORA":         "Origem de coleta da pólvora",
                         "ESPOLETA":        "Origem de coleta da espoleta",
                         "CARREGADOR":      "Origem de coleta do carregador",
+                        "OUTRO":           "Origem de coleta do item",
                       }
                       const label = origemLabel[activeWeapon?.type as WeaponType] ?? "Origem"
                       return (
                         <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-4 shadow-sm">
                           <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8d7854]">{label}</div>
-                          <div className={`grid gap-2 ${(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR","ARMA DE PRESSÃO","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "grid-cols-2" : "grid-cols-3"}`}>
+                          <div className={`grid gap-2 ${(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR","ARMA DE PRESSÃO","ARMA DE ANTECARGA","ARMA DE CHOQUE"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "grid-cols-2" : "grid-cols-3"}`}>
                             {(
-                              (["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR","ARMA DE PRESSÃO","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
+                              (["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR","ARMA DE PRESSÃO","ARMA DE ANTECARGA","ARMA DE CHOQUE"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
                                 ? [
                                     { id: "DELEGACIA", label: "Delegacia", Icon: Building2 },
                                     { id: "LOCAL",     label: "Local",     Icon: MapPin    },
@@ -3006,7 +3203,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {/* ── Campos base ── */}
                   {!(["PROJÉTIL","PÓLVORA","ESPOLETA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && <div className="space-y-5">
                     {/* Tipo de produção — antes do Fabricante (se ARTESANAL, não há fabricante) */}
-                    {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                    {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA","ARMA DE CHOQUE"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                       <div className="rounded-2xl border border-[#d3c4a8] bg-white p-4 shadow-sm">
                         <label className="mb-3 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de produção</label>
                         <div className="flex gap-2">
@@ -3150,9 +3347,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         )}
                       </div>
                     )}
-                    <div className="grid gap-5 md:grid-cols-3">
+                    <div className={cn("grid gap-5", activeWeapon?.type === "ARMA DE CHOQUE" ? "md:grid-cols-2" : "md:grid-cols-3")}>
                       {/* Identificação — armas de fogo usam campo próprio; demais usam model */}
-                      {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                      {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA","ARMA DE CHOQUE"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                         <div>
                           <label className="mb-2 flex items-center gap-1 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             Identificação
@@ -3174,7 +3371,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             placeholder="Ex.: RT 627, REP 001/2025…" />
                         </div>
                       )}
-                      {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && !(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                      {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && activeWeapon?.type !== "ARMA DE CHOQUE" && !(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                         <div>
                           <label className="mb-2 flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             Identificação
@@ -3213,7 +3410,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       )}
                       {/* Fabricante e Modelo com Catálogo Integrado */}
-                      {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA","ESTOJO","CARTUCHO"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
+                      {(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA","ESTOJO","CARTUCHO","ARMA DE CHOQUE"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) && (
                         <>
                           {/* Fabricante — seletor. Armas de fogo usam o catálogo; munições usam a lista de fabricantes de munição.
                               Oculto para arma de fogo ARTESANAL (peça artesanal não tem fabricante). */}
@@ -3288,7 +3485,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                     const ficha = await buscarFicha(activeWeapon.type, activeWeapon.brand, activeWeapon.model)
                                     if (!ficha) return
                                     const campos = fichaParaWeaponEntry(ficha)
+                                    // Arma de choque: a ficha só preenche país e sistema de acionamento —
+                                    // NÃO deve marcar/mexer nos checkboxes de mecanismo/estado/exame de disparo.
+                                    const permitidosChoque = new Set(["paisFabricacao", "sistemaAcionamento"])
                                     Object.entries(campos).forEach(([campo, valor]) => {
+                                      if (activeWeapon.type === "ARMA DE CHOQUE" && !permitidosChoque.has(campo)) return
                                       setWeaponDirect(campo as keyof Omit<WeaponEntry, "type">, valor as string | boolean | null | string[])
                                     })
                                   }}
@@ -3308,7 +3509,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       )}
 
                       {/* Calibre — exibido logo após Fabricante/Modelo */}
-                      {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && activeWeapon?.type !== "CARREGADOR" && activeWeapon?.type !== "ARMA DE ANTECARGA" && (
+                      {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && activeWeapon?.type !== "CARREGADOR" && activeWeapon?.type !== "ARMA DE ANTECARGA" && activeWeapon?.type !== "OUTRO" && activeWeapon?.type !== "ARMA DE CHOQUE" && (
                         <div>
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             Calibre
@@ -3349,7 +3550,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           </button>
                         </div>
                       )}
-                      {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && activeWeapon?.type !== "CARREGADOR" && activeWeapon?.type !== "ARMA DE ANTECARGA" && (
+                      {activeWeapon?.type !== "FACA" && activeWeapon?.type !== "ARMA DE PRESSÃO" && activeWeapon?.type !== "CARREGADOR" && activeWeapon?.type !== "ARMA DE ANTECARGA" && activeWeapon?.type !== "OUTRO" && (
                         <div>
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             País de fabricação
@@ -3510,8 +3711,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["seguranca",        "Sistema de segurança"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
-                            const isSim = !isNa && Boolean(activeWeapon?.[key] ?? true)
-                            const isNao = !isNa && !Boolean(activeWeapon?.[key] ?? true)
+                            const isSim = !isNa && (activeWeapon?.[key] === true)
+                            const isNao = !isNa && (activeWeapon?.[key] === false)
                             return (
                               <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
                                 <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>
@@ -3579,7 +3780,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["marcacaoPercussor","Marcação de percussor"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -3717,8 +3918,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["alimentacaoFuncional","Alimentação funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
-                            const isSim = !isNa && Boolean(activeWeapon?.[key] ?? true)
-                            const isNao = !isNa && !Boolean(activeWeapon?.[key] ?? true)
+                            const isSim = !isNa && (activeWeapon?.[key] === true)
+                            const isNao = !isNa && (activeWeapon?.[key] === false)
                             return (
                               <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
                                 <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>
@@ -3787,7 +3988,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["ciclagemFuncional", "Ciclagem funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -3924,8 +4125,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["alimentacaoFuncional","Alimentação funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
-                            const isSim = !isNa && Boolean(activeWeapon?.[key] ?? true)
-                            const isNao = !isNa && !Boolean(activeWeapon?.[key] ?? true)
+                            const isSim = !isNa && (activeWeapon?.[key] === true)
+                            const isNao = !isNa && (activeWeapon?.[key] === false)
                             return (
                               <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
                                 <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>
@@ -3994,7 +4195,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["ciclagemFuncional", "Ciclagem funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -4098,8 +4299,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["alimentacaoFuncional","Alimentação funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
-                            const isSim = !isNa && Boolean(activeWeapon?.[key] ?? true)
-                            const isNao = !isNa && !Boolean(activeWeapon?.[key] ?? true)
+                            const isSim = !isNa && (activeWeapon?.[key] === true)
+                            const isNao = !isNa && (activeWeapon?.[key] === false)
                             return (
                               <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
                                 <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>
@@ -4165,7 +4366,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["ejacaoFuncional",  "Ejeção funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -4304,8 +4505,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["modoAutoFuncional",   "Modo automático funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
-                            const isSim = !isNa && Boolean(activeWeapon?.[key] ?? true)
-                            const isNao = !isNa && !Boolean(activeWeapon?.[key] ?? true)
+                            const isSim = !isNa && (activeWeapon?.[key] === true)
+                            const isNao = !isNa && (activeWeapon?.[key] === false)
                             return (
                               <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
                                 <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>
@@ -4372,7 +4573,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["ciclagemFuncional","Ciclagem funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -4483,7 +4684,6 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           {([
                             ["compCano",             "Comprimento do cano",  "Ex.: 260 mm"],
                             ["compTotal",            "Comprimento total",    "Ex.: 690 mm"],
-                            ["modoFogo",             "Modo de fogo",         "Ex.: semi, auto"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
@@ -4512,8 +4712,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["culatelFuncional",    "Culatel funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
-                            const isSim = !isNa && Boolean(activeWeapon?.[key] ?? true)
-                            const isNao = !isNa && !Boolean(activeWeapon?.[key] ?? true)
+                            const isSim = !isNa && (activeWeapon?.[key] === true)
+                            const isNao = !isNa && (activeWeapon?.[key] === false)
                             return (
                               <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
                                 <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>
@@ -4580,7 +4780,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["ciclagemFuncional","Ciclagem funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? true)} onChange={handleWeaponField(key)}
+                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -5363,63 +5563,124 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       </CollapsibleSection>
 
-                      <CollapsibleSection title="Mecanismo de funcionamento" defaultOpen={true}>
-                        <div className="space-y-3">
-                          {[
-                            { key: "caoFuncional",     label: "Cão funcional" },
-                            { key: "gatilhoFuncional", label: "Gatilho funcional" },
-                            { key: "seguranca",        label: "Segurança presente e funcional" },
-                          ].map(({ key, label }) => (
-                            <label key={key} className="flex items-center justify-between rounded-xl border border-[#e5d9c3] bg-white px-4 py-3">
-                              <span className="text-[15px] font-medium text-[#26221b]">{label}</span>
-                              <input type="checkbox" checked={(activeWeapon as any)?.[key] ?? false}
-                                onChange={e => setWeaponDirect(key as any, e.target.checked)}
-                                className="h-5 w-5 accent-[#9e7f45]" />
-                            </label>
-                          ))}
+                      <CollapsibleCard title="Mecanismo de funcionamento">
+                        <div className="space-y-2">
+                          {([
+                            ["caoFuncional",     "Cão funcional"],
+                            ["gatilhoFuncional", "Gatilho funcional"],
+                            ["seguranca",        "Segurança presente e funcional"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
+                            const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            const isSim = !isNa && (activeWeapon?.[key] === true)
+                            const isNao = !isNa && (activeWeapon?.[key] === false)
+                            return (
+                              <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
+                                <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>{label}</span>
+                                <div className="flex shrink-0 gap-1.5">
+                                  <button type="button" onClick={() => { setWeaponDirect(key, true); if (isNa) handleWeaponNaToggle(key) }}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95", isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]")}>SIM</button>
+                                  <button type="button" onClick={() => { setWeaponDirect(key, false); if (isNa) handleWeaponNaToggle(key) }}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95", isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]")}>NÃO</button>
+                                  <button type="button" onClick={() => handleWeaponNaToggle(key)}
+                                    className={cn("h-10 min-w-[44px] rounded-xl px-2 text-[10px] font-black uppercase tracking-wide transition active:scale-95", isNa ? "bg-[#b89a58] text-white shadow-sm" : "border border-[#e8dfc8] bg-white text-[#c8a96e]")}>N/A</button>
+                                </div>
+                              </div>
+                            )
+                          })}
                         </div>
-                      </CollapsibleSection>
+                      </CollapsibleCard>
 
-                      <CollapsibleSection title="Estado de conservação" defaultOpen={false}>
+                      <CollapsibleCard title="Estado de conservação">
                         <div className="space-y-3">
-                          {[
-                            { key: "ferrugem",       label: "Ferrugem",         obsKey: "ferrugemObs" },
-                            { key: "desgaste",       label: "Desgaste",         obsKey: "desgasteObs" },
-                            { key: "danoEstruturais",label: "Danos estruturais", obsKey: "danoEstruturaisObs" },
-                            { key: "pecasFaltantes", label: "Peças faltantes",   obsKey: "pecasFaltantesObs" },
-                          ].map(({ key, label, obsKey }) => (
+                          {([
+                            ["ferrugem",       "ferrugemObs",       "Presença de ferrugem"],
+                            ["desgaste",       "desgasteObs",       "Desgaste"],
+                            ["danoEstruturais","danoEstruturaisObs","Danos estruturais"],
+                            ["pecasFaltantes", "pecasFaltantesObs", "Peças faltantes"],
+                          ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
                             <div key={key}>
-                              <label className="flex items-center justify-between rounded-xl border border-[#e5d9c3] bg-white px-4 py-3">
-                                <span className="text-[15px] font-medium text-[#26221b]">{label}</span>
-                                <input type="checkbox" checked={(activeWeapon as any)?.[key] ?? false}
-                                  onChange={e => setWeaponDirect(key as any, e.target.checked)}
-                                  className="h-5 w-5 accent-[#9e7f45]" />
+                              <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                  className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                {label}
                               </label>
-                              {(activeWeapon as any)?.[key] && (
-                                <input value={(activeWeapon as any)?.[obsKey] ?? ""} onChange={handleWeaponField(obsKey as any)}
-                                  className="mt-2 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] shadow-sm"
-                                  placeholder="Observações…" />
+                              {activeWeapon?.[key] && (
+                                <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
+                                  placeholder={`Descreva: ${label.toLowerCase()}`}
+                                  className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
                               )}
                             </div>
                           ))}
                         </div>
-                      </CollapsibleSection>
+                      </CollapsibleCard>
 
-                      <CollapsibleSection title="Aptidão para disparo" defaultOpen={true}>
-                        <div className="space-y-3">
-                          {[
-                            { key: "aptoDisparo",      label: "Apta para disparo" },
-                            { key: "testePercussao",   label: "Percussão funcional no teste" },
-                          ].map(({ key, label }) => (
-                            <label key={key} className="flex items-center justify-between rounded-xl border border-[#e5d9c3] bg-white px-4 py-3">
-                              <span className="text-[15px] font-medium text-[#26221b]">{label}</span>
-                              <input type="checkbox" checked={(activeWeapon as any)?.[key] ?? false}
-                                onChange={e => setWeaponDirect(key as any, e.target.checked)}
-                                className="h-5 w-5 accent-[#9e7f45]" />
+                      <CollapsibleCard title="Exame de disparo">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["aptoDisparo",      "Apta a disparo"],
+                            ["funcMunicaoReal",  "Funcionamento com munição real"],
+                            ["testePercussao",   "Teste de percussão"],
+                            ["marcacaoPercussor","Marcação de percussor"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
                             </label>
                           ))}
                         </div>
-                      </CollapsibleSection>
+                        <div className="mt-4 border-t border-[#ede3ce] pt-4">
+                          <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
+                          <div className="space-y-2">
+                            {( [
+                              ["TODAS",      "Exame feito com todas as munições que acompanham o material"],
+                              ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
+                              ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
+                              ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                            ] as const).map(([val, label]) => {
+                              const sel = (activeWeapon as any)?.tipoMunicaoExame === val
+                              return (
+                                <button key={val} type="button"
+                                  onClick={() => setWeaponDirect("tipoMunicaoExame" as any, sel ? "" : val)}
+                                  className={cn(
+                                    "flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition active:scale-[0.99]",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]/10" : "border-[#d3c4a8] bg-[#fbf8f2]"
+                                  )}>
+                                  <span className={cn(
+                                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition",
+                                    sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e] bg-white"
+                                  )}>
+                                    {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                                  </span>
+                                  <span className={`text-[12px] font-bold leading-tight ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{label}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                          <div className="mt-4 grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Calibre</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.tipoMunicaoDisparo ?? ""); setTipoMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`truncate text-[14px] ${activeWeapon?.tipoMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.tipoMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Qtd. utilizada</label>
+                              <button type="button" onClick={() => { setTipoMunicaoCustom(activeWeapon?.qtdMunicaoDisparo ?? ""); setQtdMunicaoPickerOpen(true) }}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left transition active:bg-[#f0e8d0]">
+                                <span className={`text-[14px] ${activeWeapon?.qtdMunicaoDisparo ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
+                                  {activeWeapon?.qtdMunicaoDisparo || "Selecionar…"}
+                                </span>
+                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </CollapsibleCard>
                     </div>
                   )}
 
@@ -5429,7 +5690,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       <CollapsibleSection title="Características" defaultOpen={true}>
                         <div className="grid gap-5">
                           <div>
-                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo / sistema</label>
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento</label>
                             <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
                               className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
                               <span className={`truncate text-[16px] ${activeWeapon?.sistemaAcionamento ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
@@ -5438,56 +5699,130 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                             </button>
                           </div>
-                          <div>
-                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">País de fabricação</label>
-                            <button type="button" onClick={() => setPaisPickerOpen(true)}
-                              className="flex h-14 w-full items-center justify-between rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left shadow-sm transition focus:border-[#9e7f45]">
-                              <span className={`truncate text-[16px] ${activeWeapon?.paisFabricacao ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>
-                                {activeWeapon?.paisFabricacao || "Selecionar país…"}
-                              </span>
-                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                            </button>
-                          </div>
                         </div>
                       </CollapsibleSection>
 
-                      <CollapsibleSection title="Funcionamento" defaultOpen={true}>
-                        <div className="space-y-3">
-                          {[
-                            { key: "aptoDisparo",      label: "Dispositivo funcional (produz choque)" },
-                            { key: "gatilhoFuncional", label: "Gatilho / acionador funcional" },
-                            { key: "seguranca",        label: "Trava de segurança presente e funcional" },
-                          ].map(({ key, label }) => (
-                            <label key={key} className="flex items-center justify-between rounded-xl border border-[#e5d9c3] bg-white px-4 py-3">
-                              <span className="text-[15px] font-medium text-[#26221b]">{label}</span>
-                              <input type="checkbox" checked={(activeWeapon as any)?.[key] ?? false}
-                                onChange={e => setWeaponDirect(key as any, e.target.checked)}
-                                className="h-5 w-5 accent-[#9e7f45]" />
-                            </label>
-                          ))}
+                      <CollapsibleCard title="Mecanismo de funcionamento">
+                        <div className="space-y-2">
+                          {([
+                            ["gatilhoFuncional", "Gatilho / acionador funcional"],
+                            ["seguranca",        "Trava de segurança presente e funcional"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
+                            const isNa = (activeWeapon?.naFlags ?? []).includes(key)
+                            const isSim = !isNa && (activeWeapon?.[key] === true)
+                            const isNao = !isNa && (activeWeapon?.[key] === false)
+                            return (
+                              <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
+                                <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>{label}</span>
+                                <div className="flex shrink-0 gap-1.5">
+                                  <button type="button" onClick={() => { setWeaponDirect(key, true); if (isNa) handleWeaponNaToggle(key) }}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95", isSim ? "bg-[#7d6334] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]")}>SIM</button>
+                                  <button type="button" onClick={() => { setWeaponDirect(key, false); if (isNa) handleWeaponNaToggle(key) }}
+                                    className={cn("h-10 min-w-[52px] rounded-xl px-3 text-xs font-black uppercase tracking-wide transition active:scale-95", isNao ? "bg-[#b83232] text-white shadow-sm" : "border border-[#d3c4a8] bg-white text-[#9e7f45]")}>NÃO</button>
+                                  <button type="button" onClick={() => handleWeaponNaToggle(key)}
+                                    className={cn("h-10 min-w-[44px] rounded-xl px-2 text-[10px] font-black uppercase tracking-wide transition active:scale-95", isNa ? "bg-[#b89a58] text-white shadow-sm" : "border border-[#e8dfc8] bg-white text-[#c8a96e]")}>N/A</button>
+                                </div>
+                              </div>
+                            )
+                          })}
                         </div>
-                      </CollapsibleSection>
+                      </CollapsibleCard>
 
-                      <CollapsibleSection title="Estado de conservação" defaultOpen={false}>
+                      <CollapsibleCard title="Estado de conservação">
                         <div className="space-y-3">
-                          {[
-                            { key: "danoEstruturais", label: "Danos estruturais", obsKey: "danoEstruturaisObs" },
-                            { key: "pecasFaltantes",  label: "Peças / componentes faltantes", obsKey: "pecasFaltantesObs" },
-                          ].map(({ key, label, obsKey }) => (
+                          {([
+                            ["danoEstruturais","danoEstruturaisObs","Danos estruturais"],
+                            ["pecasFaltantes", "pecasFaltantesObs", "Peças / componentes faltantes"],
+                          ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
                             <div key={key}>
-                              <label className="flex items-center justify-between rounded-xl border border-[#e5d9c3] bg-white px-4 py-3">
-                                <span className="text-[15px] font-medium text-[#26221b]">{label}</span>
-                                <input type="checkbox" checked={(activeWeapon as any)?.[key] ?? false}
-                                  onChange={e => setWeaponDirect(key as any, e.target.checked)}
-                                  className="h-5 w-5 accent-[#9e7f45]" />
+                              <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                  className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                                {label}
                               </label>
-                              {(activeWeapon as any)?.[key] && (
-                                <input value={(activeWeapon as any)?.[obsKey] ?? ""} onChange={handleWeaponField(obsKey as any)}
-                                  className="mt-2 h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] shadow-sm"
-                                  placeholder="Observações…" />
+                              {activeWeapon?.[key] && (
+                                <textarea value={String(activeWeapon?.[obsKey] ?? "")} onChange={handleWeaponField(obsKey)}
+                                  placeholder={`Descreva: ${label.toLowerCase()}`}
+                                  className="mt-2 min-h-[72px] w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-3 py-2 text-[14px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
                               )}
                             </div>
                           ))}
+                        </div>
+                      </CollapsibleCard>
+
+                      <CollapsibleCard title="Exame de disparo">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {([
+                            ["aptoDisparo",     "Produz descarga elétrica no teste"],
+                            ["testePercussao",  "Descarga contínua / eficaz"],
+                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
+                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
+                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                    </div>
+                  )}
+
+                  {/* ── OUTRO (item genérico — parâmetros do GDL "OUTROS") ── */}
+                  {activeWeapon?.type === "OUTRO" && (
+                    <div className="space-y-4">
+                      <CollapsibleSection title="Dados do item" defaultOpen={true}>
+                        <div className="grid gap-4">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Quantidade</label>
+                              <input value={String(activeWeapon?.quantidade ?? "")} onChange={handleWeaponField("quantidade")} inputMode="decimal"
+                                placeholder="Ex.: 1 ou 3.5"
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] shadow-sm" />
+                            </div>
+                            <div>
+                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Medida</label>
+                              <div className="relative">
+                                <select value={activeWeapon?.medida ?? "UNIDADES"} onChange={e => setWeaponDirect("medida" as any, e.target.value)}
+                                  className="h-12 w-full appearance-none rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-4 pr-9 text-[16px] outline-none transition focus:border-[#9e7f45] shadow-sm cursor-pointer">
+                                  {["UNIDADES","GRAMAS(g)","MILILITROS(ml)","QUILOGRAMAS(Kg)","PORÇÃO","AMOSTRA","HECTARE","m2"].map(m => (
+                                    <option key={m} value={m}>{m}</option>
+                                  ))}
+                                </select>
+                                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9e7f45]" />
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Quant. Descrição</label>
+                            <input value={activeWeapon?.quantDescricao ?? ""} onChange={handleWeaponField("quantDescricao")}
+                              placeholder="Descrição da quantidade"
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] shadow-sm" />
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Código do Vestígio</label>
+                            <input value={activeWeapon?.codigoVestigio ?? ""} onChange={handleWeaponField("codigoVestigio")} inputMode="numeric"
+                              placeholder="Código do vestígio"
+                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] shadow-sm" />
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Resultado PSA</label>
+                            <div className="relative">
+                              <select value={activeWeapon?.resultadoPSA ?? ""} onChange={e => setWeaponDirect("resultadoPSA" as any, e.target.value)}
+                                className="h-12 w-full appearance-none rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] pl-4 pr-9 text-[16px] outline-none transition focus:border-[#9e7f45] shadow-sm cursor-pointer">
+                                <option value="">Selecione</option>
+                                {["NEGATIVO","POSITIVO","POSITIVO FRACO"].map(r => (
+                                  <option key={r} value={r}>{r}</option>
+                                ))}
+                              </select>
+                              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9e7f45]" />
+                            </div>
+                          </div>
+                          <label className="flex items-center justify-between rounded-xl border border-[#e5d9c3] bg-white px-4 py-3">
+                            <span className="text-[15px] font-medium text-[#26221b]">Examinado In Loco</span>
+                            <input type="checkbox" checked={activeWeapon?.examinadoInLoco ?? false}
+                              onChange={e => setWeaponDirect("examinadoInLoco" as any, e.target.checked)}
+                              className="h-5 w-5 accent-[#9e7f45]" />
+                          </label>
                         </div>
                       </CollapsibleSection>
                     </div>
@@ -6105,7 +6440,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["canalDesobstruido", "Canal de ignição (ouvido) desobstruído"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
-                            const isSim = !isNa && Boolean((activeWeapon as any)?.[key] ?? true)
+                            const isSim = !isNa && ((activeWeapon as any)?.[key] === true)
                             const isNao = !isNa && !Boolean((activeWeapon as any)?.[key] ?? false)
                             return (
                               <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
@@ -6148,7 +6483,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["testePercussao", "Teste de ignição / percussão"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean((activeWeapon as any)?.[key] ?? true)} onChange={handleWeaponField(key)}
+                              <input type="checkbox" checked={((activeWeapon as any)?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -6250,8 +6585,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["danoEstruturais",     "Danos estruturais visíveis"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
-                            const isSim = !isNa && Boolean((activeWeapon as Record<string,unknown>)?.[key] ?? true)
-                            const isNao = !isNa && !Boolean((activeWeapon as Record<string,unknown>)?.[key] ?? true)
+                            const isSim = !isNa && ((activeWeapon as Record<string,unknown>)?.[key] === true)
+                            const isNao = !isNa && ((activeWeapon as Record<string,unknown>)?.[key] === false)
                             return (
                               <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
                                 <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>{label}</span>
@@ -6639,7 +6974,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     {([
                       { label: "Armas de fogo",           types: ["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"] },
                       { label: "Munição e componentes",   types: ["PROJÉTIL","CARTUCHO","ESTOJO","ESPOLETA","PÓLVORA","CARREGADOR"] },
-                      { label: "Outras armas",            types: ["FACA","ARMA DE PRESSÃO","ARMA DE CHOQUE"] },
+                      { label: "Outras armas",            types: ["FACA","ARMA DE PRESSÃO","ARMA DE CHOQUE","OUTRO"] },
                     ] as { label: string; types: WeaponType[] }[]).map(group => (
                       <div key={group.label}>
                         <div className="mb-1 px-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#9e8255]">{group.label}</div>
@@ -6649,19 +6984,16 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               onClick={() => {
                                 const cur = weapons[activeWeaponIdx]
                                 const next = makeWeaponEntry(t)
-                                // Preserva campos comuns
-                                next.idPeca        = cur?.idPeca        ?? ""
-                                next.identificacao = cur?.identificacao ?? ""
-                                next.brand         = cur?.brand         ?? ""
-                                next.model         = cur?.model         ?? ""
-                                next.caliber       = cur?.caliber       ?? ""
-                                next.serial        = cur?.serial        ?? ""
-                                next.quantidade    = cur?.quantidade    ?? ""
+                                // Ao reclassificar, LIMPA as informações do tipo anterior
+                                // (identificação, marca, modelo, calibre, série, características…).
+                                // Mantém só o que é da CUSTÓDIA do vestígio (não muda com o tipo):
+                                // IDs do GDL, lacres e datas de entrada/liberação.
+                                next.idPeca            = cur?.idPeca            ?? ""
+                                next.gdlPartsId        = cur?.gdlPartsId        ?? ""
+                                next.lacreEntradaPeca  = cur?.lacreEntradaPeca  ?? ""
+                                next.lacreSaidaPeca    = cur?.lacreSaidaPeca    ?? ""
                                 next.dataEntradaPeca   = cur?.dataEntradaPeca   ?? ""
-                                next.dataLiberacaoPeca = cur?.dataLiberacaoPeca ?? ""
-                                next.unidadeMedida     = cur?.unidadeMedida     ?? ""
-                                next.consumidaExame    = cur?.consumidaExame    ?? ""
-                                next.observacaoPeca    = cur?.observacaoPeca    ?? ""
+                                next.dataLiberacaoPeca = cur?.dataLiberacaoPeca || next.dataLiberacaoPeca
                                 const updated = [...weapons]
                                 updated[activeWeaponIdx] = next
                                 setWeapons(updated)

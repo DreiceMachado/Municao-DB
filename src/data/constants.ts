@@ -53,6 +53,7 @@ export const photoSlotsByType: Record<WeaponType, string[]> = {
   "PÓLVORA":           ["Vista geral", "Embalagem – frente", "Embalagem – verso", "Detalhe da granulometria"],
   "ESPOLETA":          ["Vista frontal", "Vista lateral", "Base da espoleta", "Marcação de percussor"],
   "CARREGADOR":        ["Vista frontal", "Vista lateral", "Base", "Detalhe interno"],
+  "OUTRO":             ["Vista geral", "Detalhe 1", "Detalhe 2", "Marcação / etiqueta"],
 }
 
 export const titleByType: Record<WeaponType, string> = {
@@ -75,37 +76,41 @@ export const titleByType: Record<WeaponType, string> = {
   "PÓLVORA":           "Exame de Pólvora",
   "ESPOLETA":          "Exame de Espoleta",
   "CARREGADOR":        "Exame de Carregador",
+  "OUTRO":             "Exame de Outro Item",
 }
 
 export function makeWeaponEntry(type: WeaponType): WeaponEntry {
   // Data de liberação inicia no dia do exame (dia em que a peça/REP é aberta)
   const _h = new Date()
   const _hojeBR = `${String(_h.getDate()).padStart(2, "0")}/${String(_h.getMonth() + 1).padStart(2, "0")}/${_h.getFullYear()}`
+  // "Não preenchido": campos de mecanismo/exame/estado nascem vazios — só o GDL
+  // ou o usuário preenchem (evita valores pré-marcados que não vieram do exame).
+  const _naoPreenchido = null as unknown as boolean
   return {
     type,
     identificacao: "", brand: "", model: "", caliber: "", serial: "", paisFabricacao: "", origemMunicao: "",
     material: "", acabamento: "", compCano: "", numCamaras: "", rebatimentoTambor: "", tamborSobressalente: "", tamborSobressalenteQtd: "", tipoMira: [], tipoCarregador: [],
     canoSobressalente: "", canoSobressalenteQtd: "", canoSobressalenteComp: "", canoSobressalenteMaterial: "", canoSobressalenteAcabamento: "",
-    acaoSimples: true, acaoDupla: true, tamborGira: true, indexacaoCorreta: true,
-    caoFuncional: true, gatilhoFuncional: true, seguranca: true,
+    acaoSimples: _naoPreenchido, acaoDupla: _naoPreenchido, tamborGira: _naoPreenchido, indexacaoCorreta: _naoPreenchido,
+    caoFuncional: _naoPreenchido, gatilhoFuncional: _naoPreenchido, seguranca: _naoPreenchido,
     ferrugem: false, ferrugemObs: "", desgaste: false, desgasteObs: "",
     danoEstruturais: false, danoEstruturaisObs: "", pecasFaltantes: false, pecasFaltantesObs: "",
-    aptoDisparo: true, funcMunicaoReal: true, testePercussao: true, marcacaoPercussor: true,
+    aptoDisparo: _naoPreenchido, funcMunicaoReal: _naoPreenchido, testePercussao: _naoPreenchido, marcacaoPercussor: _naoPreenchido,
     tipoMunicaoDisparo: "", qtdMunicaoDisparo: "",
-    sistemaRepeticao: true, carregadorPresente: true, carregadorFuncional: true,
-    ferrolhoFuncional: true, percussorFuncional: true, extratorFuncional: true,
-    ejetorFuncional: true, retencaoFerrolho: true, alimentacaoFuncional: true,
+    sistemaRepeticao: _naoPreenchido, carregadorPresente: _naoPreenchido, carregadorFuncional: _naoPreenchido,
+    ferrolhoFuncional: _naoPreenchido, percussorFuncional: _naoPreenchido, extratorFuncional: _naoPreenchido,
+    ejetorFuncional: _naoPreenchido, retencaoFerrolho: _naoPreenchido, alimentacaoFuncional: _naoPreenchido,
     desgasteMecanico: false, desgasteMecanicoObs: "", danosAparentes: false, danosAparentesObs: "",
-    extracaoFuncional: true, ejacaoFuncional: true, ciclagemFuncional: true,
+    extracaoFuncional: _naoPreenchido, ejacaoFuncional: _naoPreenchido, ciclagemFuncional: _naoPreenchido,
     compTotal: "", capacidadeCarregador: "", numCanos: "", modoFogo: "",
-    seletoDisparo: true, modoSemiAuto: true, modoAutoFuncional: true, culatelFuncional: true,
+    seletoDisparo: _naoPreenchido, modoSemiAuto: _naoPreenchido, modoAutoFuncional: _naoPreenchido, culatelFuncional: _naoPreenchido,
     formato: "", numEstrias: "", sentidoEstrias: "", diametro: "",
     marcacaoExtrator: false, marcacaoEjetor: false, marcacaoCamara: false,
-    estriasPresentes: true, deformacaoPresente: false, fragmentado: false,
+    estriasPresentes: _naoPreenchido, deformacaoPresente: false, fragmentado: false,
     oxidacaoPresente: false, inscricaoFabricante: "", lote: "",
-    amassado: false, completo: true, tipoConstrutivo: "",
+    amassado: false, completo: _naoPreenchido, tipoConstrutivo: "",
     tipoLamina: "", compLamina: "", tipoGume: "",
-    gumeFuncional: true, aptaUso: true, laminaIntegra: true,
+    gumeFuncional: _naoPreenchido, aptaUso: _naoPreenchido, laminaIntegra: _naoPreenchido,
     caboDanificado: false, manchas: false, manchasObs: "",
     sistemaAcionamento: "", tamanhoCamara: "", tipoRaiamento: "", materialQuadro: "", materialCoroha: "",
     institucional: null, inscricaoInstitucional: "", instituicao: "", naFlags: [], tipoProd: "", serialEstado: "", serialTentativaRevelacao: null, serialRevelacao: "", serialReveladoObs: "", quantidade: "", diametroMin: "", massa: "",
@@ -113,6 +118,7 @@ export function makeWeaponEntry(type: WeaponType): WeaponEntry {
     estadoCartucho: "", estadoEstojo: "",
     tipoPolvora: "", cor: "", tipoEspoleta: "",
     adaptadaArmaFogo: null,
+    medida: "UNIDADES", quantDescricao: "", examinadoInLoco: false, codigoVestigio: "", resultadoPSA: "",
     idPeca: "", gdlPartsId: "",
     lacreEntradaPeca: "", lacreSaidaPeca: "",
     dataEntradaPeca: "", dataLiberacaoPeca: _hojeBR, unidadeMedida: "UNIDADES",

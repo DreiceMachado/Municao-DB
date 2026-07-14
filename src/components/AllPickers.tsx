@@ -337,7 +337,6 @@ export function AllPickers(props: PickersProps) {
     if (weapon.type === "ARMA DE CHOQUE") return [
       { l: "Eletrochoque direto (stun gun)", d: "Contato direto com eletrodos; descarga de alta tensão" },
       { l: "Projétil condutor (Taser)", d: "Dispara dardos condutores por fios; alcance à distância" },
-      { l: "Bastão elétrico", d: "Bastão com eletrodos nas extremidades; uso por contato" },
       { l: "Indeterminado", d: "Sistema não pôde ser determinado" },
     ]
     if (weapon.type === "ARMA DE ANTECARGA") return [
@@ -437,7 +436,15 @@ export function AllPickers(props: PickersProps) {
       { l: "7,62×39 mm", d: "RPK, PKM" },
       { l: "7,62×54R mm", d: "PK/PKM; padrão soviético pesado" },
       { l: "12,7×99 mm (.50 BMG)", d: "Metralhadoras pesadas; M2 Browning" },
+      { l: "12,7×108 mm", d: "DShK, NSV, Kord; pesada soviética/russa" },
       { l: "14,5×114 mm", d: "KPV; metralhadoras antiaéreas soviéticas" },
+      { l: ".30-06 Springfield", d: "Browning M1917/M1919, BAR; padrão americano histórico" },
+      { l: ".303 British", d: "Vickers, Bren, Lewis; padrão britânico histórico" },
+      { l: "7,92×57 mm Mauser", d: "MG34/MG42, Maxim MG08, ZB vz.26" },
+      { l: "7,5×54 mm French", d: "Châtellerault FM 24/29; padrão francês" },
+      { l: "7,7×58 mm Arisaka", d: "Metralhadoras japonesas (Type 92/99)" },
+      { l: "8×50R Lebel", d: "Hotchkiss M1914; padrão francês histórico" },
+      { l: "8×59 RB Breda", d: "Breda M37; padrão italiano" },
       { l: "Outro", d: "Informar calibre não listado" },
       { l: "Indeterminado", d: "Calibre não pôde ser determinado" },
     ]
@@ -460,8 +467,12 @@ export function AllPickers(props: PickersProps) {
       { l: ".357 Magnum", d: "Alta energia; garruchas de maior porte" },
       { l: ".44 Magnum", d: "Garruchas de grande porte" },
       { l: ".45 Colt", d: "Clássico americano; garruchas históricas" },
+      { l: ".45 Colt / .410", d: "Câmara mista .45 Colt/.410; Bond Arms, American Derringer" },
       { l: ".45 ACP", d: "Garruchas modernas de grande calibre" },
       { l: ".410 Bore (2½\")", d: "Calibre de espingarda; garruchas mistas" },
+      { l: ".45-70 Government", d: "Derringer monotiro de grande calibre; Bond Arms Cyclops" },
+      { l: ".41 Rimfire", d: "Remington Model 95 (double derringer); histórico" },
+      { l: ".32 S&W", d: "Garruchas/revólveres de bolso; calibre histórico" },
       { l: "9 mm Luger", d: "Garruchas modernas de porte" },
       { l: "Outro", d: "Informar calibre não listado" },
       { l: "Indeterminado", d: "Calibre não pôde ser determinado" },

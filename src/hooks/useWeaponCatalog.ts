@@ -12,6 +12,9 @@ const TIPO_BALISTICADB_PARA_CATALOGO: Partial<Record<WeaponType, string>> = {
   "CARABINA":       "Carabina",
   "SUBMETRALHADORA":"Submetralhadora",
   "GARRUCHA":       "Garrucha",
+  "ARMA DE CHOQUE": "Arma de choque",
+  "METRALHADORA":   "Metralhadora",
+  "ARMA DE ANTECARGA": "Arma de antecarga",
 }
 
 // Exporta o tipo para ser usado em outros lugares se necessário
@@ -73,7 +76,6 @@ export function useWeaponCatalog() {
   // Converte a ficha do catálogo para campos do WeaponEntry
   const fichaParaWeaponEntry = useCallback(
     (ficha: FichaCatalogo): Partial<Record<keyof Omit<WeaponEntry, "type">, string | boolean | null | string[]>> => {
-      const disparo = (ficha.sistema_disparo ?? "").toLowerCase()
       const campos: Partial<Record<keyof Omit<WeaponEntry, "type">, string | boolean | null | string[]>> = {}
 
       if (ficha.calibre_nominal)     campos.caliber            = ficha.calibre_nominal
@@ -90,6 +92,11 @@ export function useWeaponCatalog() {
         const mc = ficha.material_cano.trim()
         campos.material = mc ? mc.charAt(0).toUpperCase() + mc.slice(1) : mc
       }
+      // material_cabo = material da coronha/cabo → materialCoroha.
+      if (ficha.material_cabo) {
+        const mcb = ficha.material_cabo.trim()
+        campos.materialCoroha = mcb ? mcb.charAt(0).toUpperCase() + mcb.slice(1) : mcb
+      }
       // sistema_disparo → Sistema de acionamento (mostra o texto da ficha).
       if (ficha.sistema_disparo) campos.sistemaAcionamento = ficha.sistema_disparo.trim()
       if (ficha.raias_qtd != null)   campos.numEstrias         = String(ficha.raias_qtd)
@@ -101,13 +108,8 @@ export function useWeaponCatalog() {
         else campos.capacidadeCarregador = String(ficha.carregador_capacidade)
       }
 
-      // Sistemas de disparo → booleanos
-      campos.acaoSimples = disparo.includes("simples")
-      campos.acaoDupla   = disparo.includes("dupla")
-
-      // Travas → segurança (tem ao menos uma trava?)
-      if (ficha.travas_seguranca?.length)
-        campos.seguranca = true
+      // NÃO preencher achados de exame (trava de segurança, ação simples/dupla funcional,
+      // etc.) a partir do catálogo — isso é constatação do perito, não spec da ficha.
 
       return campos
     },
