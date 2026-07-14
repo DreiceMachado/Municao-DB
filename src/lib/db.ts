@@ -312,6 +312,21 @@ export async function listarLaudos() {
   return db.laudos.orderBy("criadoEm").reverse().toArray()
 }
 
+/** Uma vez: marca peças de tipos que ganharam tabela de detalhe no Supabase
+ *  (ARMA DE CHOQUE, OUTRO) como `pending`, para o próximo sync gravar o detalhe.
+ *  Protegido por marcador no localStorage — roda só uma vez por dispositivo. */
+export async function reenviarDetalhesNovos(): Promise<void> {
+  const FLAG = "resyncDetalhesNovos-2025-07-outro-choque"
+  if (typeof localStorage !== "undefined" && localStorage.getItem(FLAG)) return
+  const alvos = await db.armas
+    .filter((a) => a.tipo === "ARMA DE CHOQUE" || a.tipo === "OUTRO")
+    .toArray()
+  for (const a of alvos) {
+    if (a.id != null) await db.armas.update(a.id, { syncStatus: "pending" })
+  }
+  if (typeof localStorage !== "undefined") localStorage.setItem(FLAG, "1")
+}
+
 /** Conta quantos laudos ainda não foram sincronizados */
 export async function contarPendentes() {
   return db.laudos.where("syncStatus").equals("pending").count()

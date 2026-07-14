@@ -1,4 +1,4 @@
-import { db } from "./db"
+import { db, reenviarDetalhesNovos } from "./db"
 import { supabase, supabaseAtivo } from "./supabase"
 import {
   TABELA_POR_TIPO, pecaPayload, detalhePayload,
@@ -61,6 +61,8 @@ export async function sincronizar(): Promise<void> {
 
   setStatus("syncing")
   try {
+    // Uma vez: remarca ARMA DE CHOQUE e OUTRO como pending p/ gravar o novo detalhe.
+    await reenviarDetalhesNovos()
     const peritoId = await garantirPerito()
     await sincronizarLaudos(peritoId)
     await sincronizarArmas()

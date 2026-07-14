@@ -20,7 +20,8 @@ export const TABELA_POR_TIPO: Partial<Record<WeaponType, string>> = {
   "PÓLVORA": "polvoras",
   "ESPOLETA": "espoletas",
   "CARREGADOR": "carregadores",
-  // "ARMA DE CHOQUE" não tem tabela de detalhe.
+  "ARMA DE CHOQUE": "armas_choque",
+  "OUTRO": "outros",
 }
 
 // texto -> string ou null (evita gravar "" em coluna)
@@ -272,6 +273,38 @@ export function detalhePayload(
         material:           s(d.material),
         capacidade:         s(d.capacidadeCarregador),
         estado_conservacao: s(d.desgasteObs),
+      }
+
+    case "armas_choque":
+      // Arma de choque não usa munição/calibre — não espalha `calibre`.
+      return {
+        peca_id:             pecaId,
+        marca:               s(d.brand),
+        modelo:              s(d.model),
+        numero_serie:        s(d.serial),
+        serial_estado:       enumOrNull(d.serialEstado, SERIAL_ESTADOS),
+        tipo_producao:       enumOrNull(d.tipoProd, TIPOS_PRODUCAO),
+        sistema_acionamento: s(d.sistemaAcionamento),
+        pais_fabricacao:     s(d.paisFabricacao),
+        gatilho_funcional:   b(d.gatilhoFuncional),
+        seguranca:           b(d.seguranca),
+        apto_disparo:        b(d.aptoDisparo),
+        teste_percussao:     b(d.testePercussao),
+        danos_estruturais:   b(d.danoEstruturais),
+        danos_obs:           s(d.danoEstruturaisObs),
+        pecas_faltantes:     b(d.pecasFaltantes),
+        pecas_obs:           s(d.pecasFaltantesObs),
+      }
+
+    case "outros":
+      // Peça genérica (GDL "OUTROS") — sem calibre.
+      return {
+        peca_id:           pecaId,
+        medida:            s(d.medida),
+        quant_descricao:   s(d.quantDescricao),
+        examinado_in_loco: b(d.examinadoInLoco),
+        codigo_vestigio:   s(d.codigoVestigio),
+        resultado_psa:     s(d.resultadoPSA),
       }
 
     case "polvoras":

@@ -106,7 +106,8 @@ CREATE TABLE pecas (
                          'PROJÉTIL', 'ESTOJO', 'CARTUCHO',
                          'FACA',
                          'ARMA DE PRESSÃO', 'ARMA DE ANTECARGA',
-                         'PÓLVORA', 'ESPOLETA', 'CARREGADOR'
+                         'PÓLVORA', 'ESPOLETA', 'CARREGADOR',
+                         'OUTRO'
                        )),
   destinacao           TEXT CHECK (destinacao IN ('LIBERADO', 'CONSUMIDO')),
   ordem                INTEGER NOT NULL DEFAULT 0,
@@ -417,6 +418,52 @@ CREATE TABLE armas_antecarga (
   serial_tentativa_revelacao BOOLEAN,
   serial_revelacao         TEXT,
   serial_revelado_obs      TEXT
+);
+
+
+-- ────────────────────────────────────────────────────────────
+--  ARMAS DE CHOQUE
+-- ────────────────────────────────────────────────────────────
+
+CREATE TABLE armas_choque (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  peca_id             UUID UNIQUE NOT NULL REFERENCES pecas (id) ON DELETE CASCADE,
+
+  marca               TEXT,
+  modelo              TEXT,
+  numero_serie        TEXT,
+  serial_estado       TEXT CHECK (serial_estado IN (
+                        'LEGÍVEL', 'PARCIAL', 'SUPRIMIDO', 'NÃO APARENTE'
+                      )),
+  tipo_producao       TEXT CHECK (tipo_producao IN ('INDUSTRIAL', 'ARTESANAL')),
+  sistema_acionamento TEXT,
+  pais_fabricacao     TEXT,
+
+  gatilho_funcional   BOOLEAN,
+  seguranca           BOOLEAN,
+  apto_disparo        BOOLEAN,
+  teste_percussao     BOOLEAN,
+
+  danos_estruturais   BOOLEAN,
+  danos_obs           TEXT,
+  pecas_faltantes     BOOLEAN,
+  pecas_obs           TEXT
+);
+
+
+-- ────────────────────────────────────────────────────────────
+--  OUTROS  (peça genérica — parâmetros do GDL "OUTROS")
+-- ────────────────────────────────────────────────────────────
+
+CREATE TABLE outros (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  peca_id           UUID UNIQUE NOT NULL REFERENCES pecas (id) ON DELETE CASCADE,
+
+  medida            TEXT,
+  quant_descricao   TEXT,
+  examinado_in_loco BOOLEAN,
+  codigo_vestigio   TEXT,
+  resultado_psa     TEXT
 );
 
 
