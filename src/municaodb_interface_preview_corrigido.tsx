@@ -56,6 +56,7 @@ import { PhotosScreen } from "./components/PhotosScreen"
 import { WeaponFormProvider } from "./context/WeaponFormContext"
 import { AllPickers } from "./components/AllPickers"
 import { mapearRepGdl, type RepGdlData } from "./lib/repMapper"
+import { traduzirPecaParaGdl } from "./lib/gdlNormaliza"
 import { useWeaponCatalog, useCatalogoBrands, useCatalogoModels, buscarMarcaPorModelo } from "./hooks/useWeaponCatalog"
 import { populateCatalogDb } from "./lib/catalogDb"
 import { useLiveQuery } from "dexie-react-hooks"
@@ -615,7 +616,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       for (const item of sincronizadas) {
         const completo = await buscarLaudoCompleto(item.id)
         if (!completo) { erros++; continue }
-        const pecas = completo.armas.map(a => JSON.parse(a.dadosJson) as WeaponEntry)
+        const pecas = completo.armas
+          .map(a => JSON.parse(a.dadosJson) as WeaponEntry)
+          .map(traduzirPecaParaGdl) // marca/país → grafia exata do dropdown do GDL
         const numLimpo = (completo.laudo.examNumber || '').replace(/[^0-9]/g, '')
         if (!numLimpo) { erros++; continue }
         const repNumero = `${numLimpo}/${completo.laudo.examYear}`
@@ -811,7 +814,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       const resp = await fetch('/api/gdl/atualizar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rep_numero: repNumero, pecas: savedPieces, fotos: fotosPayload }),
+        body: JSON.stringify({ rep_numero: repNumero, pecas: savedPieces.map(traduzirPecaParaGdl), fotos: fotosPayload }),
       })
       const data = await resp.json()
 
@@ -7361,17 +7364,17 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     />
                   </div>
 
-                  {/* ── Observação da Peça ── */}
+                  {/* ── Descrição da Peça (GDL: Quant. Descrição = Observação) ── */}
                   <div>
                     <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
-                      Observação
+                      Descrição
                     </label>
                     <textarea
                       value={activeWeapon?.observacaoPeca ?? ""}
                       onChange={handleWeaponField("observacaoPeca" as any)}
                       rows={3}
                       className="w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 py-3 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 resize-none"
-                      placeholder="Observações sobre a peça…"
+                      placeholder="Descrição da peça…"
                     />
                   </div>
 

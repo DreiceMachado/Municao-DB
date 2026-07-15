@@ -1,5 +1,10 @@
 import type { WeaponEntry, WeaponType } from '../types'
 import { makeWeaponEntry } from '../data/constants'
+import {
+  normalizarMarcaGdl, normalizarPaisGdl, extrairCalibre,
+  camposDoTipo, normalizarAcabamentoGdl, funcionamentoParaApto, calibreDoDropdown,
+  normalizarStatusSerieGdl, mesclarDescricaoGdl,
+} from './gdlNormaliza'
 
 export type RepGdlData = {
   rep:      Record<string, string>
@@ -64,10 +69,8 @@ function mapTipo(gdlTipo: string): WeaponType | null {
   return null
 }
 
-function extrairCalibre(identificacao: string): string {
-  const m = identificacao.match(/CAL\.\s*([^\s,]+(?:\s*[xX×]\s*[^\s,]+)?)/i)
-  return m ? m[1].toUpperCase() : ''
-}
+// extrairCalibre foi movido para ./gdlNormaliza (versão tolerante a "CAL" sem ponto
+// e que casa com a lista oficial de calibres do GDL por tipo).
 
 function buildObservacoes(grids: RepGdlData['grids']): string {
   const origens: string[] = []
@@ -164,9 +167,16 @@ export function mapearRepGdl(dados: RepGdlData): RepMapeada {
 
     // Campos de identificação
     entry.identificacao    = identificacao
-    entry.caliber          = extrairCalibre(identificacao)
+    entry.caliber          = extrairCalibre(identificacao, tipo)
     entry.serial           = campo(peca, '$ctl01$txtField')
-    entry.brand            = campo(peca, '$ctl02$txtField')
+    // Marca: o perito pode preencher o campo texto "Marca" (ctl02) OU o dropdown
+    // "Marca da Arma" (índice varia por tipo). Usa o texto; se vazio, cai no dropdown.
+    const camposTipo       = camposDoTipo(tipoGdl)
+    const marcaBruta       = campo(peca, '$ctl02$txtField')
+      || (camposTipo.marcaDropdown ? campo(peca, camposTipo.marcaDropdown) : '')
+    // Normaliza p/ a grafia canônica do catálogo do app
+    // (TAURUS→Taurus, "Smith and Wesson"→"Smith & Wesson", placeholders→"").
+    entry.brand            = normalizarMarcaGdl(marcaBruta)
     entry.model            = campo(peca, '$ctl03$txtField')
     const capacidadeGdl    = campo(peca, '$ctl04$txtField')
     if (tipo === 'REVÓLVER') {
@@ -174,11 +184,33 @@ export function mapearRepGdl(dados: RepGdlData): RepMapeada {
     } else {
       entry.capacidadeCarregador = capacidadeGdl
     }
-    const serialStatusGdl  = campo(peca, '$ctl06$ddlField')
-    if (serialStatusGdl) entry.serialEstado = serialStatusGdl.toUpperCase()
-    const paisGdl          = campo(peca, '$ctl10$ddlField')
-    if (paisGdl) entry.paisFabricacao = paisGdl.toUpperCase()
+    // Status do Número de Série (índice varia por tipo; no revólver é ctl05, não ctl06).
+    // Guardado aqui e aplicado adiante junto com tipoProd (INDUSTRIAL) e o número.
+    const statusSerieGdl   = camposTipo.statusSerie ? campo(peca, camposTipo.statusSerie) : ''
+    const serialEstadoApp  = normalizarStatusSerieGdl(statusSerieGdl)
+    // País no GDL é adjetivo ("brasileira") → substantivo do app ("Brasil").
+    // Lê o campo correto por tipo (fallback ctl10). Ignora placeholders/lixo.
+    const paisGdl          = normalizarPaisGdl(campo(peca, camposTipo.pais ?? '$ctl10$ddlField'))
+    if (paisGdl) entry.paisFabricacao = paisGdl
     entry.quantidade       = campo(peca, '$txtQtdeColorParts')
+
+    // Calibre: o dropdown "Calibre Nominal" (quando preenchido pelo perito) é
+    // autoritativo e sobrepõe o calibre extraído do texto da identificação.
+    if (camposTipo.calibreDropdown) {
+      const calDrop = calibreDoDropdown(campo(peca, camposTipo.calibreDropdown))
+      if (calDrop) entry.caliber = calDrop
+    }
+    // "Tipo Acabamento" do GDL → "Material e acabamento do quadro" do app.
+    if (camposTipo.acabamento) {
+      const acab = normalizarAcabamentoGdl(campo(peca, camposTipo.acabamento))
+      if (acab) entry.materialQuadro = acab
+    }
+    // "Funcionamento" do GDL → Exame de disparo (apto para disparo):
+    // Eficiente → apta; Ineficiente → não apta; "Não testado"/vazio → não altera.
+    if (camposTipo.funcionamento) {
+      const apto = funcionamentoParaApto(campo(peca, camposTipo.funcionamento))
+      if (apto !== undefined) entry.aptoDisparo = apto
+    }
 
     // Para tipos sem campo "Modelo" separado no web app (ARMA DE PRESSÃO, ESTOJO, CARTUCHO,
     // ESPOLETA, CARREGADOR, FACA), a Identificação exibida no web app é o campo 'model'.
@@ -194,11 +226,24 @@ export function mapearRepGdl(dados: RepGdlData): RepMapeada {
     if (tipo === 'CARTUCHO' && entry.quantidade) entry.estadoCartucho = 'ÍNTEGRO'
     if (tipo === 'ESTOJO'   && entry.quantidade) entry.estadoEstojo   = 'ÍNTEGRO'
 
-    // Arma de fogo com número de série preenchido → industrial + legível
+    // Arma de fogo: o número de série no app só aparece após escolher
+    // tipoProd = INDUSTRIAL e o estado do serial. No GDL, ter "Status do Número de
+    // Série" preenchido (ou um número) indica arma industrial (numeração de fábrica).
+    // Então: status do GDL OU número presente ⇒ INDUSTRIAL; o estado vem do status
+    // do GDL (LEGÍVEL/PARCIAL/SUPRIMIDO/NÃO APARENTE); se não veio status mas há
+    // número, assume LEGÍVEL para o campo do número aparecer.
     const ARMAS_FOGO: typeof tipo[] = ['REVÓLVER','PISTOLA','ESPINGARDA','CARABINA','FUZIL','METRALHADORA','ARMA DE PRESSÃO','ARMA DE ANTECARGA']
-    if (ARMAS_FOGO.includes(tipo) && entry.serial) {
-      entry.tipoProd     = 'INDUSTRIAL'
-      entry.serialEstado = 'LEGÍVEL'
+    if (ARMAS_FOGO.includes(tipo)) {
+      if (serialEstadoApp || entry.serial) entry.tipoProd = 'INDUSTRIAL'
+      if (serialEstadoApp)      entry.serialEstado = serialEstadoApp
+      else if (entry.serial)    entry.serialEstado = 'LEGÍVEL'
+      // Número com "?" (dígitos ilegíveis, ex.: "GC13??4" ou "????") → leitura PARCIAL.
+      // O "?" no número é sinal mais forte que o status; só rebaixa de LEGÍVEL,
+      // não mexe em SUPRIMIDO / NÃO APARENTE (que não têm número lido).
+      if (entry.serial && entry.serial.includes('?') &&
+          (entry.serialEstado === 'LEGÍVEL' || !entry.serialEstado)) {
+        entry.serialEstado = 'PARCIAL'
+      }
     }
 
     // Lacres (armazenados na própria peça)
@@ -211,7 +256,12 @@ export function mapearRepGdl(dados: RepGdlData): RepMapeada {
     entry.dataLiberacaoPeca = campo(peca, '$txtDtaLiberationParts') || entry.dataLiberacaoPeca
     entry.unidadeMedida     = campo(peca, '$ddlDimensionParts')
     entry.consumidaExame    = campo(peca, '$ddlItemsConsumedExaminationParts')
-    entry.observacaoPeca    = campo(peca, '$txtObservation')
+    // Descrição da peça: no GDL vem em "Quant. Descrição" (txtQtdeDescColorParts) e/ou
+    // "Observação" (txtObservation), normalmente com o mesmo texto. Mescla sem duplicar.
+    entry.observacaoPeca    = mesclarDescricaoGdl(
+      campo(peca, '$txtQtdeDescColorParts'),
+      campo(peca, '$txtObservation'),
+    )
 
     pecas.push(entry)
     lacres.push({
