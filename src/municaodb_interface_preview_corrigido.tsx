@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import logoEscudo from "./assets/logo-escudo.png"
 import {
   AlertCircle,
   BookOpen,
   Building2,
+  Hospital,
   Calendar,
   Camera,
   CheckCircle2,
@@ -128,7 +129,19 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [modoEdicao, setModoEdicao] = useState(false)
   // Quando o exame foi aberto via "Importar do GDL" — só nesse modo aparece o Buscar (importar do GDL).
   const [modoImportarGdl, setModoImportarGdl] = useState(false)
-  const [activeSection, setActiveSection] = useState<Section>("exames")
+  // Seção (aba) atual — restaurada do localStorage p/ reabrir na última tela em que
+  // o usuário estava (ex.: após o celular desligar / recarregar a página).
+  const [activeSection, setActiveSection] = useState<Section>(() => {
+    const validas: Section[] = ["inicio", "exames", "registros", "importar", "sincronizar", "dados"]
+    if (typeof localStorage !== "undefined") {
+      const salvo = localStorage.getItem("activeSection") as Section | null
+      if (salvo && validas.includes(salvo)) return salvo
+    }
+    return "exames"
+  })
+  useEffect(() => {
+    if (typeof localStorage !== "undefined") localStorage.setItem("activeSection", activeSection)
+  }, [activeSection])
   const [nomePerito, setNomePerito] = useState("Perito responsável")
 
   // Busca nome do perito logado para preencher o campo expert automaticamente
@@ -577,6 +590,27 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     </>
   )
 
+  // Estado geral da arma (GDL "Estado Geral da Arma": Bom / Regular / Ruim).
+  // Usado no topo da seção "Estado de conservação" das armas de fogo.
+  const renderEstadoGeralArma = () => (
+    <div className="mb-4">
+      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Estado geral da arma</label>
+      <div className="grid grid-cols-3 gap-2">
+        {(["Bom", "Regular", "Ruim"]).map(op => (
+          <button key={op} type="button"
+            onClick={() => setWeaponDirect("estadoGeralArma", activeWeapon?.estadoGeralArma === op ? "" : op)}
+            className={`rounded-xl border-2 py-2.5 text-xs font-black tracking-[0.08em] transition active:scale-[.97] ${
+              activeWeapon?.estadoGeralArma === op
+                ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a]"
+                : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+            }`}>
+            {op}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
   // Índice único da peça sendo editada (para chaves de foto por peça)
   const currentPhotoIdx = editingPieceIdx ?? savedPieces.length
   const getEffectivePhotoIdx = (idx: number) => photoSyncMap[idx] ?? idx
@@ -991,6 +1025,29 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     await recarregarLista()
   }
 
+  // Retoma o exame em edição ao recarregar a página: se o id restaurado do
+  // localStorage tiver conteúdo salvo (nº, peças ou fotos), reabre-o.
+  const _exameRetomado = useRef(false)
+  useEffect(() => {
+    if (_exameRetomado.current) return
+    _exameRetomado.current = true
+    const secaoRestaurada = activeSection // valor vindo do localStorage nesta 1ª render
+    ;(async () => {
+      const completo = await buscarLaudoCompleto(laudoLocalId)
+      if (!completo) return
+      const temConteudo =
+        !!completo.laudo.examNumber?.trim() ||
+        completo.armas.length > 0 ||
+        completo.fotosDoLaudo.length > 0
+      if (temConteudo) {
+        await handleEditarLaudo(laudoLocalId)
+        // handleEditarLaudo força "exames"; volta p/ a última seção que o usuário via.
+        setActiveSection(secaoRestaurada)
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const resetPieceForm = () => {
     setWeaponType(null)
     setWeapons([])
@@ -1120,7 +1177,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     resetPieceForm()
   }
 
-  const openEditPiece = (idx: number) => {
+  const openEditPiece = async (idx: number) => {
     const piece = savedPieces[idx]
     setEditingPieceIdx(idx)
     setWeaponType(piece.type)
@@ -1129,6 +1186,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setLacreNumero(piece.lacreEntradaPeca ?? "")
     setLacreSaidaNumero(piece.lacreSaidaPeca ?? "")
     setPieceFormOpen(true)
+    // Recarrega as fotos do banco: salvarPeça → resetPieceForm limpa o photoUrls,
+    // então ao reabrir a peça as fotos (série, lacre, físicas) precisam voltar do DB.
+    const fotos = await db.fotos.where("laudoLocalId").equals(laudoLocalId).toArray()
+    setPhotoUrls(prev => {
+      const next = new Map(prev)
+      for (const f of fotos) if (!f.armaLocalId) next.set(f.slotLabel, f.imagemBase64)
+      return next
+    })
   }
 
   const removeSavedPiece = (idx: number) => {
@@ -3057,22 +3122,28 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         "OUTRO":           "Origem de coleta do item",
                       }
                       const label = origemLabel[activeWeapon?.type as WeaponType] ?? "Origem"
+                      const _origemArmaFogo = (["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR","ARMA DE PRESSÃO","ARMA DE ANTECARGA","ARMA DE CHOQUE"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
+                      const origemOpts = _origemArmaFogo
+                        ? [
+                            { id: "DELEGACIA", label: "Delegacia", Icon: Building2 },
+                            { id: "LOCAL",     label: "Local",     Icon: MapPin    },
+                          ]
+                        : [
+                            { id: "DELEGACIA", label: "Delegacia", Icon: Building2  },
+                            { id: "LOCAL",     label: "Local",     Icon: MapPin     },
+                            { id: "NECROPSIA", label: "Necropsia", Icon: Microscope },
+                            // ESTOJO e PROJÉTIL têm "ORIGEM/COLETA" no GDL c/ Hospital.
+                            ...((["ESTOJO","PROJÉTIL"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
+                              ? [{ id: "HOSPITAL", label: "Hospital", Icon: Hospital }]
+                              : []),
+                          ]
+                      // 4 botões → 2 colunas (2×2 fica equilibrado no celular); 2 → 2 col.; 3 → 3 col.
+                      const origemCols = origemOpts.length === 3 ? "grid-cols-3" : "grid-cols-2"
                       return (
                         <div className="rounded-2xl border border-[#d3c4a8] bg-white px-4 py-4 shadow-sm">
                           <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8d7854]">{label}</div>
-                          <div className={`grid gap-2 ${(["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR","ARMA DE PRESSÃO","ARMA DE ANTECARGA","ARMA DE CHOQUE"] as WeaponType[]).includes(activeWeapon?.type as WeaponType) ? "grid-cols-2" : "grid-cols-3"}`}>
-                            {(
-                              (["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","PÓLVORA","ESPOLETA","CARREGADOR","ARMA DE PRESSÃO","ARMA DE ANTECARGA","ARMA DE CHOQUE"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
-                                ? [
-                                    { id: "DELEGACIA", label: "Delegacia", Icon: Building2 },
-                                    { id: "LOCAL",     label: "Local",     Icon: MapPin    },
-                                  ]
-                                : [
-                                    { id: "DELEGACIA", label: "Delegacia", Icon: Building2  },
-                                    { id: "LOCAL",     label: "Local",     Icon: MapPin     },
-                                    { id: "NECROPSIA", label: "Necropsia", Icon: Microscope },
-                                  ]
-                            ).map(({ id, label, Icon }) => {
+                          <div className={`grid gap-2 ${origemCols}`}>
+                            {origemOpts.map(({ id, label, Icon }) => {
                               const active = activeWeapon?.origemProjetil === id
                               return (
                                 <button
@@ -3112,6 +3183,17 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                   placeholder="Ex.: Interior do imóvel (#3)"
                                 />
                               </div>
+                            </div>
+                          )}
+                          {activeWeapon?.origemProjetil === "HOSPITAL" && (
+                            <div className="mt-3 border-t border-[#ede3ce] pt-3">
+                              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Nome do hospital</label>
+                              <input
+                                value={String(activeWeapon?.origemProjetilRef ?? "")}
+                                onChange={handleWeaponField("origemProjetilRef" as keyof Omit<WeaponEntry,"type">)}
+                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
+                                placeholder="Ex.: Hospital Municipal de Umuarama"
+                              />
                             </div>
                           )}
                           {activeWeapon?.type === "CARTUCHO" && (
@@ -3258,7 +3340,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               <div className="mt-3">
                                 <LacreInput
                                   label="Número de série"
-                                  slotKey={`serie-${effectivePhotoIdx}`}
+                                  slotKey={`piece-${effectivePhotoIdx}-Numeração de série`}
+                                  singlePhoto
                                   value={activeWeapon?.serial ?? ""}
                                   onChange={v => setWeaponDirect("serial" as any, v)}
                                   allPhotoUrls={photoUrls}
@@ -3751,6 +3834,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </CollapsibleCard>
 
                       <CollapsibleCard title="Estado de conservação">
+                        {renderEstadoGeralArma()}
                         <div className="space-y-3">
                           {([
                             ["ferrugem",       "ferrugemObs",       "Presença de ferrugem"],
@@ -3958,6 +4042,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </CollapsibleCard>
 
                       <CollapsibleCard title="Estado de conservação">
+                        {renderEstadoGeralArma()}
                         <div className="space-y-3">
                           {([
                             ["ferrugem",        "ferrugemObs",         "Presença de ferrugem"],
@@ -4165,6 +4250,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </CollapsibleCard>
 
                       <CollapsibleCard title="Estado de conservação">
+                        {renderEstadoGeralArma()}
                         <div className="space-y-3">
                           {([
                             ["ferrugem",        "ferrugemObs",         "Presença de ferrugem"],
@@ -4338,6 +4424,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       </CollapsibleCard>
                       <CollapsibleCard title="Estado de conservação">
+                        {renderEstadoGeralArma()}
                         <div className="space-y-3">
                           {([
                             ["ferrugem",        "ferrugemObs",         "Presença de ferrugem"],
@@ -4544,6 +4631,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       </CollapsibleCard>
                       <CollapsibleCard title="Estado de conservação">
+                        {renderEstadoGeralArma()}
                         <div className="space-y-3">
                           {([
                             ["ferrugem",        "ferrugemObs",         "Presença de ferrugem"],
@@ -4751,6 +4839,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       </CollapsibleCard>
                       <CollapsibleCard title="Estado de conservação">
+                        {renderEstadoGeralArma()}
                         <div className="space-y-3">
                           {([
                             ["ferrugem",        "ferrugemObs",         "Presença de ferrugem"],
@@ -4903,6 +4992,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       </CollapsibleCard>
                       <CollapsibleCard title="Estado de conservação">
+                        {renderEstadoGeralArma()}
                         <div className="grid gap-3 sm:grid-cols-2">
                           {([
                             ["ferrugem",          "Ferrugem presente"],
@@ -5009,6 +5099,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </CollapsibleCard>
 
                       <CollapsibleCard title="Estado de conservação">
+                        {renderEstadoGeralArma()}
                         <div className="grid gap-3 sm:grid-cols-2">
                           {([
                             ["completo", "Projétil íntegro / completo"],
@@ -5348,6 +5439,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </CollapsibleSection>
 
                       <CollapsibleCard title="Estado de conservação">
+                        {renderEstadoGeralArma()}
                         <div className="grid gap-3 sm:grid-cols-2">
                           {([
                             ["oxidacaoPresente", "Oxidação / umidade presente"],
@@ -5505,6 +5597,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       </CollapsibleSection>
                       <CollapsibleCard title="Estado de conservação">
+                        {renderEstadoGeralArma()}
                         <div className="grid gap-3 sm:grid-cols-2">
                           {([
                             ["completo", "Cartucho íntegro / completo"],
@@ -5598,6 +5691,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </CollapsibleCard>
 
                       <CollapsibleCard title="Estado de conservação">
+                        {renderEstadoGeralArma()}
                         <div className="space-y-3">
                           {([
                             ["ferrugem",       "ferrugemObs",       "Presença de ferrugem"],
@@ -5736,6 +5830,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </CollapsibleCard>
 
                       <CollapsibleCard title="Estado de conservação">
+                        {renderEstadoGeralArma()}
                         <div className="space-y-3">
                           {([
                             ["danoEstruturais","danoEstruturaisObs","Danos estruturais"],
@@ -5912,6 +6007,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       </CollapsibleSection>
                       <CollapsibleCard title="Estado de conservação">
+                        {renderEstadoGeralArma()}
                         <div className="space-y-3">
                           {([
                             ["ferrugem",      "ferrugemObs",      "Ferrugem presente"],
@@ -6007,7 +6103,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               <div className="mt-3">
                                 <LacreInput
                                   label="Número de série"
-                                  slotKey={`serie-${effectivePhotoIdx}`}
+                                  slotKey={`piece-${effectivePhotoIdx}-Numeração de série`}
+                                  singlePhoto
                                   value={activeWeapon?.serial ?? ""}
                                   onChange={v => setWeaponDirect("serial" as any, v)}
                                   allPhotoUrls={photoUrls}
@@ -6171,6 +6268,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       </CollapsibleSection>
                       <CollapsibleCard title="Estado de conservação">
+                        {renderEstadoGeralArma()}
                         <div className="space-y-3">
                           {([
                             ["ferrugem",       "ferrugemObs",       "Ferrugem presente"],
@@ -6284,7 +6382,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               <div className="mt-3">
                                 <LacreInput
                                   label="Número de série"
-                                  slotKey={`serie-${effectivePhotoIdx}`}
+                                  slotKey={`piece-${effectivePhotoIdx}-Numeração de série`}
+                                  singlePhoto
                                   value={activeWeapon?.serial ?? ""}
                                   onChange={v => setWeaponDirect("serial" as any, v)}
                                   allPhotoUrls={photoUrls}
@@ -6416,6 +6515,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       </CollapsibleSection>
                       <CollapsibleCard title="Estado de conservação">
+                        {renderEstadoGeralArma()}
                         <div className="space-y-3">
                           {([
                             ["ferrugem",       "ferrugemObs",       "Ferrugem / oxidação presente"],
@@ -7246,7 +7346,11 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       Imagens
                     </div>
                     {(() => {
-                      const piecePhotos = Array.from(photoUrls.entries()).filter(([k]) => k.startsWith(`piece-${effectivePhotoIdx}-`))
+                      // Numeração de série tem rótulo próprio no rodapé (como o lacre) —
+                      // sai da fileira sem nome para não duplicar.
+                      const serialKey = `piece-${effectivePhotoIdx}-Numeração de série`
+                      const serialPhoto = photoUrls.get(serialKey)
+                      const piecePhotos = Array.from(photoUrls.entries()).filter(([k]) => k.startsWith(`piece-${effectivePhotoIdx}-`) && k !== serialKey)
                       const lacrePhotos = Array.from(photoUrls.entries()).filter(([k]) => k.startsWith(`lacre-entrada-${effectivePhotoIdx}-`) || k.startsWith(`lacre-saida-${effectivePhotoIdx}-`))
                       return (
                         <div className="overflow-hidden rounded-2xl border-2 border-[#d3c4a8] bg-[#fbf8f3] shadow-sm">
@@ -7287,8 +7391,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             )}
                           </button>
 
-                          {/* Rodapé — fotos de lacre com rótulos */}
-                          {lacrePhotos.length > 0 && (
+                          {/* Rodapé — fotos com rótulo (lacre e numeração de série) */}
+                          {(lacrePhotos.length > 0 || serialPhoto) && (
                             <div className="flex items-center gap-3 border-t border-[#e8dfc8] bg-[#fdfaf5] px-4 py-2.5">
                               {lacrePhotos.map(([k, url]) => (
                                 <button key={k} type="button" onClick={() => setViewerPhoto(url)} className="flex shrink-0 flex-col items-center gap-1">
@@ -7298,6 +7402,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                   </span>
                                 </button>
                               ))}
+                              {serialPhoto && (
+                                <button type="button" onClick={() => setViewerPhoto(serialPhoto)} className="flex shrink-0 flex-col items-center gap-1">
+                                  <img src={serialPhoto} alt="numeração de série" className="h-9 w-9 rounded-lg border border-[#c8b47e] object-cover shadow-sm" />
+                                  <span className="text-[9px] font-black uppercase tracking-[0.1em] text-[#8d7854]">
+                                    N. de série
+                                  </span>
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>

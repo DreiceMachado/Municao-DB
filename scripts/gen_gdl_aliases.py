@@ -154,6 +154,18 @@ for a in app_mun:
     elif a in MUNICAO_CURADO:
         municao_app_para_gdl[a] = MUNICAO_CURADO[a]
 
+# ── Marca de munição: GDL -> app (importação) ──
+municao_gdl_para_app = {}
+for g in marca_cart_gdl:
+    if g == "Não Aparente":
+        municao_gdl_para_app[g] = ""            # não é marca
+    elif g == "S&B":
+        municao_gdl_para_app[g] = "Sellier & Bellot"
+    else:
+        # CBC/Federal/Winchester/PMC/Aguila já existem no app; FMFLB/SP são
+        # adicionados ao FABRICANTES_MUNICAO. Identidade nos dois casos.
+        municao_gdl_para_app[g] = g
+
 PLACEHOLDERS = ["Selecione", "Selecione um Tipo", "Não Aparente", "NÃO APARENTE",
                 "Eficiente", "Deficiente", "(Arma Artesanal)", "(Fabricante Desconhecido)"]
 
@@ -174,12 +186,18 @@ _ROLE = {
     "Estado Geral da Arma": "estadoGeral",
     "Status do Número de Série": "statusSerie",
     "Marca da Arma": "marcaDropdown",
+    "Marca de Cartucho": "marcaDropdown",   # munição usa este dropdown p/ a marca
     "Fabricação da Arma": "pais",
     "Tambor": "tambor",
+    "Resultado PSA": "resultadoPSA",
+    "ORIGEM/COLETA": "origemColeta",
+    # CheckBoxList "Institucional?" (mesmo grupo Indeterminado/NÃO/SIM em todo tipo).
+    "SIM": "institucionalSim",
+    "NÃO": "institucionalNao",
 }
 
 def _sufixo_ctl(name):
-    m = re.search(r"(\$ctl\d+\$(?:ddlField|txtField))$", name or "")
+    m = re.search(r"(\$ctl\d+\$(?:ddlField|txtField|ckbListField\$\d+))$", name or "")
     return m.group(1) if m else None
 
 CAMPOS_POR_TIPO = {}
@@ -251,6 +269,9 @@ export const PAIS_APP_PARA_GDL: Record<string, string> = {js(PAIS_APP_PARA_GDL)}
 
 // Marca de munição do app → dropdown de cartucho do GDL (só 9 opções). Usado no ENVIO.
 export const MARCA_MUNICAO_APP_PARA_GDL: Record<string, string> = {js(municao_app_para_gdl)}
+
+// Marca de munição do GDL → fabricante de munição do app. Usado na IMPORTAÇÃO.
+export const MARCA_MUNICAO_GDL_PARA_APP: Record<string, string> = {js(municao_gdl_para_app)}
 
 // Valores que o GDL devolve mas NÃO são marca/país reais (placeholders/estado que vazam de coluna).
 export const PLACEHOLDERS_GDL: string[] = {js(PLACEHOLDERS)}

@@ -4,9 +4,14 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n API,VITE,QR -c blue,green,cyan \"node --env-file=.env api.js\" \"vite\" \"node qr-dev.js\"",
+    "predev": "node scripts/bootstrap-infra.js",
+    "dev": "concurrently -n API,VITE,QR,NGROK -c blue,green,cyan,magenta \"node --env-file=.env api.js\" \"vite\" \"node qr-dev.js\" \"node --env-file=.env tunel.js\"",
+    "predev:cel": "node scripts/bootstrap-infra.js",
     "dev:cel": "concurrently -n API,VITE,NGROK -c blue,green,magenta \"node --env-file=.env api.js\" \"vite\" \"node --env-file=.env tunel-app.js\"",
+    "infra": "node scripts/bootstrap-infra.js",
     "cel": "vite build && concurrently -n API,APP,QR -c blue,green,cyan \"node --env-file=.env api.js\" \"vite preview\" \"node qr-dev.js\"",
+    "preweb": "node scripts/bootstrap-infra.js",
+    "web": "vite build && concurrently -n API,APP,NGROK -c blue,green,magenta \"node --env-file=.env api.js\" \"vite preview\" \"node --env-file=.env tunel-prod.js\"",
     "start": "node --env-file=.env server.js",
     "build": "tsc -b && vite build",
     "preview": "vite preview"

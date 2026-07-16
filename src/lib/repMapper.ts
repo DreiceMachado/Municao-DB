@@ -3,7 +3,9 @@ import { makeWeaponEntry } from '../data/constants'
 import {
   normalizarMarcaGdl, normalizarPaisGdl, extrairCalibre,
   camposDoTipo, normalizarAcabamentoGdl, funcionamentoParaApto, calibreDoDropdown,
-  normalizarStatusSerieGdl, mesclarDescricaoGdl,
+  normalizarStatusSerieGdl, mesclarDescricaoGdl, normalizarTamborGdl,
+  normalizarMarcaMunicaoGdl, normalizarOrigemGdl, normalizarResultadoPsaGdl,
+  institucionalGdl,
 } from './gdlNormaliza'
 
 export type RepGdlData = {
@@ -55,7 +57,10 @@ function mapTipo(gdlTipo: string): WeaponType | null {
   if (s.startsWith('ESPINGARDA'))                                                     return 'ESPINGARDA'
   if (s.startsWith('CARABINA'))                                                       return 'CARABINA'
   if (s.startsWith('FUZIL') || s.startsWith('FUZIS'))                                return 'FUZIL'
+  if (s.startsWith('SUBMETRALHADORA'))                                                return 'SUBMETRALHADORA'
   if (s.startsWith('METRALHADORA'))                                                   return 'METRALHADORA'
+  if (s.startsWith('GARRUCHA'))                                                       return 'GARRUCHA'
+  if (s.startsWith('PISTOLETE'))                                                      return 'PISTOLETE'
   if (s.startsWith('ESTOJO'))                                                         return 'ESTOJO'
   if (s.startsWith('PROJÉTIL') || s.startsWith('PROJETIL') ||
       s.startsWith('PROJÉTEIS') || s.startsWith('PROJETEIS'))                        return 'PROJÉTIL'
@@ -66,6 +71,9 @@ function mapTipo(gdlTipo: string): WeaponType | null {
   if (s.startsWith('PÓLVORA') || s.startsWith('POLVORA'))                            return 'PÓLVORA'
   if (s.startsWith('ESPOLETA'))                                                       return 'ESPOLETA'
   if (s.startsWith('CARREGADOR'))                                                     return 'CARREGADOR'
+  if (s.includes('JET LOADER'))                                                       return 'CARREGADOR'   // speedloader → carregador
+  if (s.includes('CHOQUE'))                                                           return 'ARMA DE CHOQUE'
+  if (s.startsWith('OUTRO'))                                                          return 'OUTRO'
   return null
 }
 
@@ -170,13 +178,16 @@ export function mapearRepGdl(dados: RepGdlData): RepMapeada {
     entry.caliber          = extrairCalibre(identificacao, tipo)
     entry.serial           = campo(peca, '$ctl01$txtField')
     // Marca: o perito pode preencher o campo texto "Marca" (ctl02) OU o dropdown
-    // "Marca da Arma" (índice varia por tipo). Usa o texto; se vazio, cai no dropdown.
+    // "Marca da Arma"/"Marca de Cartucho" (índice varia por tipo). Usa o texto; se
+    // vazio, cai no dropdown.
     const camposTipo       = camposDoTipo(tipoGdl)
+    const MUNICAO: typeof tipo[] = ['ESTOJO','CARTUCHO','CARREGADOR','ESPOLETA','PÓLVORA']
     const marcaBruta       = campo(peca, '$ctl02$txtField')
       || (camposTipo.marcaDropdown ? campo(peca, camposTipo.marcaDropdown) : '')
-    // Normaliza p/ a grafia canônica do catálogo do app
-    // (TAURUS→Taurus, "Smith and Wesson"→"Smith & Wesson", placeholders→"").
-    entry.brand            = normalizarMarcaGdl(marcaBruta)
+    // Munição usa o catálogo de fabricantes de munição; armas usam o catálogo de armas.
+    entry.brand            = MUNICAO.includes(tipo)
+      ? normalizarMarcaMunicaoGdl(marcaBruta)
+      : normalizarMarcaGdl(marcaBruta)
     entry.model            = campo(peca, '$ctl03$txtField')
     const capacidadeGdl    = campo(peca, '$ctl04$txtField')
     if (tipo === 'REVÓLVER') {
@@ -210,6 +221,39 @@ export function mapearRepGdl(dados: RepGdlData): RepMapeada {
     if (camposTipo.funcionamento) {
       const apto = funcionamentoParaApto(campo(peca, camposTipo.funcionamento))
       if (apto !== undefined) entry.aptoDisparo = apto
+    }
+    // "Tambor" do GDL ("reversível para a esquerda/direita") → Rebatimento do tambor
+    // no app ("Esquerda"/"Direita"). Só existe em revólver.
+    if (camposTipo.tambor) {
+      const reb = normalizarTamborGdl(campo(peca, camposTipo.tambor))
+      if (reb) entry.rebatimentoTambor = reb
+    }
+    // "Estado Geral da Arma" do GDL (Bom/Regular/Ruim) → estado de conservação no app.
+    if (camposTipo.estadoGeral) {
+      const eg = campo(peca, camposTipo.estadoGeral).trim()
+      if (eg === 'Bom' || eg === 'Regular' || eg === 'Ruim') entry.estadoGeralArma = eg
+    }
+    // "ORIGEM/COLETA" do GDL → Origem de coleta (DELEGACIA/LOCAL/NECROPSIA/HOSPITAL/OUTRO).
+    if (camposTipo.origemColeta) {
+      const orig = normalizarOrigemGdl(campo(peca, camposTipo.origemColeta))
+      if (orig) entry.origemProjetil = orig
+    }
+    // "Resultado PSA" do GDL (tipo OUTRO) → resultadoPSA (NEGATIVO/POSITIVO/POSITIVO FRACO).
+    if (camposTipo.resultadoPSA) {
+      const psa = normalizarResultadoPsaGdl(campo(peca, camposTipo.resultadoPSA))
+      if (psa) entry.resultadoPSA = psa
+    }
+    // "Código do Vestígio" do GDL → codigoVestigio (texto livre).
+    const codVestigio = campo(peca, '$txtTraceCodeParts')
+    if (codVestigio) entry.codigoVestigio = codVestigio
+    // "Institucional?" (CheckBoxList do GDL) → vínculo da arma.
+    // SIM → Institucional (true); NÃO → Particular (false); Indeterminado → não define.
+    if (camposTipo.institucionalSim || camposTipo.institucionalNao) {
+      const inst = institucionalGdl(
+        camposTipo.institucionalSim ? campo(peca, camposTipo.institucionalSim) : '',
+        camposTipo.institucionalNao ? campo(peca, camposTipo.institucionalNao) : '',
+      )
+      if (inst !== null) entry.institucional = inst
     }
 
     // Para tipos sem campo "Modelo" separado no web app (ARMA DE PRESSÃO, ESTOJO, CARTUCHO,

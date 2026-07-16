@@ -20,10 +20,13 @@ type Props = {
   help?: React.ReactNode
   // Se informado, mostra fotos rotuladas (ex.: Frente, Verso, Lacre) em vez da câmera genérica
   photoSlots?: { sub: string; label: string }[]
+  // Foto ÚNICA guardada na chave exata `slotKey` (sem sufixo -0/-1). Usado p/ o número
+  // de série casar com o slot do "Adicionar fotos" (PhotoSlot, chave única).
+  singlePhoto?: boolean
 }
 
 export function LacreInput({
-  label, slotKey, value, onChange, allPhotoUrls, onCapture, onRemove, onView, placeholder, gdlRequired, help, photoSlots,
+  label, slotKey, value, onChange, allPhotoUrls, onCapture, onRemove, onView, placeholder, gdlRequired, help, photoSlots, singlePhoto,
 }: Props) {
   const cameraRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
@@ -33,14 +36,20 @@ export function LacreInput({
   const [editorSrc, setEditorSrc] = useState<string | null>(null)
   const [editorKey, setEditorKey] = useState<string | null>(null)
 
-  const photos = Array.from(allPhotoUrls.entries()).filter(([k]) => k.startsWith(slotKey + "-"))
-  const canAdd = photos.length < MAX_PHOTOS
+  // Modo singlePhoto: a foto fica na chave EXATA slotKey (casa com o PhotoSlot do
+  // "Adicionar fotos"). Modo normal: múltiplas fotos com sufixo `slotKey-0/1/...`.
+  const photos: [string, string][] = singlePhoto
+    ? (allPhotoUrls.has(slotKey) ? [[slotKey, allPhotoUrls.get(slotKey)!]] : [])
+    : Array.from(allPhotoUrls.entries()).filter(([k]) => k.startsWith(slotKey + "-"))
+  const maxPhotos = singlePhoto ? 1 : MAX_PHOTOS
+  const canAdd = photos.length < maxPhotos
   // Quantas fotos rotuladas já foram preenchidas (modo photoSlots)
   const filledCount = photoSlots
     ? photoSlots.filter(s => allPhotoUrls.has(`${slotKey}-${s.sub}`)).length
     : photos.length
 
   const getNextKey = () => {
+    if (singlePhoto) return slotKey
     let i = 0
     while (allPhotoUrls.has(`${slotKey}-${i}`)) i++
     return `${slotKey}-${i}`

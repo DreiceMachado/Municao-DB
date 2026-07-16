@@ -43,9 +43,26 @@ function laudoToRecordItem(l: Laudo): RecordItem {
   }
 }
 
+const LS_LAUDO_ATUAL = "laudoLocalIdAtual"
+
 export function useLaudoDb() {
-  // ID mutável — gerado ao montar e regerado após cada save
-  const [laudoLocalId, setLaudoLocalId] = useState(() => generateId())
+  // ID do exame em edição. Restaurado do localStorage para RETOMAR o exame após
+  // recarregar a página (senão um id novo era gerado a cada montagem e o exame
+  // em andamento "sumia"). Novo id só quando não há nada salvo.
+  const [laudoLocalId, setLaudoLocalId] = useState(() => {
+    if (typeof localStorage !== "undefined") {
+      const salvo = localStorage.getItem(LS_LAUDO_ATUAL)
+      if (salvo) return salvo
+    }
+    return generateId()
+  })
+
+  // Mantém o id em edição no localStorage para sobreviver ao recarregar.
+  useEffect(() => {
+    if (typeof localStorage !== "undefined" && laudoLocalId) {
+      localStorage.setItem(LS_LAUDO_ATUAL, laudoLocalId)
+    }
+  }, [laudoLocalId])
   const [laudos, setLaudos] = useState<RecordItem[]>([])
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 

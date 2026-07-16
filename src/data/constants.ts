@@ -94,7 +94,7 @@ export function makeWeaponEntry(type: WeaponType): WeaponEntry {
     acaoSimples: _naoPreenchido, acaoDupla: _naoPreenchido, tamborGira: _naoPreenchido, indexacaoCorreta: _naoPreenchido,
     caoFuncional: _naoPreenchido, gatilhoFuncional: _naoPreenchido, seguranca: _naoPreenchido,
     ferrugem: false, ferrugemObs: "", desgaste: false, desgasteObs: "",
-    danoEstruturais: false, danoEstruturaisObs: "", pecasFaltantes: false, pecasFaltantesObs: "",
+    danoEstruturais: false, danoEstruturaisObs: "", pecasFaltantes: false, pecasFaltantesObs: "", estadoGeralArma: "",
     aptoDisparo: _naoPreenchido, funcMunicaoReal: _naoPreenchido, testePercussao: _naoPreenchido, marcacaoPercussor: _naoPreenchido,
     tipoMunicaoDisparo: "", qtdMunicaoDisparo: "",
     sistemaRepeticao: _naoPreenchido, carregadorPresente: _naoPreenchido, carregadorFuncional: _naoPreenchido,
@@ -140,7 +140,7 @@ export function makeWeaponEntry(type: WeaponType): WeaponEntry {
 // Fabricantes de munição (estojo/cartucho) — usados no seletor de Fabricante.
 // Fonte: banco de headstamps MARCAS_INFO (identificação por base do estojo).
 export const FABRICANTES_MUNICAO: string[] = [
-  "CBC", "CBC (NTA)", "CBC VELOX", "IMBEL", "Magtech", "MGP", "MRP", "Federal", "Winchester",
+  "CBC", "CBC (NTA)", "CBC VELOX", "IMBEL", "Magtech", "MGP", "MRP", "FMFLB", "SP", "Federal", "Winchester",
   "Super X", "Remington", "Remington-Peters", "Remington-UMC", "Blazer", "CCI",
   "Cascade Industries", "Hornady", "Speer", "PMC", "Midway", "Rio Ammunition", "Star Line Brass",
   "Armscor Precision", "Lake City", "Western Cartridge", "Winchester Military Ammunition",

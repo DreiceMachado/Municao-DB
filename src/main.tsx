@@ -10,6 +10,18 @@ function App() {
   // null = ainda verificando sessão | true = logado | false = deslogado
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null)
 
+  // Pede armazenamento PERSISTENTE ao navegador: sem isso os dados locais
+  // (fotos, laudos em IndexedDB) são "descartáveis" e o navegador pode apagá-los
+  // quando o dispositivo fica sem espaço. Com persist(), eles só somem se o
+  // usuário limpar manualmente os dados do site.
+  useEffect(() => {
+    if (navigator.storage?.persist) {
+      navigator.storage.persisted().then((jaPersistente) => {
+        if (!jaPersistente) navigator.storage.persist().catch(() => {})
+      }).catch(() => {})
+    }
+  }, [])
+
   useEffect(() => {
     if (!supabaseAtivo || !supabase) {
       // Sem Supabase configurado — modo offline, entra direto

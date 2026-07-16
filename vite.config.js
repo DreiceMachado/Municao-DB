@@ -18,6 +18,14 @@ export default defineConfig(({ command }) => ({
                 proxyTimeout: 600000, // 10 min — igual ao backend (api.js), Python pode demorar
                 timeout: 600000,
             },
+            // Repassa o banco (Supabase/Kong) pelo MESMO endereço do app, em /db.
+            // Assim, com VITE_SUPABASE_URL=@origin, tudo sai por um link só (ngrok).
+            '/db': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                ws: true,
+                rewrite: (p) => p.replace(/^\/db/, ''),
+            },
         },
     },
     // "preview" serve o BUNDLE de produção (rápido no celular, ao contrário do dev
@@ -32,6 +40,13 @@ export default defineConfig(({ command }) => ({
                 changeOrigin: true,
                 proxyTimeout: 600000,
                 timeout: 600000,
+            },
+            // Idem ao dev: banco em /db, para o modo "web" (acesso pela internet).
+            '/db': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                ws: true,
+                rewrite: (p) => p.replace(/^\/db/, ''),
             },
         },
     },

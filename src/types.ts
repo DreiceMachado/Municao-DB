@@ -64,6 +64,7 @@ export type WeaponEntry = {
   danoEstruturaisObs: string
   pecasFaltantes: boolean
   pecasFaltantesObs: string
+  estadoGeralArma: string       // GDL "Estado Geral da Arma": Bom / Regular / Ruim
   // 5. Exame de disparo (revólver)
   aptoDisparo: boolean
   funcMunicaoReal: boolean

@@ -350,6 +350,19 @@ export const MARCA_MUNICAO_APP_PARA_GDL: Record<string, string> = {
   "Sellier & Bellot": "S&B"
 }
 
+// Marca de munição do GDL → fabricante de munição do app. Usado na IMPORTAÇÃO.
+export const MARCA_MUNICAO_GDL_PARA_APP: Record<string, string> = {
+  "Aguila": "Aguila",
+  "CBC": "CBC",
+  "Federal": "Federal",
+  "FMFLB": "FMFLB",
+  "Não Aparente": "",
+  "PMC": "PMC",
+  "S&B": "Sellier & Bellot",
+  "SP": "SP",
+  "Winchester": "Winchester"
+}
+
 // Valores que o GDL devolve mas NÃO são marca/país reais (placeholders/estado que vazam de coluna).
 export const PLACEHOLDERS_GDL: string[] = [
   "Selecione",
@@ -425,9 +438,12 @@ export const CAMPOS_GDL_POR_TIPO: Record<string, Record<string, string>> = {
     "acabamento": "$ctl07$ddlField",
     "estadoGeral": "$ctl08$ddlField",
     "funcionamento": "$ctl09$ddlField",
-    "pais": "$ctl10$ddlField"
+    "pais": "$ctl10$ddlField",
+    "institucionalNao": "$ctl11$ckbListField$1",
+    "institucionalSim": "$ctl11$ckbListField$2"
   },
   "CARTUCHO(S)": {
+    "marcaDropdown": "$ctl01$ddlField",
     "calibreDropdown": "$ctl02$ddlField"
   },
   "ESPINGARDA(S)": {
@@ -437,7 +453,12 @@ export const CAMPOS_GDL_POR_TIPO: Record<string, Record<string, string>> = {
     "acabamento": "$ctl08$ddlField",
     "estadoGeral": "$ctl09$ddlField",
     "funcionamento": "$ctl10$ddlField",
-    "pais": "$ctl11$ddlField"
+    "pais": "$ctl11$ddlField",
+    "institucionalNao": "$ctl12$ckbListField$1",
+    "institucionalSim": "$ctl12$ckbListField$2"
+  },
+  "ESTOJO(S)": {
+    "origemColeta": "$ctl01$ddlField"
   },
   "FUZIL(IS)": {
     "marcaDropdown": "$ctl05$ddlField",
@@ -445,7 +466,9 @@ export const CAMPOS_GDL_POR_TIPO: Record<string, Record<string, string>> = {
     "acabamento": "$ctl07$ddlField",
     "estadoGeral": "$ctl08$ddlField",
     "funcionamento": "$ctl09$ddlField",
-    "pais": "$ctl10$ddlField"
+    "pais": "$ctl10$ddlField",
+    "institucionalNao": "$ctl11$ckbListField$1",
+    "institucionalSim": "$ctl11$ckbListField$2"
   },
   "GARRUCHA(S)": {
     "marcaDropdown": "$ctl05$ddlField",
@@ -453,14 +476,21 @@ export const CAMPOS_GDL_POR_TIPO: Record<string, Record<string, string>> = {
     "acabamento": "$ctl07$ddlField",
     "estadoGeral": "$ctl08$ddlField",
     "funcionamento": "$ctl09$ddlField",
-    "pais": "$ctl10$ddlField"
+    "pais": "$ctl10$ddlField",
+    "institucionalNao": "$ctl11$ckbListField$1",
+    "institucionalSim": "$ctl11$ckbListField$2"
   },
   "METRALHADORA(S)": {
     "marcaDropdown": "$ctl04$ddlField",
     "acabamento": "$ctl05$ddlField",
     "estadoGeral": "$ctl06$ddlField",
     "funcionamento": "$ctl07$ddlField",
-    "pais": "$ctl08$ddlField"
+    "pais": "$ctl08$ddlField",
+    "institucionalNao": "$ctl09$ckbListField$1",
+    "institucionalSim": "$ctl09$ckbListField$2"
+  },
+  "OUTROS": {
+    "resultadoPSA": "$ctl01$ddlField"
   },
   "PISTOLA(S)": {
     "marcaDropdown": "$ctl05$ddlField",
@@ -469,7 +499,12 @@ export const CAMPOS_GDL_POR_TIPO: Record<string, Record<string, string>> = {
     "acabamento": "$ctl08$ddlField",
     "estadoGeral": "$ctl09$ddlField",
     "funcionamento": "$ctl10$ddlField",
-    "pais": "$ctl11$ddlField"
+    "pais": "$ctl11$ddlField",
+    "institucionalNao": "$ctl12$ckbListField$1",
+    "institucionalSim": "$ctl12$ckbListField$2"
+  },
+  "PROJÉTEIS": {
+    "origemColeta": "$ctl01$ddlField"
   },
   "REVÓLVER(ES)": {
     "marcaDropdown": "$ctl04$ddlField",
@@ -479,7 +514,9 @@ export const CAMPOS_GDL_POR_TIPO: Record<string, Record<string, string>> = {
     "estadoGeral": "$ctl08$ddlField",
     "funcionamento": "$ctl09$ddlField",
     "pais": "$ctl10$ddlField",
-    "tambor": "$ctl11$ddlField"
+    "tambor": "$ctl11$ddlField",
+    "institucionalNao": "$ctl12$ckbListField$1",
+    "institucionalSim": "$ctl12$ckbListField$2"
   },
   "SUBMETRALHADORA(S)": {
     "marcaDropdown": "$ctl05$ddlField",
@@ -487,7 +524,9 @@ export const CAMPOS_GDL_POR_TIPO: Record<string, Record<string, string>> = {
     "acabamento": "$ctl07$ddlField",
     "estadoGeral": "$ctl08$ddlField",
     "funcionamento": "$ctl09$ddlField",
-    "pais": "$ctl10$ddlField"
+    "pais": "$ctl10$ddlField",
+    "institucionalNao": "$ctl11$ckbListField$1",
+    "institucionalSim": "$ctl11$ckbListField$2"
   }
 }
 

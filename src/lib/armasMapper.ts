@@ -66,12 +66,20 @@ export function pecaPayload(
     tipo:               d.type,
     ordem,
     destinacao:         enumOrNull(d.destinacao, DESTINACOES),
+    id_peca:            s(d.idPeca),
     // Munições (ESTOJO/CARTUCHO/CARREGADOR) guardam a identificação/headstamp no
     // campo `model`; armas de fogo usam `identificacao`. Faz o fallback p/ não perder o dado.
     identificacao:      s(d.identificacao) ?? s(d.model),
     quantidade:         s(d.quantidade),
     lacre_entrada_peca: s(d.lacreEntradaPeca),
     lacre_saida_peca:   s(d.lacreSaidaPeca) ?? s(d.coletaLacreSaida),
+    data_entrada_peca:  s(d.dataEntradaPeca),
+    data_liberacao_peca: s(d.dataLiberacaoPeca),
+    // Descrição da peça (rótulo "Descrição" na UI; mescla "Quant. Descrição" +
+    // "Observação" do GDL). Antes se perdia no sync — coluna já existe em `pecas`.
+    observacao_peca:    s(d.observacaoPeca),
+    // Código do vestígio (GDL "Código do Vestígio") — nível de peça, todos os tipos.
+    codigo_vestigio:    s(d.codigoVestigio),
   }
 }
 
@@ -93,6 +101,7 @@ export function detalhePayload(
         serial_estado:       enumOrNull(d.serialEstado, SERIAL_ESTADOS),
         tipo_producao:       enumOrNull(d.tipoProd, TIPOS_PRODUCAO),
         pais_fabricacao:     s(d.paisFabricacao),
+        estado_geral:        s(d.estadoGeralArma),
         material:            s(d.material),
         acabamento:          s(d.acabamento),
         comp_cano:           s(d.compCano),
@@ -199,6 +208,10 @@ export function detalhePayload(
         estrias_presentes: b(d.estriasPresentes),
         oxidacao:          b(d.oxidacaoPresente),
         estado:            s(d.estadoEstojo),
+        // Origem de coleta (GDL "ORIGEM/COLETA": Delegacia/Local/Necrópsia/Hospital).
+        origem:            s(d.origemProjetil),
+        origem_ref:        s(d.origemProjetilRef),
+        regiao_coleta:     s(d.regiaoColeta),
       }
 
     case "cartuchos":

@@ -16,6 +16,7 @@ import {
   PAIS_GDL_PARA_APP,
   PAIS_APP_PARA_GDL,
   MARCA_MUNICAO_APP_PARA_GDL,
+  MARCA_MUNICAO_GDL_PARA_APP,
   PLACEHOLDERS_GDL,
   CALIBRES_GDL,
   CAMPOS_GDL_POR_TIPO,
@@ -64,6 +65,36 @@ export function marcaMunicaoAppParaGdl(marcaApp: string): string {
   const bruta = (marcaApp ?? "").trim()
   if (!bruta) return ""
   return MARCA_MUNICAO_APP_PARA_GDL[bruta] ?? bruta
+}
+
+// GDL "Marca de Cartucho" (Aguila/CBC/Federal/FMFLB/PMC/S&B/SP/Winchester) →
+// fabricante de munição do app. "Não Aparente"/placeholder → "".
+export function normalizarMarcaMunicaoGdl(marcaGdl: string): string {
+  const bruta = (marcaGdl ?? "").trim()
+  if (!bruta || ehPlaceholderGdl(bruta)) return ""
+  return MARCA_MUNICAO_GDL_PARA_APP[bruta] ?? bruta
+}
+
+// GDL "ORIGEM/COLETA" → origem de coleta do app (id do botão).
+const ORIGEM_GDL_PARA_APP: Record<string, string> = {
+  "delegacia": "DELEGACIA",
+  "hospital": "HOSPITAL",
+  "local de crime": "LOCAL",
+  "necropsia": "NECROPSIA",
+  // "Outro" do GDL não tem botão no app → fica sem marcar (retorna "").
+}
+export function normalizarOrigemGdl(origemGdl: string): string {
+  const bruta = (origemGdl ?? "").trim()
+  if (!bruta || ehPlaceholderGdl(bruta)) return ""
+  return ORIGEM_GDL_PARA_APP[normChave(bruta)] ?? ""
+}
+
+// GDL "Resultado PSA" (NEGATIVO/POSITIVO/POSITIVO FRACO) → resultadoPSA do app
+// (valores idênticos). Placeholder/vazio → "".
+export function normalizarResultadoPsaGdl(valor: string): string {
+  const v = (valor ?? "").trim()
+  if (!v || ehPlaceholderGdl(v)) return ""
+  return v.toUpperCase()
 }
 
 // Tipos de munição usam o dropdown de "Marca de Cartucho" do GDL (só 9 opções),
@@ -272,6 +303,18 @@ function normCalibre(s: string): string {
 export type CamposGdl = {
   acabamento?: string; funcionamento?: string; calibreDropdown?: string
   statusSerie?: string; marcaDropdown?: string; pais?: string; tambor?: string
+  estadoGeral?: string; origemColeta?: string; resultadoPSA?: string
+  institucionalSim?: string; institucionalNao?: string
+}
+
+// CheckBoxList "Institucional?" do GDL → vínculo da arma no app.
+// O leitor grava 'Sim' no checkbox MARCADO (e 'Não' no desmarcado).
+//   SIM marcado → true (Institucional) · NÃO marcado → false (Particular)
+//   Indeterminado/nenhum → null (não define)
+export function institucionalGdl(simCheckbox: string, naoCheckbox: string): boolean | null {
+  if ((simCheckbox ?? "").trim() === "Sim") return true
+  if ((naoCheckbox ?? "").trim() === "Sim") return false
+  return null
 }
 
 // GDL "Status do Número de Série" → estado do serial no app.
@@ -288,6 +331,18 @@ const STATUS_SERIE_GDL_PARA_APP: Record<string, string> = {
 }
 export function normalizarStatusSerieGdl(valor: string): string {
   return STATUS_SERIE_GDL_PARA_APP[normChave((valor ?? "").trim())] ?? ""
+}
+
+// GDL "Tambor" ("reversível para a esquerda/direita") → rebatimento do tambor no app
+// ("Esquerda"/"Direita"). "Selecione"/vazio → "" (não marca). Inverso do export
+// em rep_client.py (_reb_map).
+export function normalizarTamborGdl(valor: string): string {
+  const v = (valor ?? "").trim()
+  if (!v || ehPlaceholderGdl(v)) return ""
+  const k = normChave(v)
+  if (k.includes("direita"))  return "Direita"
+  if (k.includes("esquerda")) return "Esquerda"
+  return ""
 }
 
 // Devolve o mapa de sufixos de control (ctlNN) para o tipo do GDL informado.
