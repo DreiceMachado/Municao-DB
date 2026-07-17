@@ -39,11 +39,39 @@ if (!token) {
   process.exit(1)
 }
 
-const listener = await ngrok.forward({
-  addr:      PORT,
-  authtoken: token,
-  domain:    DOMAIN,
-})
+// O plano free do ngrok aceita UM túnel por domínio. Se sobrou outra janela
+// aberta (WEB.bat, npm run web, npm run dev → tunel.js), o forward abaixo falha
+// e o processo morria em silêncio no meio da saída colorida do concurrently —
+// sem link, sem QR code, e sem pista do motivo. Explica o que houve.
+let listener
+try {
+  listener = await ngrok.forward({
+    addr:      PORT,
+    authtoken: token,
+    domain:    DOMAIN,
+  })
+} catch (erro) {
+  const msg = String(erro?.message ?? erro)
+  console.error('')
+  if (/already online|already bound|ERR_NGROK_(334|108)/i.test(msg)) {
+    console.error('  ERRO: o domínio do ngrok já está em uso por OUTRA janela.')
+    console.error('')
+    console.error(`     ${DOMAIN}`)
+    console.error('')
+    console.error('  O plano free permite só um túnel por domínio. Feche a outra janela')
+    console.error('  (Ctrl+C) e rode de novo. Para matar qualquer sobra, no PowerShell:')
+    console.error('')
+    console.error('     Get-CimInstance Win32_Process -Filter "Name=\'node.exe\'" |')
+    console.error('       Where-Object { $_.CommandLine -like "*tunel*" } |')
+    console.error('       ForEach-Object { Stop-Process -Id $_.ProcessId -Force }')
+  } else {
+    console.error('  ERRO ao abrir o túnel ngrok:')
+    console.error('')
+    console.error(`     ${msg}`)
+  }
+  console.error('')
+  process.exit(1)
+}
 
 const url      = listener.url() ?? `https://${DOMAIN}`
 const urlLocal = `http://${ipLocal()}:${PORT}/`
