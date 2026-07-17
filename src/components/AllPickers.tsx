@@ -895,7 +895,7 @@ export function AllPickers(props: PickersProps) {
             <motion.div className={sheetClass} {...sheetAnim}>
               <SheetHeader title="Tipo de raiamento do cano" onClose={() => close("tipoRaiamento")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {ordenarOpcoes(["Alma lisa (sem raiamento)","Raiamento convencional","Raiamento poligonal","Raiamento de campo e alvéolo","Microgroove (múltiplos raios)","Raiamento quadrado","Indeterminado"]).map((opt, idx, arr) => (
+                {ordenarOpcoes(["Alma lisa (sem raiamento)","Raiamento convencional","Raiamento poligonal","Raiamento de campo e alvéolo","Microgroove (múltiplos raios)","Raiamento quadrado","Híbrida/Combinada (canos de almas distintas)","Indeterminado"]).map((opt, idx, arr) => (
                   <PickerItem key={opt} label={opt} selected={weapon.tipoRaiamento === opt} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("tipoRaiamento", weapon.tipoRaiamento === opt ? "" : opt); close("tipoRaiamento") }} />
                 ))}

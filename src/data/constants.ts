@@ -113,6 +113,10 @@ export function makeWeaponEntry(type: WeaponType): WeaponEntry {
     gumeFuncional: _naoPreenchido, aptaUso: _naoPreenchido, laminaIntegra: _naoPreenchido,
     caboDanificado: false, manchas: false, manchasObs: "",
     sistemaAcionamento: "", tamanhoCamara: "", tipoRaiamento: "", materialQuadro: "", materialCoroha: "",
+    // Classificação técnica (6 eixos). Nascem vazios; derivarEixos() preenche.
+    almaCano: "", sistemaCarregamento: "", sistemaFuncionamento: "",
+    percussaoLocalizacao: "", percussaoTipoEspoleta: "", percussaoTransmissao: "",
+    percussaoMecanismo: "", alimentacaoTipo: "",
     institucional: null, inscricaoInstitucional: "", instituicao: "", naFlags: [], tipoProd: "", serialEstado: "", serialTentativaRevelacao: null, serialRevelacao: "", serialReveladoObs: "", quantidade: "", diametroMin: "", massa: "",
     origemProjetil: "", origemProjetilRef: "", regiaoColeta: "", deformacoesAcidentais: "", estadoProjetil: "", alturaProjetil: "",
     estadoCartucho: "", estadoEstojo: "",

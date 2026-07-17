@@ -1,6 +1,7 @@
 import { useCallback } from "react"
 import type { WeaponEntry, WeaponType } from "../types"
 import { catalogDb, type CatalogWeapon as FichaCatalogo } from "../lib/catalogDb"
+import { derivarEixos } from "../lib/eixos"
 
 // Mapeamento de tipos do Balística → tipos do catálogo (armas_brasil.py)
 const TIPO_BALISTICADB_PARA_CATALOGO: Partial<Record<WeaponType, string>> = {
@@ -73,9 +74,15 @@ export function useWeaponCatalog() {
     []
   )
 
-  // Converte a ficha do catálogo para campos do WeaponEntry
+  // Converte a ficha do catálogo para campos do WeaponEntry.
+  //
+  // `weaponType` é o tipo do APP (MAIÚSCULAS), não o da ficha, e é obrigatório
+  // para a classificação nos eixos: TIPO_BALISTICADB_PARA_CATALOGO colapsa
+  // PISTOLA e PISTOLETE em "Pistola", então inverter o mapa perderia a distinção
+  // — e pistolete é justamente o tipo que derivarEixos() se recusa a classificar
+  // por funcionamento (costuma ser artesanal de tiro unitário, mas varia).
   const fichaParaWeaponEntry = useCallback(
-    (ficha: FichaCatalogo): Partial<Record<keyof Omit<WeaponEntry, "type">, string | boolean | null | string[]>> => {
+    (ficha: FichaCatalogo, weaponType?: WeaponType): Partial<Record<keyof Omit<WeaponEntry, "type">, string | boolean | null | string[]>> => {
       const campos: Partial<Record<keyof Omit<WeaponEntry, "type">, string | boolean | null | string[]>> = {}
 
       if (ficha.calibre_nominal)     campos.caliber            = ficha.calibre_nominal
@@ -110,6 +117,37 @@ export function useWeaponCatalog() {
 
       // NÃO preencher achados de exame (trava de segurança, ação simples/dupla funcional,
       // etc.) a partir do catálogo — isso é constatação do perito, não spec da ficha.
+
+      // ── Classificação técnica: os 6 eixos do diagrama (ver src/lib/eixos.ts) ──
+      // É AQUI que a ficha é aproveitada por inteiro. sistema_percussao,
+      // tipo_descritivo e carregador_tipo eram lidos do catálogo e descartados;
+      // agora alimentam a derivação. Nenhum deles existe em WeaponEntry, então
+      // este é o único momento em que dá para classificar — depois de gravado,
+      // o laudo não tem mais como recalcular.
+      const eixos = derivarEixos({
+        type: weaponType,
+        caliber: ficha.calibre_nominal,
+        tipoRaiamento: ficha.tipo_raiamento,
+        fichaTipo: ficha.tipo,
+        tipoDescritivo: ficha.tipo_descritivo,
+        carregadorTipo: ficha.carregador_tipo,
+        sistemaDisparo: ficha.sistema_disparo,
+        sistemaPercussao: ficha.sistema_percussao,
+      })
+      // "Indeterminado" não é preenchido: deixar o campo vazio distingue "a
+      // máquina não soube" de "o perito examinou e não determinou". Só o perito
+      // grava Indeterminado, pelo picker.
+      const preencher = (campo: keyof Omit<WeaponEntry, "type">, valor: string) => {
+        if (valor && valor !== "Indeterminado") campos[campo] = valor
+      }
+      preencher("almaCano",              eixos.almaCano)
+      preencher("sistemaCarregamento",   eixos.sistemaCarregamento)
+      preencher("sistemaFuncionamento",  eixos.sistemaFuncionamento)
+      preencher("percussaoLocalizacao",  eixos.percussaoLocalizacao)
+      preencher("percussaoTipoEspoleta", eixos.percussaoTipoEspoleta)
+      preencher("percussaoTransmissao",  eixos.percussaoTransmissao)
+      preencher("percussaoMecanismo",    eixos.percussaoMecanismo)
+      preencher("alimentacaoTipo",       eixos.alimentacaoTipo)
 
       return campos
     },

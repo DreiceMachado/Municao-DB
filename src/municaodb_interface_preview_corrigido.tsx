@@ -564,6 +564,58 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   // Bloco padronizado de materiais/acabamentos das armas de fogo (cano, quadro, coronha).
   // Usado por todos os blocos de arma de fogo para manter coerência.
   const _selMat = "flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]"
+
+  // Card padronizado de raiamento do cano. Segue o mesmo padrão de
+  // renderMateriaisArmaFogo(): bloco compartilhado em vez de repetido.
+  //
+  // ESPINGARDA e GARRUCHA não tinham este campo na tela, embora o catálogo
+  // preencha tipoRaiamento nas duas (as 33 fichas de "Alma lisa" são TODAS
+  // espingardas). O dado entrava, era gravado e ia para o laudo sem que o
+  // perito pudesse ver ou corrigir. Garrucha é justamente onde alma
+  // híbrida/combinada mais aparece — um cano liso e um raiado.
+  //
+  // Os outros 5 blocos (revólver, pistola/pistolete, carabina, fuzil,
+  // metralhadora/submetralhadora) mantêm a cópia inline que já tinham; não
+  // foram tocados.
+  const renderRaiamentoCano = () => (
+    <div className="mb-4 overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
+      <div className="border-b border-[#ede3ce] px-4 py-3">
+        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Raiamento do cano</div>
+      </div>
+      <div className="divide-y divide-[#ede3ce]">
+        <div className="px-4 py-3">
+          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento<HelpBtn title="Tipo de raiamento" text="Característica interna do cano. Alma lisa: sem raias, comum em espingardas. Raiamento convencional: raias helicoidais que estabilizam o projétil. Híbrida/combinada: canos de almas distintas na mesma arma, como a garrucha mista (um cano liso e um raiado)." /></label>
+          <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
+            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+            <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+              {activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}
+            </span>
+            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+          </button>
+        </div>
+        {activeWeapon?.tipoRaiamento && activeWeapon.tipoRaiamento !== "Alma lisa (sem raiamento)" && (<>
+        <div className="px-4 py-3">
+          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sentido</label>
+          <button type="button" onClick={() => setSentidoPickerOpen(true)}
+            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+            <span className={`truncate text-[15px] ${activeWeapon?.sentidoEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sentidoEstrias || "Selecionar sentido…"}</span>
+            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+          </button>
+        </div>
+        <div className="px-4 py-3">
+          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de raias</label>
+          <button type="button" onClick={() => setNumRaiasPickerOpen(true)}
+            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+            <span className={`truncate text-[15px] ${activeWeapon?.numEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+              {activeWeapon?.numEstrias || "Selecionar…"}
+            </span>
+            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+          </button>
+        </div>
+        </>)}
+      </div>
+    </div>
+  )
   const renderMateriaisArmaFogo = () => (
     <>
       <div className="mb-4">
@@ -3570,7 +3622,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                     if (!activeWeapon || !activeWeapon.brand || !activeWeapon.model) return
                                     const ficha = await buscarFicha(activeWeapon.type, activeWeapon.brand, activeWeapon.model)
                                     if (!ficha) return
-                                    const campos = fichaParaWeaponEntry(ficha)
+                                    const campos = fichaParaWeaponEntry(ficha, activeWeapon.type)
                                     // Arma de choque: a ficha só preenche país e sistema de acionamento —
                                     // NÃO deve marcar/mexer nos checkboxes de mecanismo/estado/exame de disparo.
                                     const permitidosChoque = new Set(["paisFabricacao", "sistemaAcionamento"])
@@ -4358,6 +4410,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                           </button>
                         </div>
+                        {renderRaiamentoCano()}
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
                             ["compCano",             "Comprimento do cano",  "Ex.: 510 mm"],
@@ -5644,6 +5697,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               ))}
                             </div>
                           </div>
+                          {renderRaiamentoCano()}
                           <div className="grid gap-4 md:grid-cols-2">
                             {([
                               ["compCano",  "Comprimento do cano", "Ex.: 90 mm"],

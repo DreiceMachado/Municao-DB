@@ -116,6 +116,12 @@ export function detalhePayload(
         sistema_acionamento: s(d.sistemaAcionamento),
         tipo_mira:           arr(d.tipoMira),
         tipo_carregador:     arr(d.tipoCarregador),
+        // NÃO adicionar aqui os 8 eixos de classificação (alma_cano,
+        // sistema_carregamento, …) enquanto supabase/migration_eixos_classificacao.sql
+        // não tiver sido rodado no SQL Editor: este payload vai num upsert, e
+        // coluna inexistente derruba o insert INTEIRO da peça — some o laudo, não
+        // só o eixo. Os campos já existem em WeaponEntry e são gravados no Dexie
+        // local; só o envio ao Supabase depende da migration.
         // Mecanismo — comum
         acao_simples:        b(d.acaoSimples),
         acao_dupla:          b(d.acaoDupla),

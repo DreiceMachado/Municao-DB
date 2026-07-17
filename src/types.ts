@@ -102,6 +102,32 @@ export type WeaponEntry = {
   tipoRaiamento: string
   materialQuadro: string
   materialCoroha: string
+  // ── Classificação técnica: os 6 eixos do diagrama de arma de fogo ──
+  // Eixos ORTOGONAIS: toda arma de fogo tem um valor em cada um, simultaneamente.
+  // Não substituem `sistemaAcionamento` nem o WeaponType — convivem com eles.
+  // Preenchidos automaticamente por derivarEixos() (src/lib/eixos.ts); o perito
+  // pode sobrescrever. Vocabulário e regras: ver aquele arquivo.
+  //
+  // POR QUE SÃO CAMPOS GRAVADOS e não derivados na leitura, mesmo os que
+  // parecem redundantes (almaCano sai de tipoRaiamento):
+  //  1. Um laudo é registro pericial de um momento. Se derivássemos na leitura,
+  //     mudar uma regra de classificação amanhã reescreveria a conclusão de
+  //     laudos já assinados. Inaceitável — o que foi concluído fica.
+  //  2. Metade das derivações depende de campos da FICHA do catálogo
+  //     (tipo_descritivo, sistema_percussao, carregador_tipo) que não existem
+  //     em WeaponEntry. Fora do momento do preenchimento, não há como recalcular.
+  almaCano: string             // eixo 1  Lisa | Raiada | Híbrida/Combinada
+  sistemaCarregamento: string  // eixo 2  Antecarga | Retrocarga
+  sistemaFuncionamento: string // eixo 3  Tiro unitário | Repetição manual | Semi-automática | Automática
+  percussaoLocalizacao: string // eixo 5a Intrínseca | Extrínseca
+  // NÃO confundir com `tipoEspoleta` (mais abaixo), que descreve uma ESPOLETA
+  // examinada como peça própria — Boxer/Berdan/Rimfire/elétrica. Este aqui diz
+  // que munição a ARMA dispara. Sujeitos diferentes: uma peça ESPOLETA não tem
+  // alma de cano, um revólver não tem espoleta-como-item. Daí o prefixo.
+  percussaoTipoEspoleta: string // eixo 5a Central (centerfire) | Anular/radial (rimfire)
+  percussaoTransmissao: string // eixo 5b Direta | Indireta
+  percussaoMecanismo: string   // eixo 5c Cão | Percussor lançado
+  alimentacaoTipo: string      // eixo 6  Depósito fixo | Carregador removível
   // FUZIL / METRALHADORA
   modoFogo: string
   seletoDisparo: boolean

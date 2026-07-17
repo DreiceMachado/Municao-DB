@@ -14,7 +14,8 @@
     "web": "vite build && concurrently -n API,APP,NGROK -c blue,green,magenta \"node --env-file=.env api.js\" \"vite preview\" \"node --env-file=.env tunel-prod.js\"",
     "start": "node --env-file=.env server.js",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:eixos": "node scripts/check_eixos.ts"
   },
   "dependencies": {
     "@capacitor/core": "^8.4.0",

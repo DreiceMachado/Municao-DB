@@ -208,6 +208,28 @@ function PecaDetalhe({ d, fotos }: { d: WeaponEntry; fotos: FotoLocal[] }) {
         </Section>
       )}
 
+      {/* Classificação técnica — os 6 eixos do diagrama de arma de fogo.
+          Seção própria, e não misturada em "Características Físicas", porque são
+          eixos ORTOGONAIS: toda arma tem um valor em cada um simultaneamente, e
+          lê-los juntos é o que dá o quadro da arma. Preenchidos por
+          derivarEixos() a partir do catálogo (src/lib/eixos.ts).
+          A seção some inteira quando nenhum eixo foi classificado — laudo antigo
+          não ganha seção vazia. */}
+      {isArmaFogo && [d.almaCano, d.sistemaCarregamento, d.sistemaFuncionamento,
+        d.percussaoLocalizacao, d.percussaoTipoEspoleta, d.percussaoTransmissao,
+        d.percussaoMecanismo, d.alimentacaoTipo].some(str) && (
+        <Section title="Classificação Técnica">
+          {str(d.almaCano)              && <InfoRow label="Alma do cano"    value={d.almaCano} />}
+          {str(d.sistemaCarregamento)   && <InfoRow label="Carregamento"    value={d.sistemaCarregamento} />}
+          {str(d.sistemaFuncionamento)  && <InfoRow label="Funcionamento"   value={d.sistemaFuncionamento} />}
+          {str(d.percussaoLocalizacao)  && <InfoRow label="Mistura inic."   value={d.percussaoLocalizacao} />}
+          {str(d.percussaoTipoEspoleta) && <InfoRow label="Espoleta"        value={d.percussaoTipoEspoleta} />}
+          {str(d.percussaoTransmissao)  && <InfoRow label="Transmissão"     value={d.percussaoTransmissao} />}
+          {str(d.percussaoMecanismo)    && <InfoRow label="Percutor"        value={d.percussaoMecanismo} />}
+          {str(d.alimentacaoTipo)       && <InfoRow label="Alimentação"     value={d.alimentacaoTipo} />}
+        </Section>
+      )}
+
       {/* Mecanismo */}
       {isArmaFogo && (
         <Section title="Mecanismo de Funcionamento">

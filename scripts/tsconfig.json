@@ -1,0 +1,22 @@
+{
+  // Só para o editor: scripts/ fica fora do `include: ["src"]` do tsconfig raiz
+  // (de propósito — não queremos scripts no `tsc -b`/build). Sem este arquivo o
+  // VS Code type-checa scripts/*.ts com defaults e acusa "Cannot find name
+  // 'node:fs'" falso. Não é referenciado por nenhum projeto, então `npm run build`
+  // continua ignorando esta pasta.
+  //
+  // Conferir à mão:  npx tsc -p scripts/tsconfig.json
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node"],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true
+  },
+  "include": ["**/*.ts"]
+}

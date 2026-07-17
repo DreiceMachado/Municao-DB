@@ -14,6 +14,12 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    // Permite `import ... from "./x.ts"` com extensão explícita. Necessário para
+    // que scripts/ (fora do include, rodados por `node` com type-stripping nativo)
+    // consigam importar módulos de src/ — o Node ESM exige a extensão, o Vite não.
+    // Só é válido junto com noEmit: true. Não obriga ninguém: os imports sem
+    // extensão do resto do código continuam funcionando igual.
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
