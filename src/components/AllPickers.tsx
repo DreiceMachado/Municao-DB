@@ -2,8 +2,9 @@ import { useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { X } from "lucide-react"
 import { useWeaponForm } from "../context/WeaponFormContext"
-import type { WeaponType } from "../types"
+import type { WeaponType, WeaponEntry } from "../types"
 import { ordenarOpcoes } from "../lib/ordenar"
+import { EIXOS_CLASSIFICACAO } from "../data/eixosClassificacaoPicker"
 
 const FIREARMS: WeaponType[] = ["REVÓLVER", "PISTOLA", "PISTOLETE", "GARRUCHA", "ESPINGARDA", "CARABINA", "FUZIL", "METRALHADORA", "SUBMETRALHADORA", "ARMA DE ANTECARGA"]
 
@@ -95,6 +96,12 @@ type PickersProps = {
   acabamentoPickerOpen: boolean
   tipoPolvoraPickerOpen: boolean
   tipoEspoletaPickerOpen: boolean
+  // Picker genérico de classificação técnica: guarda QUAL campo de eixo está
+  // aberto (ou null). Um só bloco atende os 7 eixos — ver EIXOS_CLASSIFICACAO.
+  eixoPickerCampo: string | null
+  // Sentido: quando um número, o picker escreve em sentidosPorCano[idx] (alma
+  // híbrida, um cano por vez); quando null, escreve em sentidoEstrias (normal).
+  sentidoCanoIdx: number | null
   onClose: (picker: string) => void
 }
 
@@ -808,12 +815,27 @@ export function AllPickers(props: PickersProps) {
           <>
             <motion.div className={backdropClass} {...backdropAnim} onClick={() => close("sentido")} />
             <motion.div className={sheetClass} {...sheetAnim}>
-              <SheetHeader title="Sentido das raias" onClose={() => close("sentido")} />
+              <SheetHeader title={props.sentidoCanoIdx != null ? `Sentido — cano ${props.sentidoCanoIdx + 1}` : "Sentido das raias"} onClose={() => close("sentido")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
-                {ordenarOpcoes(["Dextrorso","Sinistrorso","Dextrorso e Sinistrorso (combinado)","Anfidextrorso","Indeterminado"]).map((s, idx, arr) => (
-                  <PickerItem key={s} label={s} selected={weapon.sentidoEstrias === s} last={idx === arr.length - 1}
-                    onSelect={() => { setDirect("sentidoEstrias", weapon.sentidoEstrias === s ? "" : s); close("sentido") }} />
-                ))}
+                {(() => {
+                  const ci = props.sentidoCanoIdx
+                  const atual = ci != null ? (weapon.sentidosPorCano?.[ci] ?? "") : weapon.sentidoEstrias
+                  const escolher = (s: string) => {
+                    if (ci != null) {
+                      const arr = [...(weapon.sentidosPorCano ?? [])]
+                      while (arr.length <= ci) arr.push("")
+                      arr[ci] = arr[ci] === s ? "" : s
+                      setDirect("sentidosPorCano", arr)
+                    } else {
+                      setDirect("sentidoEstrias", weapon.sentidoEstrias === s ? "" : s)
+                    }
+                    close("sentido")
+                  }
+                  return ordenarOpcoes(["Dextrorso","Sinistrorso","Dextrorso e Sinistrorso (combinado)","Anfidextrorso","Indeterminado"]).map((s, idx, arr) => (
+                    <PickerItem key={s} label={s} selected={atual === s} last={idx === arr.length - 1}
+                      onSelect={() => escolher(s)} />
+                  ))
+                })()}
               </div>
             </motion.div>
           </>
@@ -1217,6 +1239,32 @@ export function AllPickers(props: PickersProps) {
             </motion.div>
           </>
         )}
+      </AnimatePresence>
+
+      {/* Classificação técnica — picker genérico dos 7 eixos.
+          Um só bloco atende todos: o campo aberto vem em props.eixoPickerCampo,
+          e EIXOS_CLASSIFICACAO fornece título e opções. NÃO usa ordenarOpcoes —
+          a ordem é a progressão lógica do diagrama, não alfabética. */}
+      <AnimatePresence>
+        {props.eixoPickerCampo && (() => {
+          const def = EIXOS_CLASSIFICACAO.find((e) => e.campo === props.eixoPickerCampo)
+          if (!def || def.pickerProprio) return null // acionamento tem picker próprio
+          const atual = weapon[def.campo as keyof WeaponEntry] as string
+          return (
+            <>
+              <motion.div className={backdropClass} {...backdropAnim} onClick={() => close("eixo")} />
+              <motion.div className={sheetClass} {...sheetAnim}>
+                <SheetHeader title={def.titulo} onClose={() => close("eixo")} />
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {def.opcoes.map(({ l, d }, idx, arr) => (
+                    <PickerItem key={l} label={l} desc={d} selected={atual === l} last={idx === arr.length - 1}
+                      onSelect={() => { setDirect(def.campo, atual === l ? "" : l); close("eixo") }} />
+                  ))}
+                </div>
+              </motion.div>
+            </>
+          )
+        })()}
       </AnimatePresence>
 
       {/* Field Helper */}

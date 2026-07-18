@@ -16,6 +16,7 @@ import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { dirname, resolve } from "node:path"
 import { derivarEixos, type EixosFonte, type Eixos } from "../src/lib/eixos.ts"
+import { EIXOS_CLASSIFICACAO } from "../src/data/eixosClassificacaoPicker.ts"
 
 const AQUI = dirname(fileURLToPath(import.meta.url))
 const CATALOGO = resolve(AQUI, "../public/data/weaponCatalog.json")
@@ -167,11 +168,38 @@ const inv: Array<[string, () => boolean]> = [
     () => fichas.filter((f) => f.tipo === "Arma de choque")
       .every((f) => derivarEixos(fichaParaFonte(f)).percussaoLocalizacao === "Não aplicável"),
   ],
+  // ── Picker cobre os derivados (regra do usuário: nada fora do picker) ──
+  [
+    "todo valor que derivarEixos produz existe como opção no picker do eixo",
+    // Se derivarEixos preenche um valor que o picker não tem, o formulário mostra
+    // algo que o perito não consegue reeditar. "Não aplicável" foi o furo (garrucha
+    // de tiro unitário → alimentação Não aplicável, ausente do picker).
+    () => EIXOS_CLASSIFICACAO.filter((def) => !def.pickerProprio).every((def) => {
+      const opts = new Set(def.opcoes.map((o) => o.l))
+      return fichas.every((f) => {
+        const v = String(derivarEixos(fichaParaFonte(f))[def.campo as keyof Eixos])
+        return v === "Indeterminado" || opts.has(v)
+      })
+    }),
+  ],
+  [
+    "ARMADILHA: pederneira NÃO deriva Cão ('ignição'→'ignicao' contém 'cao')",
+    // A pederneira é ignição por sílex, não percussão de cartucho: transmissão e
+    // percutor = Não aplicável. O valor "ignição por pederneira" contém "cao"
+    // como substring; sem fronteira de palavra, casava o marcador de Cão.
+    () => fichas.filter((f) => /pederneira|flintlock/.test(f.sistema_percussao ?? ""))
+      .every((f) => {
+        const e = derivarEixos(fichaParaFonte(f))
+        return e.percussaoMecanismo === "Não aplicável" && e.percussaoTransmissao === "Não aplicável"
+      }),
+  ],
   // ── Etapa 2 ──
   [
-    "TODA ficha com sistema_percussao preenchido deriva transmissão E mecanismo",
-    // O gate prometido da Etapa 2: 464/464. É o teste que justifica a etapa.
-    () => fichas.filter((f) => f.sistema_percussao)
+    "toda ficha com percussão de CARTUCHO (direta/indireta) deriva transmissão E mecanismo",
+    // Exclui "ignição por pederneira (flintlock)": a pederneira tem sistema_percussao
+    // preenchido (pesquisa de ficha), mas é ignição por faísca, não percussão de
+    // cartucho — deriva Indeterminado de propósito nesses dois eixos, e está certo.
+    () => fichas.filter((f) => /^(direta|indireta)/.test(f.sistema_percussao ?? ""))
       .every((f) => {
         const e = derivarEixos(fichaParaFonte(f))
         return e.percussaoTransmissao !== "Indeterminado" && e.percussaoMecanismo !== "Indeterminado"
@@ -186,12 +214,24 @@ const inv: Array<[string, () => boolean]> = [
       }),
   ],
   [
-    "'direta (percutor lançado)' ⇒ Direta + Percussor lançado",
+    "todo sistema_percussao 'direta …' ⇒ transmissão Direta",
+    // "direta" cobre striker (percutor lançado) E os mecanismos de metralhadora
+    // (percutor fixo/acionado): todos são transmissão DIRETA (sem cão). O
+    // mecanismo específico varia — testado abaixo.
     () => fichas.filter((f) => (f.sistema_percussao ?? "").startsWith("direta"))
+      .every((f) => derivarEixos(fichaParaFonte(f)).percussaoTransmissao === "Direta"),
+  ],
+  [
+    "'direta (percussor/percutor lançado — striker)' ⇒ Percussor lançado",
+    () => fichas.filter((f) => /lançado|striker/.test(f.sistema_percussao ?? ""))
+      .every((f) => derivarEixos(fichaParaFonte(f)).percussaoMecanismo === "Percussor lançado (striker-fired)"),
+  ],
+  [
+    "metralhadora com 'percutor fixo/acionado' ⇒ Percutor fixo/acionado",
+    () => fichas.filter((f) => /percutor (fixo|acionado)/.test(f.sistema_percussao ?? ""))
       .every((f) => {
-        const e = derivarEixos(fichaParaFonte(f))
-        return e.percussaoTransmissao === "Direta"
-          && e.percussaoMecanismo === "Percussor lançado (striker-fired)"
+        const m = derivarEixos(fichaParaFonte(f)).percussaoMecanismo
+        return m === "Percutor fixo (no ferrolho)" || m === "Percutor acionado"
       }),
   ],
   // ── Etapa 3 ──

@@ -52,10 +52,12 @@ button {
   cursor: pointer;
 }
 
-input,
-textarea {
-  border: none;
-}
+/* NÃO usar `input, textarea { border: none }` aqui: `border: none` define
+   border-style: none, o que zera a largura computada da borda e ANULA o
+   `border border-[#cdbf9e]` dos classNames em TODOS os inputs de texto
+   (comprimento, identificação, etc.), deixando-os sem contorno enquanto os
+   pickers (que são <button>) mantêm o seu. O Tailwind já reseta bordas no
+   preflight, então isto era redundante e quebrava o padrão. */
 
 /* Campos de data (type=date): no iOS/celular o valor fica centralizado e com visual
    diferente. Alinha à esquerda e padroniza, mantendo o calendário do desktop intacto. */

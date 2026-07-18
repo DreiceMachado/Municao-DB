@@ -51,7 +51,7 @@ let populando = false
 
 // Bump este valor sempre que o weaponCatalog.json mudar — força o re-seed do
 // catálogo local (IndexedDB) para todos os usuários.
-const CATALOG_VERSION = "2026-07-pump-action-corrigido-1"
+const CATALOG_VERSION = "2026-07-comprimento-mm"
 
 export async function populateCatalogDb(): Promise<void> {
   if (populando) return

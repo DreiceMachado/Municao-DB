@@ -198,6 +198,7 @@ function PecaDetalhe({ d, fotos }: { d: WeaponEntry; fotos: FotoLocal[] }) {
           {str(d.sistemaAcionamento)   && <InfoRow label="Acionamento"     value={d.sistemaAcionamento} />}
           {str(d.tipoRaiamento)        && <InfoRow label="Raiamento"       value={d.tipoRaiamento} />}
           {str(d.tamanhoCamara)        && <InfoRow label="Câmara"          value={d.tamanhoCamara} />}
+          {str(d.disposicaoCanos)      && <InfoRow label="Disposição canos" value={d.disposicaoCanos} />}
           {str(d.materialQuadro)       && <InfoRow label="Mat. quadro"     value={d.materialQuadro} />}
           {str(d.materialCoroha)       && <InfoRow label="Mat. coronha"    value={d.materialCoroha} />}
           {d.tipoMira?.length > 0      && <InfoRow label="Tipo mira"       value={d.tipoMira.join(", ")} />}
@@ -215,11 +216,12 @@ function PecaDetalhe({ d, fotos }: { d: WeaponEntry; fotos: FotoLocal[] }) {
           derivarEixos() a partir do catálogo (src/lib/eixos.ts).
           A seção some inteira quando nenhum eixo foi classificado — laudo antigo
           não ganha seção vazia. */}
-      {isArmaFogo && [d.almaCano, d.sistemaCarregamento, d.sistemaFuncionamento,
+      {isArmaFogo && [d.sistemaCarregamento, d.sistemaFuncionamento,
         d.percussaoLocalizacao, d.percussaoTipoEspoleta, d.percussaoTransmissao,
         d.percussaoMecanismo, d.alimentacaoTipo].some(str) && (
         <Section title="Classificação Técnica">
-          {str(d.almaCano)              && <InfoRow label="Alma do cano"    value={d.almaCano} />}
+          {/* Alma do cano NÃO aparece aqui: já consta como "Raiamento" em
+              Características Físicas (tipoRaiamento). */}
           {str(d.sistemaCarregamento)   && <InfoRow label="Carregamento"    value={d.sistemaCarregamento} />}
           {str(d.sistemaFuncionamento)  && <InfoRow label="Funcionamento"   value={d.sistemaFuncionamento} />}
           {str(d.percussaoLocalizacao)  && <InfoRow label="Mistura inic."   value={d.percussaoLocalizacao} />}

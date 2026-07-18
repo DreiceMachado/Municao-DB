@@ -37,6 +37,7 @@ import {
 import type { WeaponEntry, WeaponType, ProfileView, RepStatus, RecordItem, AcessorioEntry } from "./types"
 import { supabase, supabaseAtivo } from "./lib/supabase"
 import { makeWeaponEntry, FABRICANTES_MUNICAO, FABRICANTES_MUNICAO_INFO, TIPOS_PROJETIL_CARTUCHO } from "./data/constants"
+import { EIXOS_CLASSIFICACAO } from "./data/eixosClassificacaoPicker"
 import { ordenarOpcoes } from "./lib/ordenar"
 import { useLaudoDb } from "./hooks/useLaudoDb"
 import { db, buscarLaudoCompleto, atualizarRepStatus, limparRepsLocais, obterOuCriarRascunhoDeRep, fotosPendentesGdl, marcarFotosEnviadasGdl } from "./lib/db"
@@ -63,6 +64,19 @@ import { populateCatalogDb } from "./lib/catalogDb"
 import { useLiveQuery } from "dexie-react-hooks"
 
 const _ARMAS_FOGO_GDL: WeaponType[] = ["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"]
+
+// Estado geral da arma é DERIVADO do estado de conservação (não mais escolhido à
+// mão): nada marcado = Bom; ferrugem/desgaste = Regular; danos/peças faltantes =
+// Ruim (mais grave, tem prioridade). Só para ARMAS — munição/componentes usam
+// outros critérios (oxidação, deformação…) e mantêm a escolha manual.
+// As armas variam o nome do campo (desgaste/desgasteMecanico, danoEstruturais/
+// danosAparentes), então a derivação cobre as duas variantes.
+const _TIPOS_ESTADO_DERIVADO: WeaponType[] = ["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA","ARMA DE CHOQUE","ARMA DE PRESSÃO","FACA"]
+function estadoGeralDerivado(w: Partial<WeaponEntry> | null | undefined): "Bom" | "Regular" | "Ruim" {
+  const severo   = Boolean(w?.danoEstruturais || (w as any)?.danosAparentes || w?.pecasFaltantes)
+  const moderado = Boolean(w?.ferrugem || w?.desgaste || (w as any)?.desgasteMecanico)
+  return severo ? "Ruim" : moderado ? "Regular" : "Bom"
+}
 const _MODEL_IDENT_GDL: WeaponType[] = ["CARREGADOR","ESTOJO","CARTUCHO","ARMA DE CHOQUE"]
 const _VINCULO_GDL: WeaponType[] = ["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE PRESSÃO","ARMA DE ANTECARGA"]
 
@@ -83,7 +97,7 @@ const _mmParaPol = (raw: string): string | null => {
   return `≈ ${(n / 25.4).toFixed(2).replace(".", ",")} pol.`
 }
 
-// ── Datas: o app/GDL usam DD/MM/AAAA; o <input type="date"> usa AAAA-MM-DD ──
+// ── Datas: o app/GDL usam DD/MM/AAAA; o <CampoTexto type="date"> usa AAAA-MM-DD ──
 function brParaIso(br: string): string {
   const m = (br ?? "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
   return m ? `${m[3]}-${m[2]}-${m[1]}` : ""
@@ -102,7 +116,7 @@ function DateField({ value, onChange, className }: { value: string; onChange: (v
         <span className={value ? "font-medium text-[#26221b]" : "text-[#a09070]"}>{value || "DD/MM/AAAA"}</span>
         <Calendar className="ml-auto h-5 w-5 shrink-0 text-[#b89a58]" />
       </div>
-      <input
+      <CampoTexto
         type="date"
         value={brParaIso(value)}
         onChange={e => onChange(isoParaBr(e.target.value))}
@@ -110,6 +124,44 @@ function DateField({ value, onChange, className }: { value: string; onChange: (v
         className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
       />
     </div>
+  )
+}
+
+// Campo de texto que CRESCE em altura ao atingir o limite da largura. Um <input>
+// de 1 linha, no celular, "esconde" o excedente rolando na horizontal; aqui o
+// texto quebra e o campo expande. Renderiza um <textarea> auto-ajustável com
+// aparência de input de 1 linha. Para tipos não-textuais (checkbox, número, data,
+// etc.) delega ao <input> nativo, sem alterar nada. Aceita as mesmas props do
+// input — os campos do formulário viram este componente por rename de <input>.
+const _CAMPO_PASSTHROUGH = new Set(["checkbox", "radio", "number", "date", "file", "range", "color", "hidden", "submit", "button"])
+function CampoTexto({ type, className = "", onKeyDown, ...rest }: React.InputHTMLAttributes<HTMLInputElement>) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  const ajustar = (el: HTMLTextAreaElement | null) => {
+    if (!el) return
+    el.style.height = "auto"
+    el.style.height = `${el.scrollHeight}px`
+  }
+  useEffect(() => { ajustar(ref.current) }, [rest.value])
+  if (type && _CAMPO_PASSTHROUGH.has(type)) {
+    return <input type={type} className={className} onKeyDown={onKeyDown} {...rest} />
+  }
+  // Altura fixa (h-1X) → min-height + padding vertical equivalente: uma linha fica
+  // centralizada como no input original e o campo cresce a partir daí.
+  const cls = className
+    .replace(/\bh-14\b/g, "min-h-[56px] py-[15px]")
+    .replace(/\bh-12\b/g, "min-h-[48px] py-[13px]")
+    .replace(/\bh-11\b/g, "min-h-[44px] py-[11px]")
+    .replace(/\bh-10\b/g, "min-h-[40px] py-[9px]")
+    + " resize-none overflow-hidden"
+  return (
+    <textarea
+      {...(rest as any)}
+      ref={ref}
+      rows={1}
+      className={cls}
+      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) e.preventDefault(); (onKeyDown as any)?.(e) }}
+      onInput={e => ajustar(e.currentTarget)}
+    />
   )
 }
 
@@ -289,6 +341,18 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [materialQuadroPickerOpen, setMaterialQuadroPickerOpen] = useState(false)
   const [tipoPolvoraPickerOpen, setTipoPolvoraPickerOpen] = useState(false)
   const [tipoEspoletaPickerOpen, setTipoEspoletaPickerOpen] = useState(false)
+  // Classificação técnica: guarda QUAL campo de eixo está aberto (ou null).
+  // Um picker genérico serve os 7 — ver EIXOS_CLASSIFICACAO.
+  const [eixoPickerCampo, setEixoPickerCampo] = useState<string | null>(null)
+  // Incrementado ao aplicar a ficha do catálogo → faz os cards preenchidos
+  // (Características Físicas e Classificação Técnica) expandirem no celular.
+  const [fichaExpandSignal, setFichaExpandSignal] = useState(0)
+  // Alma híbrida/combinada: sheet de número de canos + sentido por cano.
+  const [numCanosPickerOpen, setNumCanosPickerOpen] = useState(false)
+  const [numCanosCustom, setNumCanosCustom] = useState("")   // campo "Outro (digitar)" do sheet
+  const [disposicaoCanosPickerOpen, setDisposicaoCanosPickerOpen] = useState(false)
+  // Qual cano está com o picker de Sentido aberto (null = sentido único normal).
+  const [sentidoCanoIdx, setSentidoCanoIdx] = useState<number | null>(null)
   const [acessorioPickerOpen, setAcessorioPickerOpen] = useState(false)
   const [origemAcessorioPickerOpen, setOrigemAcessorioPickerOpen] = useState(false)
   const [materialAcessorioPickerOpen, setMaterialAcessorioPickerOpen] = useState(false)
@@ -577,7 +641,20 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   // Os outros 5 blocos (revólver, pistola/pistolete, carabina, fuzil,
   // metralhadora/submetralhadora) mantêm a cópia inline que já tinham; não
   // foram tocados.
-  const renderRaiamentoCano = () => (
+  const _selRaia = "flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]"
+  const _lblRaia = "mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]"
+  const renderRaiamentoCano = () => {
+    const isHibrida = (activeWeapon?.tipoRaiamento ?? "").includes("Híbrida")
+    const nCanos = Math.max(0, Math.min(12, parseInt(activeWeapon?.numCanos ?? "", 10) || 0))
+    const sentidos = activeWeapon?.sentidosPorCano ?? []
+    const naoLisa = activeWeapon?.tipoRaiamento && activeWeapon.tipoRaiamento !== "Alma lisa (sem raiamento)"
+    // Número de canos só faz sentido onde há mais de um cano: espingarda,
+    // garrucha e pistola (há pistolas de 2 canos, ex.: AF2011). As demais são de
+    // cano único. O caso híbrido também precisa dele — é o que dimensiona os
+    // campos de "Sentido por cano".
+    const mostrarNumCanos = activeWeapon?.type === "ESPINGARDA" || activeWeapon?.type === "GARRUCHA"
+      || activeWeapon?.type === "PISTOLA" || isHibrida
+    return (
     <div className="mb-4 overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
       <div className="border-b border-[#ede3ce] px-4 py-3">
         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Raiamento do cano</div>
@@ -585,27 +662,65 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
       <div className="divide-y divide-[#ede3ce]">
         <div className="px-4 py-3">
           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento<HelpBtn title="Tipo de raiamento" text="Característica interna do cano. Alma lisa: sem raias, comum em espingardas. Raiamento convencional: raias helicoidais que estabilizam o projétil. Híbrida/combinada: canos de almas distintas na mesma arma, como a garrucha mista (um cano liso e um raiado)." /></label>
-          <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
-            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+          <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)} className={_selRaia}>
             <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
               {activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}
             </span>
             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
           </button>
         </div>
-        {activeWeapon?.tipoRaiamento && activeWeapon.tipoRaiamento !== "Alma lisa (sem raiamento)" && (<>
+
+        {/* Número de canos: visível logo abaixo do tipo de raiamento, apenas nas
+            armas que podem ter mais de um cano (espingarda, garrucha, híbrido). */}
+        {mostrarNumCanos && (
         <div className="px-4 py-3">
-          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sentido</label>
-          <button type="button" onClick={() => setSentidoPickerOpen(true)}
-            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+          <label className={_lblRaia}>Número de canos</label>
+          <button type="button" onClick={() => setNumCanosPickerOpen(true)} className={_selRaia}>
+            <span className={`truncate text-[15px] ${activeWeapon?.numCanos ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+              {activeWeapon?.numCanos ? `${activeWeapon.numCanos} cano${activeWeapon.numCanos === "1" ? "" : "s"}` : "Selecionar…"}
+            </span>
+            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+          </button>
+        </div>
+        )}
+
+        {/* Disposição dos canos: só faz sentido com mais de um cano (justaposto
+            /sobreposto). Vale para qualquer arma que possa ter 2+ canos. */}
+        {mostrarNumCanos && nCanos > 1 && (
+        <div className="px-4 py-3">
+          <label className={_lblRaia}>Disposição dos canos</label>
+          <button type="button" onClick={() => setDisposicaoCanosPickerOpen(true)} className={_selRaia}>
+            <span className={`truncate text-[15px] ${activeWeapon?.disposicaoCanos ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+              {activeWeapon?.disposicaoCanos || "Selecionar disposição…"}
+            </span>
+            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+          </button>
+        </div>
+        )}
+
+        {/* HÍBRIDA/COMBINADA: um campo de Sentido por cano (almas distintas). */}
+        {isHibrida && Array.from({ length: nCanos }).map((_, i) => (
+        <div key={`sent-${i}`} className="px-4 py-3">
+          <label className={_lblRaia}>Sentido — cano {i + 1}</label>
+          <button type="button" onClick={() => { setSentidoCanoIdx(i); setSentidoPickerOpen(true) }} className={_selRaia}>
+            <span className={`truncate text-[15px] ${sentidos[i] ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{sentidos[i] || "Selecionar sentido…"}</span>
+            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+          </button>
+        </div>
+        ))}
+
+        {/* Raiamento normal (não híbrido, não liso): sentido único + nº de raias. */}
+        {!isHibrida && naoLisa && (<>
+        <div className="px-4 py-3">
+          <label className={_lblRaia}>Sentido</label>
+          <button type="button" onClick={() => { setSentidoCanoIdx(null); setSentidoPickerOpen(true) }} className={_selRaia}>
             <span className={`truncate text-[15px] ${activeWeapon?.sentidoEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sentidoEstrias || "Selecionar sentido…"}</span>
             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
           </button>
         </div>
         <div className="px-4 py-3">
-          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de raias</label>
-          <button type="button" onClick={() => setNumRaiasPickerOpen(true)}
-            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+          <label className={_lblRaia}>Número de raias</label>
+          <button type="button" onClick={() => setNumRaiasPickerOpen(true)} className={_selRaia}>
             <span className={`truncate text-[15px] ${activeWeapon?.numEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
               {activeWeapon?.numEstrias || "Selecionar…"}
             </span>
@@ -615,6 +730,45 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
         </>)}
       </div>
     </div>
+    )
+  }
+  // Card de classificação técnica: os eixos do diagrama de arma de fogo, na
+  // sequência do diagrama (carregamento → funcionamento → acionamento →
+  // percussão → alimentação). Preenchidos por derivarEixos() ao aplicar a ficha;
+  // aqui o perito revê e corrige. O acionamento (eixo 4) usa o picker próprio de
+  // sistemaAcionamento (varia por tipo); os demais, o picker genérico
+  // (setEixoPickerCampo) — ver EIXOS_CLASSIFICACAO.
+  //
+  // É um CollapsibleCard (expande/recolhe), irmão de "Mecanismo de funcionamento"
+  // e "Estado de conservação" — chamado FORA de "Características físicas".
+  //
+  // ocultarAcionamento: usado na ARMA DE ANTECARGA, que já tem "Sistema de
+  // ignição" editando o MESMO campo (sistemaAcionamento) — para essa arma
+  // "ignição" (pederneira/percussão) é o conceito, não "gatilho". Sem o flag,
+  // haveria dois controles para o mesmo dado.
+  const renderClassificacaoTecnica = (opts?: { ocultarAcionamento?: boolean }) => (
+    <CollapsibleCard title="Classificação técnica" expandSignal={fichaExpandSignal}>
+      <div className="divide-y divide-[#ede3ce]">
+        {EIXOS_CLASSIFICACAO.filter((def) => !(opts?.ocultarAcionamento && def.pickerProprio)).map((def) => {
+          const valor = String(activeWeapon?.[def.campo as keyof typeof activeWeapon] ?? "")
+          const abrir = def.pickerProprio
+            ? () => setSistemaAcionamentoPickerOpen(true)
+            : () => setEixoPickerCampo(def.campo)
+          return (
+            <div key={def.campo} className="py-3">
+              <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{def.rotulo}<HelpBtn title={def.rotulo} text={def.help} /></label>
+              <button type="button" onClick={abrir}
+                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
+                <span className={`truncate text-[15px] ${valor ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
+                  {valor || "Selecionar…"}
+                </span>
+                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+              </button>
+            </div>
+          )
+        })}
+      </div>
+    </CollapsibleCard>
   )
   const renderMateriaisArmaFogo = () => (
     <>
@@ -643,10 +797,35 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   )
 
   // Estado geral da arma (GDL "Estado Geral da Arma": Bom / Regular / Ruim).
-  // Usado no topo da seção "Estado de conservação" das armas de fogo.
-  const renderEstadoGeralArma = () => (
+  // Usado no topo da seção "Estado de conservação". O rótulo acompanha o tipo da
+  // peça — "Estado geral do projétil", "da espoleta", etc. — em vez de "da arma".
+  const _ESTADO_GERAL_ALVO: Partial<Record<WeaponType, string>> = {
+    "PROJÉTIL": "do projétil", "CARTUCHO": "do cartucho", "ESTOJO": "do estojo",
+    "ESPOLETA": "da espoleta", "PÓLVORA": "da pólvora", "CARREGADOR": "do carregador",
+    "FACA": "da faca", "OUTRO": "do item",
+  }
+  const renderEstadoGeralArma = () => {
+    const rotulo = `Estado geral ${_ESTADO_GERAL_ALVO[activeWeapon?.type as WeaponType] ?? "da arma"}`
+    // Armas: valor DERIVADO do estado de conservação (só leitura). Munição e
+    // componentes mantêm a escolha manual Bom/Regular/Ruim.
+    if (_TIPOS_ESTADO_DERIVADO.includes(activeWeapon?.type as WeaponType)) {
+      const est = estadoGeralDerivado(activeWeapon)
+      const estilo = est === "Bom"
+        ? "border-[#7f9a55] bg-[#eef3e2] text-[#42591f]"
+        : est === "Regular"
+        ? "border-[#c8a44e] bg-[#f7edd3] text-[#6b5416]"
+        : "border-[#c07070] bg-[#f6e0e0] text-[#7a2f2f]"
+      return (
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <label className="text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{rotulo}</label>
+          <span title="Calculado automaticamente pelo estado de conservação"
+            className={`shrink-0 rounded-lg border-2 px-3 py-1 text-xs font-black uppercase tracking-[0.08em] ${estilo}`}>{est}</span>
+        </div>
+      )
+    }
+    return (
     <div className="mb-4">
-      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Estado geral da arma</label>
+      <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{rotulo}</label>
       <div className="grid grid-cols-3 gap-2">
         {(["Bom", "Regular", "Ruim"]).map(op => (
           <button key={op} type="button"
@@ -661,7 +840,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
         ))}
       </div>
     </div>
-  )
+    )
+  }
 
   // Índice único da peça sendo editada (para chaves de foto por peça)
   const currentPhotoIdx = editingPieceIdx ?? savedPieces.length
@@ -1388,6 +1568,15 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
     setWeapons(prev => prev.map((w, i) => i === activeWeaponIdx ? { ...w, [field]: value as never } : w))
   }
 
+  // Mantém `estadoGeralArma` (usado no laudo/exportação GDL) sincronizado com o
+  // estado de conservação derivado — só para armas (ver estadoGeralDerivado).
+  useEffect(() => {
+    if (!activeWeapon || !_TIPOS_ESTADO_DERIVADO.includes(activeWeapon.type)) return
+    const derivado = estadoGeralDerivado(activeWeapon)
+    if (activeWeapon.estadoGeralArma !== derivado) setWeaponDirect("estadoGeralArma", derivado)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeWeapon?.type, activeWeapon?.ferrugem, activeWeapon?.desgaste, (activeWeapon as any)?.desgasteMecanico, activeWeapon?.danoEstruturais, (activeWeapon as any)?.danosAparentes, activeWeapon?.pecasFaltantes, activeWeapon?.estadoGeralArma])
+
   const handleWeaponNaToggle = (field: string) => {
     setWeapons(prev => prev.map((w, i) => {
       if (i !== activeWeaponIdx) return w
@@ -1601,19 +1790,19 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     <div className="space-y-4 p-5 text-[#27231c] lg:grid lg:grid-cols-4 lg:gap-4 lg:items-end lg:space-y-0">
                       <div>
                         <label className="mb-2 block text-sm font-bold uppercase tracking-[0.16em] text-[#6b5838]">Número</label>
-                        <input value={numberFilter} onChange={(e) => setNumberFilter(e.target.value)}
+                        <CampoTexto value={numberFilter} onChange={(e) => setNumberFilter(e.target.value)}
                           className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                           placeholder="Digite número, tipo ou modelo" />
                       </div>
                       <div>
                         <label className="mb-2 block text-sm font-bold uppercase tracking-[0.16em] text-[#6b5838]">Ano</label>
-                        <input value={yearFilter} onChange={(e) => setYearFilter(e.target.value)}
+                        <CampoTexto value={yearFilter} onChange={(e) => setYearFilter(e.target.value)}
                           className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                           placeholder="2026" />
                       </div>
                       <div>
                         <label className="mb-2 block text-sm font-bold uppercase tracking-[0.16em] text-[#6b5838]">Unidade</label>
-                        <input value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)}
+                        <CampoTexto value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)}
                           className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                           placeholder="Ex: NPC Curitiba" />
                       </div>
@@ -2355,7 +2544,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         <div className="flex items-center gap-2 sm:flex-1">
                           <div className="relative flex-1">
                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                            <input value={form.examNumber}
+                            <CampoTexto value={form.examNumber}
                               onChange={e => { handleField("examNumber")(e); setRepCarregadaLocal(false) }}
                               onKeyDown={e => { if (e.key === 'Enter' && modoImportarGdl) handleImportarGdl() }}
                               placeholder="Nº REP"
@@ -2402,7 +2591,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número do caso</label>
                         <div className="relative">
                           <Database className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                          <input value={form.caseNumber} onChange={handleField("caseNumber")}
+                          <CampoTexto value={form.caseNumber} onChange={handleField("caseNumber")}
                             placeholder="Ex.: 12345"
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm" />
                         </div>
@@ -2432,6 +2621,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-1.5">
                                     <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#b89a58]">{p.type}</div>
+                                    {p.idPeca && (
+                                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9e8255]">ID {p.idPeca}</div>
+                                    )}
                                     {validarCamposGdlPeca(p).length > 0 && (
                                       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#c87070]" />
                                     )}
@@ -2443,6 +2635,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                     <div className="truncate text-[11px] text-[#6b5838]">{p.model}</div>
                                   )}
                                 </div>
+                                {p.type !== "PÓLVORA" && (
+                                  <div className="flex shrink-0 flex-col items-center leading-none">
+                                    <span className="text-[8px] font-black uppercase tracking-[0.16em] text-[#b89a58]">Qtd</span>
+                                    <span className="text-[15px] font-black text-[#50442f]">{p.quantidade || "1"}</span>
+                                  </div>
+                                )}
                                 <Pencil className="h-3.5 w-3.5 shrink-0 text-[#c8a96e]" />
                               </button>
                               <div className="my-2 w-px shrink-0 bg-[#e8dfc8]" />
@@ -2522,7 +2720,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                     <div className="flex gap-2">
                                       <div className="flex-1">
                                         <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.14em] text-[#8d7854]">Nº da coleta</label>
-                                        <input value={p.coletaNumero} onChange={e => updateColeta(i, "coletaNumero", e.target.value)}
+                                        <CampoTexto value={p.coletaNumero} onChange={e => updateColeta(i, "coletaNumero", e.target.value)}
                                           placeholder="Ex.: 001"
                                           className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[15px] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
                                       </div>
@@ -2698,7 +2896,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                             key === "dataEntrada" ? (
                                               <DateField value={form.dataEntrada} onChange={v => setForm(f => ({ ...f, dataEntrada: v }))} />
                                             ) : (
-                                              <input value={form[key] as string} onChange={handleField(key)} placeholder={label}
+                                              <CampoTexto value={form[key] as string} onChange={handleField(key)} placeholder={label}
                                                 className="h-11 w-full rounded-lg border border-[#cdbf9e] bg-white px-3 text-[13px] outline-none transition focus:border-[#9e7f45]" />
                                             )
                                           ) : (
@@ -2723,14 +2921,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                       </button>
                                     </div>
                                     <div className="grid grid-cols-[2fr_0.8fr] gap-2">
-                                      <input
+                                      <CampoTexto
                                         inputMode="numeric"
                                         value={doc.numero}
                                         onChange={e => setDocumentos(documentos.map((d, j) => j === i ? { ...d, numero: e.target.value.replace(/[^\d.\-/]/g, "") } : d))}
                                         placeholder="Número"
                                         className="h-11 w-full rounded-lg border border-[#cdbf9e] bg-white px-3 text-[13px] outline-none transition focus:border-[#9e7f45]"
                                       />
-                                      <input
+                                      <CampoTexto
                                         inputMode="numeric"
                                         value={doc.ano}
                                         onChange={e => setDocumentos(documentos.map((d, j) => j === i ? { ...d, ano: e.target.value.replace(/\D/g, "").slice(0, 4) } : d))}
@@ -2978,27 +3176,42 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                 <div className="space-y-6 p-5 md:p-8 max-w-[860px] mx-auto">
                   {/* ── Tipo de peça ── */}
-                  <div className="flex items-center gap-4 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(135deg,#1b2947_0%,#12213d_100%)] px-5 py-4 shadow-[0_6px_22px_rgba(0,0,0,.28)]">
-                    <div className="flex shrink-0 items-center justify-center rounded-xl bg-[#0f1e39] p-3 text-[#f0d08a]">
-                      <PieceIcon type={weaponType} className="h-12 w-auto max-w-[80px]" />
+                  <div className="flex items-center gap-2.5 sm:gap-4 rounded-2xl border-2 border-[#f1d58d] bg-[linear-gradient(135deg,#1b2947_0%,#12213d_100%)] px-3 sm:px-5 py-3 sm:py-4 shadow-[0_6px_22px_rgba(0,0,0,.28)]">
+                    <div className="flex shrink-0 items-center justify-center rounded-xl bg-[#0f1e39] p-2 sm:p-3 text-[#f0d08a]">
+                      <PieceIcon type={weaponType} className="h-9 sm:h-12 w-auto max-w-[48px] sm:max-w-[80px]" />
                     </div>
                     {/* Tipo — clicável para trocar */}
                     <button
                       type="button"
                       onClick={() => setChangePieceTypeOpen(true)}
-                      className="flex-1 text-left active:opacity-70"
+                      className="min-w-0 flex-1 text-left active:opacity-70"
                     >
-                      <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#ccb780]">Tipo de peça</div>
+                      <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] sm:tracking-[0.22em] text-[#ccb780]">Tipo de peça</div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-lg font-black uppercase tracking-[0.1em] text-[#f0d08a]">{weaponType}</span>
-                        <Pencil className="h-3 w-3 text-[#f0d08a]/50" />
+                        <span className="truncate text-base sm:text-lg font-black uppercase tracking-[0.06em] sm:tracking-[0.1em] text-[#f0d08a]">{weaponType}</span>
+                        <Pencil className="h-3 w-3 shrink-0 text-[#f0d08a]/50" />
                       </div>
                     </button>
                     {/* ID — apenas exibição */}
                     {activeWeapon?.idPeca && (
-                      <div className="flex flex-col items-center rounded-xl border border-[#f0d08a]/30 bg-[#0f1e39] px-3 py-2 min-w-[44px]">
-                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#ccb780]">ID</span>
-                        <span className="text-xl font-black text-[#f0d08a]">{activeWeapon.idPeca}</span>
+                      <div className="flex shrink-0 flex-col items-center rounded-xl border border-[#f0d08a]/30 bg-[#0f1e39] px-2 sm:px-3 py-1.5 sm:py-2 min-w-[38px] sm:min-w-[44px]">
+                        <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.16em] sm:tracking-[0.2em] text-[#ccb780]">ID</span>
+                        <span className="text-lg sm:text-xl font-black text-[#f0d08a]">{activeWeapon.idPeca}</span>
+                      </div>
+                    )}
+                    {/* Quantidade — editável, no canto direito. Toda peça tem quantidade,
+                        exceto pólvora (massa/frascos) e OUTRO (quantidade + unidade de
+                        medida próprios), que medem em campo especializado no bloco. */}
+                    {weaponType !== "PÓLVORA" && weaponType !== "OUTRO" && (
+                      <div className="flex shrink-0 flex-col items-center rounded-xl border border-[#f0d08a]/30 bg-[#0f1e39] px-1.5 sm:px-2 py-1.5 sm:py-2 min-w-[42px] sm:min-w-[52px]">
+                        <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.16em] sm:tracking-[0.2em] text-[#ccb780]">Qtd</span>
+                        <input
+                          inputMode="numeric"
+                          value={String(activeWeapon?.quantidade ?? "")}
+                          onChange={e => setWeaponDirect("quantidade" as any, e.target.value.replace(/[^\d]/g, ""))}
+                          placeholder="1"
+                          className="w-8 sm:w-10 bg-transparent text-center text-lg sm:text-xl font-black text-[#f0d08a] outline-none placeholder:text-[#f0d08a]/40"
+                        />
                       </div>
                     )}
                   </div>
@@ -3058,7 +3271,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             />
                             <div>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Instituição</label>
-                              <input value={activeWeapon?.instituicao ?? ""} onChange={handleWeaponField("instituicao" as keyof Omit<WeaponEntry,"type">)}
+                              <CampoTexto value={activeWeapon?.instituicao ?? ""} onChange={handleWeaponField("instituicao" as keyof Omit<WeaponEntry,"type">)}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder="Ex.: Polícia Militar, Exército, Guarda Municipal…" />
                             </div>
@@ -3184,8 +3397,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             { id: "DELEGACIA", label: "Delegacia", Icon: Building2  },
                             { id: "LOCAL",     label: "Local",     Icon: MapPin     },
                             { id: "NECROPSIA", label: "Necropsia", Icon: Microscope },
-                            // ESTOJO e PROJÉTIL têm "ORIGEM/COLETA" no GDL c/ Hospital.
-                            ...((["ESTOJO","PROJÉTIL"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
+                            // ESTOJO, PROJÉTIL e FACA têm "ORIGEM/COLETA" com Hospital.
+                            ...((["ESTOJO","PROJÉTIL","FACA"] as WeaponType[]).includes(activeWeapon?.type as WeaponType)
                               ? [{ id: "HOSPITAL", label: "Hospital", Icon: Hospital }]
                               : []),
                           ]
@@ -3219,7 +3432,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             <div className="mt-3 space-y-3 border-t border-[#ede3ce] pt-3">
                               <div>
                                 <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Referência do local</label>
-                                <input
+                                <CampoTexto
                                   value={String(activeWeapon?.origemProjetilRef ?? "")}
                                   onChange={handleWeaponField("origemProjetilRef" as keyof Omit<WeaponEntry,"type">)}
                                   className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
@@ -3228,7 +3441,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               </div>
                               <div>
                                 <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Região da coleta</label>
-                                <input
+                                <CampoTexto
                                   value={String(activeWeapon?.regiaoColeta ?? "")}
                                   onChange={handleWeaponField("regiaoColeta" as keyof Omit<WeaponEntry,"type">)}
                                   className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
@@ -3240,7 +3453,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           {activeWeapon?.origemProjetil === "HOSPITAL" && (
                             <div className="mt-3 border-t border-[#ede3ce] pt-3">
                               <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Nome do hospital</label>
-                              <input
+                              <CampoTexto
                                 value={String(activeWeapon?.origemProjetilRef ?? "")}
                                 onChange={handleWeaponField("origemProjetilRef" as keyof Omit<WeaponEntry,"type">)}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
@@ -3504,7 +3717,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               </button>
                             )}
                           </label>
-                          <input value={activeWeapon?.identificacao ?? ""} onChange={handleWeaponField("identificacao" as keyof Omit<WeaponEntry,"type">)}
+                          <CampoTexto value={activeWeapon?.identificacao ?? ""} onChange={handleWeaponField("identificacao" as keyof Omit<WeaponEntry,"type">)}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                             placeholder="Ex.: RT 627, REP 001/2025…" />
                         </div>
@@ -3542,7 +3755,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               </button>
                             )}
                           </label>
-                          <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
+                          <CampoTexto value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                             placeholder={activeWeapon?.type === "CARTUCHO" ? "Ex.: CBC 9mm, RP .40…" : "Ex.: RT 627"} />
                         </div>
@@ -3630,6 +3843,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                       if (activeWeapon.type === "ARMA DE CHOQUE" && !permitidosChoque.has(campo)) return
                                       setWeaponDirect(campo as keyof Omit<WeaponEntry, "type">, valor as string | boolean | null | string[])
                                     })
+                                    // Expande no celular os cards que acabaram de ser preenchidos.
+                                    setFichaExpandSignal((s) => s + 1)
                                   }}
                                   className="mt-2 flex h-10 w-full items-center justify-between rounded-2xl border border-blue-200 bg-blue-50 px-4 text-left shadow-sm transition active:opacity-70 disabled:opacity-40"
                                 >
@@ -3744,57 +3959,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
                   {/* ── REVÓLVER ── */}
                   {activeWeapon?.type === "REVÓLVER" && (<>
-                    <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                    <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                       {renderMateriaisArmaFogo()}
-                      {/* Sistema de acionamento — picker */}
-                      <div className="mb-4">
-                        <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
-                        <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
-                          className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                          <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                            {activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}
-                          </span>
-                          <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                        </button>
-                      </div>
-                      {/* Raiamento do cano */}
-                      <div className="mb-4 overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
-                        <div className="border-b border-[#ede3ce] px-4 py-3">
-                          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Raiamento do cano</div>
-                        </div>
-                        <div className="divide-y divide-[#ede3ce]">
-                          <div className="px-4 py-3">
-                            <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento<HelpBtn title="Tipo de raiamento" text="Característica interna do cano. Alma lisa: sem raias, comum em espingardas. Raiamento convencional: raias helicoidais que estabilizam o projétil. Poligonal: perfil poligonal em vez de raias tradicionais, comum em Glocks." /></label>
-                            <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
-                              className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                              <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                                {activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}
-                              </span>
-                              <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                            </button>
-                          </div>
-                          {activeWeapon?.tipoRaiamento && activeWeapon.tipoRaiamento !== "Alma lisa (sem raiamento)" && (<>
-                          <div className="px-4 py-3">
-                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sentido</label>
-                            <button type="button" onClick={() => setSentidoPickerOpen(true)}
-                              className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                              <span className={`truncate text-[15px] ${activeWeapon?.sentidoEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sentidoEstrias || "Selecionar sentido…"}</span>
-                              <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                            </button>
-                          </div>
-                          <div className="px-4 py-3">
-                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de raias</label>
-                            <button type="button" onClick={() => setNumRaiasPickerOpen(true)}
-                              className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                              <span className={`truncate text-[15px] ${activeWeapon?.numEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                                {activeWeapon?.numEstrias || "Selecionar…"}
-                              </span>
-                              <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                            </button>
-                          </div>
-                          </>)}
-                        </div>
-                      </div>
+                      {renderRaiamentoCano()}
                       <div className="grid gap-4 md:grid-cols-2">
                         {([
                           ["compCano",   "Comprimento do cano", "Ex.: 4 pol."],
@@ -3802,7 +3969,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                           <div key={field}>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                            <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
+                            <CampoTexto value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                               className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                               placeholder={ph} />
                             {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
@@ -3834,9 +4001,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ))}
                         </div>
                       </div>
-                    </CollapsibleSection>
+                    </CollapsibleCard>
 
                     <div className="space-y-4">
+                      {renderClassificacaoTecnica()}
                       <CollapsibleCard title="Mecanismo de funcionamento">
                         <div className="space-y-2">
                           {([
@@ -3896,7 +4064,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
                             <div key={key}>
                               <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                   className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                                 {label}
                               </label>
@@ -3919,7 +4087,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["marcacaoPercussor","Marcação de percussor"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -3984,49 +4152,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {/* ── CARABINA ── */}
                   {activeWeapon?.type === "CARABINA" && (
                     <div className="space-y-4">
-                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                      <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                         {renderMateriaisArmaFogo()}
-                        <div className="mb-4">
-                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
-                          <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4 overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
-                          <div className="border-b border-[#ede3ce] px-4 py-3">
-                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Raiamento do cano</div>
-                          </div>
-                          <div className="divide-y divide-[#ede3ce]">
-                            <div className="px-4 py-3">
-                              <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento<HelpBtn title="Tipo de raiamento" text="Característica interna do cano. Alma lisa: sem raias, comum em espingardas. Raiamento convencional: raias helicoidais que estabilizam o projétil. Poligonal: perfil poligonal em vez de raias tradicionais, comum em Glocks." /></label>
-                              <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
-                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                                <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}</span>
-                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                              </button>
-                            </div>
-                            <div className="px-4 py-3">
-                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sentido</label>
-                              <button type="button" onClick={() => setSentidoPickerOpen(true)}
-                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                                <span className={`truncate text-[15px] ${activeWeapon?.sentidoEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sentidoEstrias || "Selecionar sentido…"}</span>
-                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                              </button>
-                            </div>
-                            <div className="px-4 py-3">
-                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de raias</label>
-                              <button type="button" onClick={() => setNumRaiasPickerOpen(true)}
-                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                                <span className={`truncate text-[15px] ${activeWeapon?.numEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                                  {activeWeapon?.numEstrias || "Selecionar…"}
-                                </span>
-                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+                        {renderRaiamentoCano()}
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
                             ["compCano",             "Comprimento do cano",  "Ex.: 510 mm"],
@@ -4034,7 +4162,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
+                              <CampoTexto value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
                               {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
@@ -4043,7 +4171,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </div>
                           ))}
                         </div>
-                      </CollapsibleSection>
+                      </CollapsibleCard>
+                      {renderClassificacaoTecnica()}
                       <CollapsibleCard title="Mecanismo de funcionamento">
                         <div className="space-y-2">
                           {([
@@ -4104,7 +4233,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
                             <div key={key}>
                               <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                   className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                                 {label}
                               </label>
@@ -4128,7 +4257,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["ciclagemFuncional", "Ciclagem funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -4192,49 +4321,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {/* ── PISTOLA / PISTOLETE ── */}
                   {(activeWeapon?.type === "PISTOLA" || activeWeapon?.type === "PISTOLETE") && (
                     <div className="space-y-4">
-                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                      <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                         {renderMateriaisArmaFogo()}
-                        <div className="mb-4">
-                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
-                          <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4 overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
-                          <div className="border-b border-[#ede3ce] px-4 py-3">
-                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Raiamento do cano</div>
-                          </div>
-                          <div className="divide-y divide-[#ede3ce]">
-                            <div className="px-4 py-3">
-                              <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento<HelpBtn title="Tipo de raiamento" text="Característica interna do cano. Alma lisa: sem raias, comum em espingardas. Raiamento convencional: raias helicoidais que estabilizam o projétil. Poligonal: perfil poligonal em vez de raias tradicionais, comum em Glocks." /></label>
-                              <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
-                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                                <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}</span>
-                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                              </button>
-                            </div>
-                            <div className="px-4 py-3">
-                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sentido</label>
-                              <button type="button" onClick={() => setSentidoPickerOpen(true)}
-                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                                <span className={`truncate text-[15px] ${activeWeapon?.sentidoEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sentidoEstrias || "Selecionar sentido…"}</span>
-                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                              </button>
-                            </div>
-                            <div className="px-4 py-3">
-                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de raias</label>
-                              <button type="button" onClick={() => setNumRaiasPickerOpen(true)}
-                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                                <span className={`truncate text-[15px] ${activeWeapon?.numEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                                  {activeWeapon?.numEstrias || "Selecionar…"}
-                                </span>
-                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+                        {renderRaiamentoCano()}
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
                             ["compCano",             "Comprimento do cano",     "Ex.: 100 mm"],
@@ -4242,7 +4331,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
+                              <CampoTexto value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
                               {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
@@ -4251,7 +4340,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </div>
                           ))}
                         </div>
-                      </CollapsibleSection>
+                      </CollapsibleCard>
+                      {renderClassificacaoTecnica()}
                       <CollapsibleCard title="Mecanismo de funcionamento">
                         <div className="space-y-2">
                           {([
@@ -4312,7 +4402,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
                             <div key={key}>
                               <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                   className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                                 {label}
                               </label>
@@ -4336,7 +4426,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["ciclagemFuncional", "Ciclagem funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -4400,27 +4490,18 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {/* ── ESPINGARDA ── */}
                   {activeWeapon?.type === "ESPINGARDA" && (
                     <div className="space-y-4">
-                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                      <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                         {renderMateriaisArmaFogo()}
-                        <div className="mb-4">
-                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
-                          <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
                         {renderRaiamentoCano()}
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
                             ["compCano",             "Comprimento do cano",  "Ex.: 510 mm"],
                             ["compTotal",            "Comprimento total",    "Ex.: 940 mm"],
-                            ["numCanos",             "Número de canos",      "Ex.: 1, 2"],
                             ["tamanhoCamara",        "Tamanho da câmara",    "Ex.: 2 ¾ polegadas"],
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
+                              <CampoTexto value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
                               {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
@@ -4429,7 +4510,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </div>
                           ))}
                         </div>
-                      </CollapsibleSection>
+                      </CollapsibleCard>
+                      {renderClassificacaoTecnica()}
                       <CollapsibleCard title="Mecanismo de funcionamento">
                         <div className="space-y-2">
                           {([
@@ -4487,7 +4569,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
                             <div key={key}>
                               <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                   className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                                 {label}
                               </label>
@@ -4509,7 +4591,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["ejacaoFuncional",  "Ejeção funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -4573,49 +4655,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {/* ── FUZIL ── */}
                   {activeWeapon?.type === "FUZIL" && (
                     <div className="space-y-4">
-                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                      <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                         {renderMateriaisArmaFogo()}
-                        <div className="mb-4">
-                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
-                          <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4 overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
-                          <div className="border-b border-[#ede3ce] px-4 py-3">
-                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Raiamento do cano</div>
-                          </div>
-                          <div className="divide-y divide-[#ede3ce]">
-                            <div className="px-4 py-3">
-                              <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento<HelpBtn title="Tipo de raiamento" text="Característica interna do cano. Alma lisa: sem raias, comum em espingardas. Raiamento convencional: raias helicoidais que estabilizam o projétil. Poligonal: perfil poligonal em vez de raias tradicionais, comum em Glocks." /></label>
-                              <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
-                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                                <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}</span>
-                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                              </button>
-                            </div>
-                            <div className="px-4 py-3">
-                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sentido</label>
-                              <button type="button" onClick={() => setSentidoPickerOpen(true)}
-                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                                <span className={`truncate text-[15px] ${activeWeapon?.sentidoEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sentidoEstrias || "Selecionar sentido…"}</span>
-                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                              </button>
-                            </div>
-                            <div className="px-4 py-3">
-                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de raias</label>
-                              <button type="button" onClick={() => setNumRaiasPickerOpen(true)}
-                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                                <span className={`truncate text-[15px] ${activeWeapon?.numEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                                  {activeWeapon?.numEstrias || "Selecionar…"}
-                                </span>
-                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+                        {renderRaiamentoCano()}
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
                             ["compCano",             "Comprimento do cano",   "Ex.: 410 mm"],
@@ -4623,7 +4665,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
+                              <CampoTexto value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
                               {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
@@ -4632,7 +4674,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </div>
                           ))}
                         </div>
-                      </CollapsibleSection>
+                      </CollapsibleCard>
+                      {renderClassificacaoTecnica()}
                       <CollapsibleCard title="Mecanismo de funcionamento">
                         <div className="space-y-2">
                           {([
@@ -4694,7 +4737,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
                             <div key={key}>
                               <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                   className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                                 {label}
                               </label>
@@ -4717,7 +4760,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["ciclagemFuncional","Ciclagem funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -4781,49 +4824,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {/* ── METRALHADORA / SUBMETRALHADORA ── */}
                   {(activeWeapon?.type === "METRALHADORA" || activeWeapon?.type === "SUBMETRALHADORA") && (
                     <div className="space-y-4">
-                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                      <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                         {renderMateriaisArmaFogo()}
-                        <div className="mb-4">
-                          <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sistema de acionamento<HelpBtn title="Sistema de acionamento" text="Define como o mecanismo de disparo funciona. SA (ação simples): o cão precisa ser amartilhado antes. DA (ação dupla): o gatilho arma e dispara. Striker-fired: percussor interno armado pelo ciclo do ferrolho." /></label>
-                          <button type="button" onClick={() => setSistemaAcionamentoPickerOpen(true)}
-                            className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                            <span className={`truncate text-[15px] ${activeWeapon?.sistemaAcionamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sistemaAcionamento || "Selecionar sistema…"}</span>
-                            <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                          </button>
-                        </div>
-                        <div className="mb-4 overflow-hidden rounded-2xl border border-[#d3c4a8] bg-white shadow-sm">
-                          <div className="border-b border-[#ede3ce] px-4 py-3">
-                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Raiamento do cano</div>
-                          </div>
-                          <div className="divide-y divide-[#ede3ce]">
-                            <div className="px-4 py-3">
-                              <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de raiamento<HelpBtn title="Tipo de raiamento" text="Característica interna do cano. Alma lista: sem raias, comum em espingardas. Raiamento convencional: raias helicoidais que estabilizam o projétil. Poligonal: perfil poligonal em vez de raias tradicionais, comum em Glocks." /></label>
-                              <button type="button" onClick={() => setTipoRaiamentoPickerOpen(true)}
-                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                                <span className={`truncate text-[15px] ${activeWeapon?.tipoRaiamento ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.tipoRaiamento || "Selecionar raiamento…"}</span>
-                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                              </button>
-                            </div>
-                            <div className="px-4 py-3">
-                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Sentido</label>
-                              <button type="button" onClick={() => setSentidoPickerOpen(true)}
-                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                                <span className={`truncate text-[15px] ${activeWeapon?.sentidoEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.sentidoEstrias || "Selecionar sentido…"}</span>
-                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                              </button>
-                            </div>
-                            <div className="px-4 py-3">
-                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de raias</label>
-                              <button type="button" onClick={() => setNumRaiasPickerOpen(true)}
-                                className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
-                                <span className={`truncate text-[15px] ${activeWeapon?.numEstrias ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>
-                                  {activeWeapon?.numEstrias || "Selecionar…"}
-                                </span>
-                                <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+                        {renderRaiamentoCano()}
                         <div className="grid gap-4 md:grid-cols-2">
                           {([
                             ["compCano",             "Comprimento do cano",  "Ex.: 260 mm"],
@@ -4831,7 +4834,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
+                              <CampoTexto value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
                               {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
@@ -4840,7 +4843,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </div>
                           ))}
                         </div>
-                      </CollapsibleSection>
+                      </CollapsibleCard>
+                      {renderClassificacaoTecnica()}
                       <CollapsibleCard title="Mecanismo de funcionamento">
                         <div className="space-y-2">
                           {([
@@ -4902,7 +4906,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
                             <div key={key}>
                               <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                   className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                                 {label}
                               </label>
@@ -4925,7 +4929,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["ciclagemFuncional","Ciclagem funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -4989,7 +4993,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {/* ── ESTOJO ── */}
                   {activeWeapon?.type === "ESTOJO" && (
                     <div className="space-y-4">
-                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                      <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                         {/* Material — picker */}
                         <div className="mb-4">
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
@@ -5004,30 +5008,15 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         {/* Inscrições (headstamp) */}
                         <div className="mb-4">
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Inscrições (headstamp)</label>
-                          <input
+                          <CampoTexto
                             value={activeWeapon?.inscricaoFabricante ?? ""}
                             onChange={handleWeaponField("inscricaoFabricante")}
                             className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                             placeholder="Ex.: CBC .38 SPL, RP 9mm LUGER…"
                           />
                         </div>
-                        {/* Outros campos */}
-                        <div className="grid gap-4 md:grid-cols-2">
-                          {([
-                            ...((activeWeapon?.estadoEstojo === "ÍNTEGRO" || !!activeWeapon?.quantidade) ? [["quantidade", "Quantidade", "Ex.: 3"]] : []),
-                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
-                            <div key={field}>
-                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
-                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                placeholder={ph} />
-                              {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
-                                <p className="mt-1 px-1 text-[11px] font-medium text-[#9e7f45]">{_mmParaPol(String(activeWeapon?.[field] ?? ""))}</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </CollapsibleSection>
+                        {/* Quantidade do estojo agora fica no cabeçalho "Tipo de peça". */}
+                      </CollapsibleCard>
                       <CollapsibleCard title="Marcações balísticas">
                         <div className="grid gap-3 sm:grid-cols-2">
                           {([
@@ -5037,7 +5026,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["marcacaoCamara",   "Marcação de câmara"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -5054,7 +5043,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["oxidacaoPresente",  "Oxidação presente"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -5081,19 +5070,19 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       <div className="grid gap-5 md:grid-cols-2">
                         <div>
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Identificação</label>
-                          <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
+                          <CampoTexto value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                             placeholder="Ex.: CBC, Remington…" />
                         </div>
                         <div>
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Fabricante</label>
-                          <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
+                          <CampoTexto value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                             placeholder="Ex.: CBC, Sellier & Bellot…" />
                         </div>
                       </div>
 
-                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                      <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                         {/* Material — seletor bottom sheet */}
                         <div className="mb-4">
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material</label>
@@ -5122,7 +5111,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                           </button>
                         </div>
-                      </CollapsibleSection>
+                      </CollapsibleCard>
 
                       <CollapsibleCard title="Marcações balísticas">
                         <div className="grid gap-3 sm:grid-cols-2">
@@ -5133,7 +5122,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["oxidacaoPresente",  "Oxidação presente"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -5159,7 +5148,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["manchas",  "Manchas ou resíduos presentes"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -5242,7 +5231,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                               <div key={field}>
                                 <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                                <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
+                                <CampoTexto value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                   className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                   placeholder={ph} />
                                 {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
@@ -5389,14 +5378,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         {activeWeapon?.estadoProjetil === "ÍNTEGRO" && (
                           <div className="mb-4">
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre real (mm)</label>
-                            <input value={String(activeWeapon?.diametro ?? "")} onChange={handleWeaponField("diametro")} inputMode="decimal"
+                            <CampoTexto value={String(activeWeapon?.diametro ?? "")} onChange={handleWeaponField("diametro")} inputMode="decimal"
                               className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                               placeholder="Ex.: 9,02" />
                           </div>
                         )}
                         <div className="mt-4">
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Massa (g)</label>
-                          <input
+                          <CampoTexto
                             value={String(activeWeapon?.massa ?? "")}
                             onChange={handleWeaponField("massa" as keyof Omit<WeaponEntry,"type">)} inputMode="decimal"
                             className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
@@ -5419,7 +5408,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         {activeWeapon?.estadoProjetil !== "ÍNTEGRO" && (
                           <div className="mt-4">
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Altura (mm)</label>
-                            <input
+                            <CampoTexto
                               value={String(activeWeapon?.alturaProjetil ?? "")}
                               onChange={handleWeaponField("alturaProjetil" as keyof Omit<WeaponEntry,"type">)} inputMode="decimal"
                               className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
@@ -5438,13 +5427,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       <div className="grid gap-5 md:grid-cols-2">
                         <div>
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Identificação</label>
-                          <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
+                          <CampoTexto value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                             placeholder="Ex.: Hodgdon H4895, IMR 4064…" />
                         </div>
                       </div>
 
-                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                      <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                         {/* Tipo de pólvora */}
                         <div className="mb-4">
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de pólvora<HelpBtn title="Tipo de pólvora" text="Pólvora negra: mistura de carvão, enxofre e nitrato — mais antiga, produz fumaça densa. Sem fumaça base simples: nitrocelulose, usada em munições modernas. Base dupla: nitrocelulose + nitroglicerina, maior energia. Propelente esférico: grânulos esféricos de queima uniforme." /></label>
@@ -5470,7 +5459,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         {/* Cor */}
                         <div className="mb-4">
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Cor</label>
-                          <input value={activeWeapon?.cor ?? ""} onChange={handleWeaponField("cor" as keyof Omit<WeaponEntry,"type">)}
+                          <CampoTexto value={activeWeapon?.cor ?? ""} onChange={handleWeaponField("cor" as keyof Omit<WeaponEntry,"type">)}
                             className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                             placeholder="Ex.: Cinza, Preta, Branca, Amarela…" />
                         </div>
@@ -5478,18 +5467,18 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Massa (g)</label>
-                            <input value={String(activeWeapon?.massa ?? "")} onChange={handleWeaponField("massa" as keyof Omit<WeaponEntry,"type">)} inputMode="decimal"
+                            <CampoTexto value={String(activeWeapon?.massa ?? "")} onChange={handleWeaponField("massa" as keyof Omit<WeaponEntry,"type">)} inputMode="decimal"
                               className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                               placeholder="Ex.: 2,500" />
                           </div>
                           <div>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Quantidade</label>
-                            <input value={String(activeWeapon?.quantidade ?? "")} onChange={handleWeaponField("quantidade")} inputMode="numeric"
+                            <CampoTexto value={String(activeWeapon?.quantidade ?? "")} onChange={handleWeaponField("quantidade")} inputMode="numeric"
                               className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                               placeholder="Ex.: 1 frasco" />
                           </div>
                         </div>
-                      </CollapsibleSection>
+                      </CollapsibleCard>
 
                       <CollapsibleCard title="Estado de conservação">
                         {renderEstadoGeralArma()}
@@ -5499,7 +5488,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["manchas",          "Contaminação ou manchas"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -5508,7 +5497,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         {Boolean(activeWeapon?.manchas) && (
                           <div className="mt-3">
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Observações</label>
-                            <input value={activeWeapon?.manchasObs ?? ""} onChange={handleWeaponField("manchasObs")}
+                            <CampoTexto value={activeWeapon?.manchasObs ?? ""} onChange={handleWeaponField("manchasObs")}
                               className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                               placeholder="Descreva as contaminações…" />
                           </div>
@@ -5523,13 +5512,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       <div className="grid gap-5 md:grid-cols-2">
                         <div>
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Identificação</label>
-                          <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
+                          <CampoTexto value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                             placeholder="Ex.: CCI 400, Federal 100…" />
                         </div>
                         <div>
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Fabricante</label>
-                          <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
+                          <CampoTexto value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                             placeholder="Ex.: CBC, CCI, Federal, Remington…" />
                         </div>
@@ -5545,7 +5534,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       </div>
 
-                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                      <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                         {/* Tipo de espoleta */}
                         <div className="mb-4">
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Tipo de espoleta<HelpBtn title="Tipo de espoleta" text="Boxer: espoleta central com 1 orifício de chama — padrão americano, permite recarga. Berdan: central com 2 orifícios — padrão europeu, dificulta recarga. Rimfire: espoleta distribuída no anel periférico do estojo, comum em calibres .22." /></label>
@@ -5568,7 +5557,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                           </button>
                         </div>
-                        {/* Calibre e Quantidade */}
+                        {/* Calibre (quantidade fica no cabeçalho "Tipo de peça") */}
                         <div className="space-y-3">
                           <div>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Calibre compatível</label>
@@ -5580,14 +5569,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
                             </button>
                           </div>
-                          <div>
-                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Quantidade</label>
-                            <input value={String(activeWeapon?.quantidade ?? "")} onChange={handleWeaponField("quantidade")} inputMode="numeric"
-                              className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                              placeholder="Ex.: 5" />
-                          </div>
                         </div>
-                      </CollapsibleSection>
+                      </CollapsibleCard>
 
                       <CollapsibleCard title="Marcações e estado">
                         <div className="grid gap-3 sm:grid-cols-2">
@@ -5598,7 +5581,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["oxidacaoPresente",   "Oxidação presente"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -5611,7 +5594,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {/* ── CARTUCHO ── */}
                   {activeWeapon?.type === "CARTUCHO" && (
                     <div className="space-y-4">
-                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                      <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                         {/* Material do estojo — picker */}
                         <div className="mb-4">
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material do estojo</label>
@@ -5626,29 +5609,15 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         {/* Inscrições (headstamp) */}
                         <div className="mb-4">
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Inscrições (headstamp)</label>
-                          <input
+                          <CampoTexto
                             value={activeWeapon?.inscricaoFabricante ?? ""}
                             onChange={handleWeaponField("inscricaoFabricante")}
                             className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                             placeholder="Ex.: CBC .38 SPL, RP 9mm LUGER…"
                           />
                         </div>
-                        <div className="grid gap-4 md:grid-cols-2">
-                          {([
-                            ...((activeWeapon?.estadoCartucho === "ÍNTEGRO" || !!activeWeapon?.quantidade) ? [["quantidade", "Quantidade", "Ex.: 12"]] : []),
-                          ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
-                            <div key={field}>
-                              <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
-                                className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
-                                placeholder={ph} />
-                              {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
-                                <p className="mt-1 px-1 text-[11px] font-medium text-[#9e7f45]">{_mmParaPol(String(activeWeapon?.[field] ?? ""))}</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </CollapsibleSection>
+                        {/* Quantidade do cartucho agora fica no cabeçalho "Tipo de peça". */}
+                      </CollapsibleCard>
                       <CollapsibleCard title="Estado de conservação">
                         {renderEstadoGeralArma()}
                         <div className="grid gap-3 sm:grid-cols-2">
@@ -5659,7 +5628,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["aptoDisparo","Apto a disparo"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -5682,21 +5651,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {/* ── GARRUCHA ── */}
                   {activeWeapon?.type === "GARRUCHA" && (
                     <div className="space-y-4">
-                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                      <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                         {renderMateriaisArmaFogo()}
                         <div className="grid gap-5">
-                          <div>
-                            <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número de canos</label>
-                            <div className="grid grid-cols-3 gap-2">
-                              {["1","2","Indeterminado"].map(v => (
-                                <button key={v} type="button"
-                                  onClick={() => setWeaponDirect("numCanos", v)}
-                                  className={`rounded-xl border-2 py-3 text-[13px] font-black uppercase tracking-wide transition active:scale-[.97] ${activeWeapon?.numCanos === v ? "border-[#9e7f45] bg-[#12213d] text-[#f0d08a]" : "border-[#d3c4a8] bg-white text-[#26221b]"}`}>
-                                  {v}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
                           {renderRaiamentoCano()}
                           <div className="grid gap-4 md:grid-cols-2">
                             {([
@@ -5705,7 +5662,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                               <div key={field}>
                                 <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                                <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
+                                <CampoTexto value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                   className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                                   placeholder={ph} />
                                 {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
@@ -5715,14 +5672,18 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ))}
                           </div>
                         </div>
-                      </CollapsibleSection>
+                      </CollapsibleCard>
 
+                      {renderClassificacaoTecnica()}
                       <CollapsibleCard title="Mecanismo de funcionamento">
                         <div className="space-y-2">
                           {([
-                            ["caoFuncional",     "Cão funcional"],
-                            ["gatilhoFuncional", "Gatilho funcional"],
-                            ["seguranca",        "Segurança presente e funcional"],
+                            ["caoFuncional",      "Cão funcional"],
+                            ["percussorFuncional","Percussor funcional"],
+                            ["gatilhoFuncional",  "Gatilho funcional"],
+                            ["extratorFuncional", "Extrator funcional"],
+                            ["basculaFunc",       "Báscula abre e trava"],
+                            ["seguranca",         "Segurança presente e funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
                             const isSim = !isNa && (activeWeapon?.[key] === true)
@@ -5755,7 +5716,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
                             <div key={key}>
                               <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                   className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                                 {label}
                               </label>
@@ -5776,9 +5737,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["funcMunicaoReal",  "Funcionamento com munição real"],
                             ["testePercussao",   "Teste de percussão"],
                             ["marcacaoPercussor","Marcação de percussor"],
+                            ["extracaoFuncional","Extração funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -5860,8 +5822,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       <CollapsibleCard title="Mecanismo de funcionamento">
                         <div className="space-y-2">
                           {([
-                            ["gatilhoFuncional", "Gatilho / acionador funcional"],
-                            ["seguranca",        "Trava de segurança presente e funcional"],
+                            ["gatilhoFuncional",   "Gatilho / acionador funcional"],
+                            ["bateriaPresente",    "Bateria / fonte de energia presente"],
+                            ["indicadorCargaFunc", "Indicador de carga (LED) funcional"],
+                            ["lanternaFunc",       "Lanterna funcional"],
+                            ["eletrodosIntegros",  "Eletrodos íntegros"],
+                            ["seguranca",          "Trava de segurança presente e funcional"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
                             const isSim = !isNa && (activeWeapon?.[key] === true)
@@ -5887,12 +5853,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         {renderEstadoGeralArma()}
                         <div className="space-y-3">
                           {([
+                            ["ferrugem",       "ferrugemObs",       "Presença de ferrugem / oxidação"],
+                            ["desgaste",       "desgasteObs",       "Desgaste"],
                             ["danoEstruturais","danoEstruturaisObs","Danos estruturais"],
                             ["pecasFaltantes", "pecasFaltantesObs", "Peças / componentes faltantes"],
                           ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
                             <div key={key}>
                               <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                   className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                                 {label}
                               </label>
@@ -5909,11 +5877,14 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       <CollapsibleCard title="Exame de disparo">
                         <div className="grid gap-3 sm:grid-cols-2">
                           {([
-                            ["aptoDisparo",     "Produz descarga elétrica no teste"],
-                            ["testePercussao",  "Descarga contínua / eficaz"],
+                            ["aptoDisparo",          "Produz descarga elétrica no teste"],
+                            ["testePercussao",       "Descarga contínua / eficaz"],
+                            ["arcoEletricoVisivel",  "Arco elétrico visível entre os eletrodos"],
+                            ["emiteSomEstalo",       "Emite estalo / som característico"],
+                            ["intensidadeCompativel","Intensidade compatível com o modelo"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -5931,7 +5902,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           <div className="grid grid-cols-2 gap-3">
                             <div>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Quantidade</label>
-                              <input value={String(activeWeapon?.quantidade ?? "")} onChange={handleWeaponField("quantidade")} inputMode="decimal"
+                              <CampoTexto value={String(activeWeapon?.quantidade ?? "")} onChange={handleWeaponField("quantidade")} inputMode="decimal"
                                 placeholder="Ex.: 1 ou 3.5"
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] shadow-sm" />
                             </div>
@@ -5950,13 +5921,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           </div>
                           <div>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Quant. Descrição</label>
-                            <input value={activeWeapon?.quantDescricao ?? ""} onChange={handleWeaponField("quantDescricao")}
+                            <CampoTexto value={activeWeapon?.quantDescricao ?? ""} onChange={handleWeaponField("quantDescricao")}
                               placeholder="Descrição da quantidade"
                               className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] shadow-sm" />
                           </div>
                           <div>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Código do Vestígio</label>
-                            <input value={activeWeapon?.codigoVestigio ?? ""} onChange={handleWeaponField("codigoVestigio")} inputMode="numeric"
+                            <CampoTexto value={activeWeapon?.codigoVestigio ?? ""} onChange={handleWeaponField("codigoVestigio")} inputMode="numeric"
                               placeholder="Código do vestígio"
                               className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] shadow-sm" />
                           </div>
@@ -5975,7 +5946,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           </div>
                           <label className="flex items-center justify-between rounded-xl border border-[#e5d9c3] bg-white px-4 py-3">
                             <span className="text-[15px] font-medium text-[#26221b]">Examinado In Loco</span>
-                            <input type="checkbox" checked={activeWeapon?.examinadoInLoco ?? false}
+                            <CampoTexto type="checkbox" checked={activeWeapon?.examinadoInLoco ?? false}
                               onChange={e => setWeaponDirect("examinadoInLoco" as any, e.target.checked)}
                               className="h-5 w-5 accent-[#9e7f45]" />
                           </label>
@@ -5991,13 +5962,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       <div className="grid gap-5 md:grid-cols-2">
                         <div>
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Identificação</label>
-                          <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
+                          <CampoTexto value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
                             className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm"
                             placeholder="Ex.: Tramontina, Gerber…" />
                         </div>
                       </div>
 
-                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                      <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                         {/* Material da lâmina */}
                         <div className="mb-4">
                           <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material da lâmina</label>
@@ -6050,7 +6021,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
+                              <CampoTexto value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
                               {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
@@ -6059,7 +6030,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </div>
                           ))}
                         </div>
-                      </CollapsibleSection>
+                      </CollapsibleCard>
                       <CollapsibleCard title="Estado de conservação">
                         {renderEstadoGeralArma()}
                         <div className="space-y-3">
@@ -6071,7 +6042,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
                             <div key={key}>
                               <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                   className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                                 {label}
                               </label>
@@ -6093,7 +6064,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["aptaUso",        "Apta ao uso"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -6243,7 +6214,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             Identificação
                             <HelpBtn title="Identificação" text="Designação comercial ou referência da arma de pressão. Inclua marca e modelo quando conhecidos. Ex.: Rossi M1000, Crosman 1077, Gamo Whisper." />
                           </label>
-                          <input value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
+                          <CampoTexto value={activeWeapon?.model ?? ""} onChange={handleWeaponField("model")}
                             className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                             placeholder="Ex.: Rossi 1000, Crosman 1077…" />
                         </div>
@@ -6268,13 +6239,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             Fabricante
                             <HelpBtn title="Fabricante" text="Empresa responsável pela fabricação. Ex.: Rossi, Crosman, Gamo, CBC." />
                           </label>
-                          <input value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
+                          <CampoTexto value={activeWeapon?.brand ?? ""} onChange={handleWeaponField("brand")}
                             className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                             placeholder="Ex.: Rossi, Crosman, Gamo…" />
                         </div>
                         )}
                       </div>
-                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                      <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                         <div className="mb-4">
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             Sistema de acionamento
@@ -6311,7 +6282,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 {lbl}
                                 <HelpBtn title={lbl} text={help} />
                               </label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
+                              <CampoTexto value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
                               {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
@@ -6320,7 +6291,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </div>
                           ))}
                         </div>
-                      </CollapsibleSection>
+                      </CollapsibleCard>
                       <CollapsibleCard title="Estado de conservação">
                         {renderEstadoGeralArma()}
                         <div className="space-y-3">
@@ -6331,7 +6302,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
                             <div key={key}>
                               <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                   className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                                 {label}
                               </label>
@@ -6352,7 +6323,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             ["aptaUso",          "Apta ao uso / disparo"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -6516,7 +6487,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           </div>
                         )}
                       </div>
-                      <CollapsibleSection title="Características físicas" defaultOpen={true}>
+                      <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                         <div className="mb-4">
                           <label className="mb-2 flex items-center text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">
                             Sistema de ignição
@@ -6558,7 +6529,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, string, string][]).map(([field, lbl, ph]) => (
                             <div key={field}>
                               <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">{lbl}</label>
-                              <input value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
+                              <CampoTexto value={String(activeWeapon?.[field] ?? "")} onChange={handleWeaponField(field)} inputMode={_CAMPOS_INT.has(field as string) ? "numeric" : _CAMPOS_DEC.has(field as string) ? "decimal" : undefined}
                                 className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                                 placeholder={ph} />
                               {(field === "compCano" || field === "compTotal") && _mmParaPol(String(activeWeapon?.[field] ?? "")) && (
@@ -6567,7 +6538,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </div>
                           ))}
                         </div>
-                      </CollapsibleSection>
+                      </CollapsibleCard>
+                      {renderClassificacaoTecnica({ ocultarAcionamento: true })}
                       <CollapsibleCard title="Estado de conservação">
                         {renderEstadoGeralArma()}
                         <div className="space-y-3">
@@ -6578,7 +6550,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           ] as [keyof Omit<WeaponEntry,"type">, keyof Omit<WeaponEntry,"type">, string][]).map(([key, obsKey, label]) => (
                             <div key={key}>
                               <label className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                                <input type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
+                                <CampoTexto type="checkbox" checked={Boolean(activeWeapon?.[key] ?? false)} onChange={handleWeaponField(key)}
                                   className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                                 {label}
                               </label>
@@ -6595,14 +6567,18 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       <CollapsibleCard title="Mecanismo de funcionamento">
                         <div className="space-y-2">
                           {([
+                            ["caoFuncional",      "Cão funcional"],
                             ["gatilhoFuncional",  "Gatilho funcional"],
+                            ["seguranca",         "Trava de segurança / meia-esporada"],
                             ["ignicaoFuncional",  "Mecanismo de ignição funcional"],
                             ["varetaPresente",    "Vareta de carga presente"],
                             ["canalDesobstruido", "Canal de ignição (ouvido) desobstruído"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => {
                             const isNa = (activeWeapon?.naFlags ?? []).includes(key)
                             const isSim = !isNa && ((activeWeapon as any)?.[key] === true)
-                            const isNao = !isNa && !Boolean((activeWeapon as any)?.[key] ?? false)
+                            // NÃO só quando explicitamente false — senão o padrão (undefined)
+                            // marcaria NÃO sozinho. Igual às outras seções de arma.
+                            const isNao = !isNa && ((activeWeapon as any)?.[key] === false)
                             return (
                               <div key={key} className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#e8dfc8] bg-[#fdfaf4] px-4 py-3">
                                 <span className={`flex-1 text-[15px] font-medium leading-tight ${isNa ? "opacity-40 line-through text-[#393025]" : "text-[#393025]"}`}>
@@ -6640,11 +6616,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       <CollapsibleCard title="Exame de disparo">
                         <div className="grid gap-3 sm:grid-cols-2">
                           {([
-                            ["aptoDisparo",    "Apta para disparo"],
-                            ["testePercussao", "Teste de ignição / percussão"],
+                            ["aptoDisparo",     "Apta para disparo"],
+                            ["testePercussao",  "Teste de ignição / percussão"],
+                            ["marcacaoPercussor","Marcação de percussor (espoletados)"],
                           ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <input type="checkbox" checked={((activeWeapon as any)?.[key] === true)} onChange={handleWeaponField(key)}
+                              <CampoTexto type="checkbox" checked={((activeWeapon as any)?.[key] === true)} onChange={handleWeaponField(key)}
                                 className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
                               {label}
                             </label>
@@ -6712,7 +6689,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         <div className="space-y-3">
                           <div>
                             <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Capacidade</label>
-                            <input value={String(activeWeapon?.capacidadeCarregador ?? "")} onChange={handleWeaponField("capacidadeCarregador")}
+                            <CampoTexto value={String(activeWeapon?.capacidadeCarregador ?? "")} onChange={handleWeaponField("capacidadeCarregador")}
                               className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                               placeholder="Ex.: 17 cartuchos" />
                           </div>
@@ -6892,7 +6869,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               {activeWeapon?.type !== "REVÓLVER" && (
                                 <div>
                                   <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Capacidade</label>
-                                  <input value={String(activeWeapon?.capacidadeAcessorio ?? "")} onChange={handleWeaponField("capacidadeAcessorio")}
+                                  <CampoTexto value={String(activeWeapon?.capacidadeAcessorio ?? "")} onChange={handleWeaponField("capacidadeAcessorio")}
                                     className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] outline-none transition focus:border-[#9e7f45]"
                                     placeholder="Ex.: 17 cartuchos" />
                                 </div>
@@ -6947,7 +6924,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 Mesmo lacre da peça
                               </button>
                             </div>
-                            <input
+                            <CampoTexto
                               value={String(activeWeapon?.lacreEntradaAcessorio ?? "")}
                               onChange={handleWeaponField("lacreEntradaAcessorio" as any)}
                               disabled={!!activeWeapon?.lacreEntradaMesmoDaPeca}
@@ -7013,7 +6990,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                 Mesmo lacre da peça
                               </button>
                             </div>
-                            <input
+                            <CampoTexto
                               value={String(activeWeapon?.lacreSaidaAcessorio ?? "")}
                               onChange={handleWeaponField("lacreSaidaAcessorio" as any)}
                               disabled={!!activeWeapon?.lacreSaidaMesmoDaPeca}
@@ -7100,9 +7077,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     })}
                   </div>
                   <div className="p-4 space-y-3">
-                    <input value={tipoMunicaoCustom} onChange={e => setTipoMunicaoCustom(e.target.value)}
+                    <CampoTexto value={tipoMunicaoCustom} onChange={e => setTipoMunicaoCustom(e.target.value)}
                       placeholder="Outro calibre (ex.: .454 Casull, 6,8 SPC…)"
-                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] text-[#26221b] caret-[#26221b] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
                     <div className="grid grid-cols-2 gap-2">
                       <button type="button" onClick={() => setTipoMunicaoPickerOpen(false)}
                         className="rounded-xl border border-[#d3c4a8] bg-[#ece6da] py-3 text-sm font-bold text-[#6b5838]">Cancelar</button>
@@ -7216,10 +7193,10 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     })}
                   </div>
                   <div className="p-4 space-y-3">
-                    <input value={tipoMunicaoCustom} onChange={e => setTipoMunicaoCustom(e.target.value)}
+                    <CampoTexto value={tipoMunicaoCustom} onChange={e => setTipoMunicaoCustom(e.target.value)}
                       inputMode="numeric"
                       placeholder="Outra quantidade (ex.: 15)"
-                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] text-[#26221b] caret-[#26221b] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
                     <div className="grid grid-cols-2 gap-2">
                       <button type="button" onClick={() => setQtdMunicaoPickerOpen(false)}
                         className="rounded-xl border border-[#d3c4a8] bg-[#ece6da] py-3 text-sm font-bold text-[#6b5838]">Cancelar</button>
@@ -7628,9 +7605,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     })}
                   </div>
                   <div className="p-4 space-y-3">
-                    <input value={tipoMunicaoCustom} onChange={e => setTipoMunicaoCustom(e.target.value)}
+                    <CampoTexto value={tipoMunicaoCustom} onChange={e => setTipoMunicaoCustom(e.target.value)}
                       inputMode="numeric" placeholder="Outra quantidade"
-                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] text-[#26221b] caret-[#26221b] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
                     <div className="grid grid-cols-2 gap-2">
                       <button type="button" onClick={() => setColetaQtdProjeteisPicker(false)}
                         className="rounded-xl border border-[#d3c4a8] bg-[#ece6da] py-3 text-sm font-bold text-[#6b5838]">Cancelar</button>
@@ -7675,9 +7652,9 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     })}
                   </div>
                   <div className="p-4 space-y-3">
-                    <input value={tipoMunicaoCustom} onChange={e => setTipoMunicaoCustom(e.target.value)}
+                    <CampoTexto value={tipoMunicaoCustom} onChange={e => setTipoMunicaoCustom(e.target.value)}
                       inputMode="numeric" placeholder="Outra quantidade"
-                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] text-[#26221b] caret-[#26221b] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
                     <div className="grid grid-cols-2 gap-2">
                       <button type="button" onClick={() => setColetaQtdEstojosPicker(false)}
                         className="rounded-xl border border-[#d3c4a8] bg-[#ece6da] py-3 text-sm font-bold text-[#6b5838]">Cancelar</button>
@@ -7852,6 +7829,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           acabamentoPickerOpen={acabamentoPickerOpen}
           tipoPolvoraPickerOpen={tipoPolvoraPickerOpen}
           tipoEspoletaPickerOpen={tipoEspoletaPickerOpen}
+          eixoPickerCampo={eixoPickerCampo}
+          sentidoCanoIdx={sentidoCanoIdx}
           onClose={(picker) => {
             const setters: Record<string, (v: boolean) => void> = {
               material: setMaterialPickerOpen, formato: setFormatoPickerOpen, mira: setMiraPickerOpen,
@@ -7864,6 +7843,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
               materialCoronha: setMaterialCoronhaPickerOpen, materialQuadro: setMaterialQuadroPickerOpen,
               acabamento: setAcabamentoPickerOpen, tipoPolvora: setTipoPolvoraPickerOpen,
               tipoEspoleta: setTipoEspoletaPickerOpen,
+              // Picker genérico dos eixos: fecha zerando o campo aberto.
+              eixo: () => setEixoPickerCampo(null),
             };
             setters[picker]?.(false)
           }}
@@ -7921,13 +7902,107 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   <div className="mt-3 border-t border-[#e8dfc8] pt-3">
                     <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Outro (digitar)</label>
                     <div className="flex gap-2">
-                      <input value={numRaiasCustom} onChange={e => setNumRaiasCustom(e.target.value)}
+                      <CampoTexto value={numRaiasCustom} onChange={e => setNumRaiasCustom(e.target.value)}
                         placeholder="Ex.: 16, poligonal…"
-                        className="h-11 flex-1 rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                        className="h-11 flex-1 rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] text-[#26221b] caret-[#26221b] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
                       <button type="button"
                         onClick={() => { if (numRaiasCustom.trim()) { setWeaponDirect("numEstrias", numRaiasCustom.trim()); setNumRaiasCustom(""); setNumRaiasPickerOpen(false) } }}
                         className="shrink-0 rounded-xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-5 text-[13px] font-black text-[#f0d08a]">OK</button>
                     </div>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Picker: Número de canos (alma híbrida) — mesmo padrão do Calibre ── */}
+        <AnimatePresence>
+          {numCanosPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setNumCanosPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6"
+                initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
+                transition={{ type: "spring", damping: 28, stiffness: 320 }}>
+                <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
+                  <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4">
+                    <div className="text-base font-black text-[#f0d08a]">Número de canos</div>
+                    <div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione ou digite abaixo</div>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {["1","2","3","4","5","6"].map(opt => {
+                      const sel = activeWeapon?.numCanos === opt
+                      return (
+                        <button key={opt} type="button"
+                          onClick={() => { setWeaponDirect("numCanos", opt); setNumCanosPickerOpen(false) }}
+                          className={`flex w-full items-center gap-3 border-b border-[#ede3ce] px-5 py-3.5 text-left transition active:bg-[#f0e8d0] ${sel ? "bg-[#f0e8d0]" : "bg-white"}`}>
+                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e]"}`}>
+                            {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                          </span>
+                          <span className={`text-[14px] font-bold ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{opt} cano{opt === "1" ? "" : "s"}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="p-4 space-y-3">
+                    <CampoTexto value={numCanosCustom} onChange={e => setNumCanosCustom(e.target.value)} inputMode="numeric"
+                      placeholder="Outro (digitar) — ex.: 7"
+                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] text-[#26221b] caret-[#26221b] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setNumCanosPickerOpen(false)}
+                        className="rounded-xl border border-[#d3c4a8] bg-[#ece6da] py-3 text-sm font-bold text-[#6b5838]">Cancelar</button>
+                      <button type="button" onClick={() => { if (numCanosCustom.trim()) { setWeaponDirect("numCanos", numCanosCustom.trim()); setNumCanosCustom("") } setNumCanosPickerOpen(false) }}
+                        className="rounded-xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-3 text-sm font-black text-[#f0d08a]">Confirmar</button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Picker: Disposição dos canos (espingarda, 2+ canos) ── */}
+        <AnimatePresence>
+          {disposicaoCanosPickerOpen && (
+            <>
+              <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setDisposicaoCanosPickerOpen(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6"
+                initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
+                transition={{ type: "spring", damping: 28, stiffness: 320 }}>
+                <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
+                  <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4">
+                    <div className="text-base font-black text-[#f0d08a]">Disposição dos canos</div>
+                    <div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione</div>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto">
+                    {([
+                      ["Justaposto",   "lado a lado"],
+                      ["Sobreposto",   "um sobre o outro"],
+                      ["Indeterminado",""],
+                    ] as [string, string][]).map(([v, hint]) => {
+                      const sel = activeWeapon?.disposicaoCanos === v
+                      return (
+                        <button key={v} type="button"
+                          onClick={() => { setWeaponDirect("disposicaoCanos", sel ? "" : v); setDisposicaoCanosPickerOpen(false) }}
+                          className={`flex w-full items-center gap-3 border-b border-[#ede3ce] px-5 py-3.5 text-left transition active:bg-[#f0e8d0] ${sel ? "bg-[#f0e8d0]" : "bg-white"}`}>
+                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e]"}`}>
+                            {sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white"/></svg>}
+                          </span>
+                          <span className="min-w-0">
+                            <span className={`block text-[14px] font-bold ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{v}</span>
+                            {hint && <span className="block text-[12px] text-[#9e8255]">{hint}</span>}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="p-4">
+                    <button type="button" onClick={() => setDisposicaoCanosPickerOpen(false)}
+                      className="w-full rounded-xl border border-[#d3c4a8] bg-[#ece6da] py-3 text-sm font-bold text-[#6b5838]">Fechar</button>
                   </div>
                 </div>
               </motion.div>
@@ -7959,7 +8034,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   <p className="mt-2 text-[11px] text-[#8d7854]">Registra tambor extra apreendido. Não altera o calibre nominal da arma.</p>
                   <div className="mt-3">
                     <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Quantidade de tambores</label>
-                    <input
+                    <CampoTexto
                       type="number"
                       min="1"
                       value={activeWeapon?.tamborSobressalenteQtd ?? ""}
@@ -8035,7 +8110,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     <div>
                       <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Quantidade</label>
-                      <input
+                      <CampoTexto
                         type="number"
                         min="1"
                         value={activeWeapon?.canoSobressalenteQtd ?? ""}
@@ -8046,7 +8121,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                     <div>
                       <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Comprimento</label>
-                      <input
+                      <CampoTexto
                         value={activeWeapon?.canoSobressalenteComp ?? ""}
                         onChange={handleWeaponField("canoSobressalenteComp" as keyof Omit<WeaponEntry,"type">)}
                         className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
@@ -8055,7 +8130,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                     <div>
                       <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Material</label>
-                      <input
+                      <CampoTexto
                         value={activeWeapon?.canoSobressalenteMaterial ?? ""}
                         onChange={handleWeaponField("canoSobressalenteMaterial" as keyof Omit<WeaponEntry,"type">)}
                         className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
@@ -8064,7 +8139,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                     </div>
                     <div>
                       <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.16em] text-[#8d7854]">Acabamento</label>
-                      <input
+                      <CampoTexto
                         value={activeWeapon?.canoSobressalenteAcabamento ?? ""}
                         onChange={handleWeaponField("canoSobressalenteAcabamento" as keyof Omit<WeaponEntry,"type">)}
                         className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
@@ -8243,7 +8318,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   </button>
                   {fabricanteOutro && (
                     <div className="pb-4 pt-3 space-y-2">
-                      <input autoFocus value={fabricanteCustom} onChange={e => setFabricanteCustom(e.target.value)}
+                      <CampoTexto autoFocus value={fabricanteCustom} onChange={e => setFabricanteCustom(e.target.value)}
                         className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                         placeholder="Digite o fabricante…" />
                       <button type="button" disabled={!fabricanteCustom.trim()}
@@ -8318,7 +8393,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   </button>
                   {fabricanteOutro && (
                     <div className="pb-4 pt-3 space-y-2">
-                      <input autoFocus value={fabricanteCustom} onChange={e => setFabricanteCustom(e.target.value)}
+                      <CampoTexto autoFocus value={fabricanteCustom} onChange={e => setFabricanteCustom(e.target.value)}
                         className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                         placeholder="Digite o fabricante…" />
                       <button type="button" disabled={!fabricanteCustom.trim()}
@@ -8465,7 +8540,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </button>
                       {catalogoModeloOutro && (
                         <div className="pb-4 pt-3 space-y-2">
-                          <input autoFocus value={catalogoModeloCustomInput} onChange={e => setCatalogoModeloCustomInput(e.target.value)}
+                          <CampoTexto autoFocus value={catalogoModeloCustomInput} onChange={e => setCatalogoModeloCustomInput(e.target.value)}
                             className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[15px] text-[#26221b] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35"
                             placeholder="Digite o modelo…" />
                           <button type="button" disabled={!catalogoModeloCustomInput.trim()}

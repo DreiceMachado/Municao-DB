@@ -61,6 +61,11 @@ export type PercussaoTransmissao = "Direta" | "Indireta" | "Não aplicável" | "
 export type PercussaoMecanismo =
   | "Cão (hammer-fired)"
   | "Percussor lançado (striker-fired)"
+  // Metralhadoras (pesquisa de ficha técnica): não usam cão nem striker de pistola.
+  // Percutor fixo: pino solidário à face do ferrolho (MAG, KPV, Lewis). Acionado:
+  // pino separado disparado pelo porta-ferrolho/came ao travar (a maioria).
+  | "Percutor fixo (no ferrolho)"
+  | "Percutor acionado"
   | "Não aplicável"
   | "Indeterminado"
 
@@ -77,6 +82,10 @@ export type PercussaoMecanismo =
 export type AlimentacaoTipo =
   | "Depósito fixo"
   | "Carregador removível"
+  // Cinta/fita de munição: nem depósito fixo nem carregador removível — é o
+  // terceiro modo de alimentação, típico de metralhadoras. O diagrama não o
+  // prevê; a realidade exige (pesquisa de ficha técnica das 53 metralhadoras).
+  | "Alimentação por cinta/fita"
   | "Não aplicável"
   | "Indeterminado"
 
@@ -356,6 +365,19 @@ const MARCAS_PERCUSSOR = ["percutor", "percussor", "percursor", "striker"]
 // fichas (garruchas e espingardas de dois canos), e "cães"→"caes" não contém "cao".
 const MARCAS_CAO = ["cao", "caes", "hammer"]
 
+// Marcadores por FRONTEIRA DE PALAVRA, não substring. "cao" solto casaria
+// "ignicao" (de "ignição por pederneira") e classificaria a pederneira como Cão —
+// o bug que motivou isto. \bcao\b só casa "cao" como palavra inteira.
+const RE_CAO = new RegExp(`\\b(${MARCAS_CAO.join("|")})\\b`)
+const RE_PERCUSSOR = new RegExp(`\\b(${MARCAS_PERCUSSOR.join("|")})\\b`)
+
+// Pederneira/flintlock: ignição por faísca de sílex, não percussão de cartucho.
+// Os eixos de transmissão e percutor não se aplicam a ela.
+function ehPederneira(src: EixosFonte): boolean {
+  const t = normTexto(src.sistemaPercussao) + " " + normTexto(src.sistemaDisparo || src.sistemaAcionamento)
+  return /pederneira|flintlock/.test(t)
+}
+
 function derivarTransmissao(src: EixosFonte, loc: PercussaoLocalizacao): PercussaoTransmissao {
   if (!ehArmaDeFogo(src)) return "Não aplicável"
 
@@ -363,9 +385,12 @@ function derivarTransmissao(src: EixosFonte, loc: PercussaoLocalizacao): Percuss
   if (sp.startsWith("direta")) return "Direta"
   if (sp.startsWith("indireta")) return "Indireta"
 
+  // Pederneira: sílex, não percussão de cartucho.
+  if (ehPederneira(src)) return "Não aplicável"
+
   // Sem ficha: o picker declara striker-fired direto no sistema de acionamento.
   const disparo = normTexto(src.sistemaDisparo || src.sistemaAcionamento)
-  if (MARCAS_PERCUSSOR.some((m) => disparo.includes(m))) return "Direta"
+  if (RE_PERCUSSOR.test(disparo)) return "Direta"
 
   // Antecarga: deliberadamente NÃO derivado. Ver relatório da Etapa 2 — num
   // sistema de espoleta de percussão o cão golpeia a espoleta sem percussor
@@ -379,12 +404,19 @@ function derivarTransmissao(src: EixosFonte, loc: PercussaoLocalizacao): Percuss
 function derivarMecanismo(src: EixosFonte): PercussaoMecanismo {
   if (!ehArmaDeFogo(src)) return "Não aplicável"
 
+  // Pederneira: sílex, sem cão de percussão nem percutor de cartucho.
+  if (ehPederneira(src)) return "Não aplicável"
+
   const sp = normTexto(src.sistemaPercussao)
-  if (MARCAS_CAO.some((m) => sp.includes(m))) return "Cão (hammer-fired)"
-  if (MARCAS_PERCUSSOR.some((m) => sp.includes(m))) return "Percussor lançado (striker-fired)"
+  // "percutor fixo" e "percutor acionado" antes de RE_PERCUSSOR: os dois contêm
+  // "percutor", que casaria como striker. São os mecanismos de metralhadora.
+  if (/percutor fixo|fixo (na face|no ferrolho)/.test(sp)) return "Percutor fixo (no ferrolho)"
+  if (/percutor acionado|\bacionad/.test(sp)) return "Percutor acionado"
+  if (RE_CAO.test(sp)) return "Cão (hammer-fired)"
+  if (RE_PERCUSSOR.test(sp)) return "Percussor lançado (striker-fired)"
 
   const disparo = normTexto(src.sistemaDisparo || src.sistemaAcionamento)
-  if (MARCAS_PERCUSSOR.some((m) => disparo.includes(m))) return "Percussor lançado (striker-fired)"
+  if (RE_PERCUSSOR.test(disparo)) return "Percussor lançado (striker-fired)"
 
   return "Indeterminado"
 }
@@ -443,17 +475,20 @@ function derivarAlimentacao(
       return "Não aplicável"
     }
 
+    // Cinta/fita de munição e tira rígida (feed strip): o terceiro modo. Vem
+    // antes de tudo porque "cinta" não é nem fixo nem removível. As tiras
+    // rígidas do Hotchkiss/Breda são o mesmo conceito (munição em suporte
+    // externo consumível), agrupadas aqui.
+    if (/cinta|fita|tira rigida|feed strip/.test(t)) return "Alimentação por cinta/fita"
+
     if (temRemovivel || /stanag|p-mag/.test(t)) return "Carregador removível"
     if (/tubular|\btubos?\b/.test(t)) return "Depósito fixo"
     if (/interno|integrado fixo|fixo interno/.test(t)) return "Depósito fixo"
     if (/tambor|drum/.test(t)) return "Carregador removível"
-    if (/caixa|reto|curvo|bifilar|monofilar|rotativo|duplo acoplado/.test(t)) {
+    // Prato (pan) e caixa: carregadores removíveis (DP-27, Lewis, Bren, BAR…).
+    if (/prato|\bpan\b|caixa|reto|curvo|bifilar|monofilar|rotativo|duplo acoplado/.test(t)) {
       return "Carregador removível"
     }
-    // LACUNA CONHECIDA: "Cinta / fita de munição" (picker de METRALHADORA) não
-    // é depósito fixo nem carregador removível — é um terceiro modo que o
-    // diagrama não prevê, irmão do "percussor fixo" do eixo 5c. Cai em
-    // Indeterminado de propósito, à espera de decisão.
   }
 
   // Revólver de antecarga (cap-and-ball): tem tambor fixo, mas a ficha não traz

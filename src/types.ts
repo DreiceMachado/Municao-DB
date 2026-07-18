@@ -55,6 +55,15 @@ export type WeaponEntry = {
   caoFuncional: boolean
   gatilhoFuncional: boolean
   seguranca: boolean
+  basculaFunc: boolean          // Garrucha/break-action: báscula abre e trava
+  // Arma de choque (dispositivo elétrico)
+  bateriaPresente: boolean
+  indicadorCargaFunc: boolean
+  lanternaFunc: boolean
+  eletrodosIntegros: boolean
+  arcoEletricoVisivel: boolean
+  emiteSomEstalo: boolean
+  intensidadeCompativel: boolean
   // 4. Estado de conservação
   ferrugem: boolean
   ferrugemObs: string
@@ -99,6 +108,7 @@ export type WeaponEntry = {
   // Armas de fogo
   sistemaAcionamento: string
   tamanhoCamara: string
+  disposicaoCanos: string       // Espingarda: Cano único / Justaposto (lado a lado) / Sobreposto
   tipoRaiamento: string
   materialQuadro: string
   materialCoroha: string
@@ -138,6 +148,9 @@ export type WeaponEntry = {
   formato: string
   numEstrias: string
   sentidoEstrias: string
+  // Alma híbrida/combinada: sentido das raias de CADA cano (índice = cano).
+  // Só usado quando tipoRaiamento é "Híbrida/Combinada".
+  sentidosPorCano: string[]
   diametro: string
   marcacaoExtrator: boolean
   marcacaoEjetor: boolean

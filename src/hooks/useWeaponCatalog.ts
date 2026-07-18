@@ -87,6 +87,9 @@ export function useWeaponCatalog() {
 
       if (ficha.calibre_nominal)     campos.caliber            = ficha.calibre_nominal
       if (ficha.pais_fabricacao)     campos.paisFabricacao     = ficha.pais_fabricacao
+      // O formulário guarda comprimento em MM (a conversão para polegadas no card
+      // divide por 25,4). O catálogo já está normalizado em MM para todos os tipos
+      // (ver memória catalogo_unidade_comprimento), então o valor entra direto.
       if (ficha.comprimento_cano_cm) campos.compCano           = ficha.comprimento_cano_cm
       if (ficha.comprimento_total_cm)campos.compTotal          = ficha.comprimento_total_cm
       // material_armacao = material da ARMAÇÃO (quadro), não do cano. Vai para materialQuadro.
@@ -140,7 +143,8 @@ export function useWeaponCatalog() {
       const preencher = (campo: keyof Omit<WeaponEntry, "type">, valor: string) => {
         if (valor && valor !== "Indeterminado") campos[campo] = valor
       }
-      preencher("almaCano",              eixos.almaCano)
+      // almaCano NÃO é preenchido: eixo 1 é representado por tipoRaiamento (já
+      // preenchido acima). Evita gravar um campo sem controle no formulário.
       preencher("sistemaCarregamento",   eixos.sistemaCarregamento)
       preencher("sistemaFuncionamento",  eixos.sistemaFuncionamento)
       preencher("percussaoLocalizacao",  eixos.percussaoLocalizacao)

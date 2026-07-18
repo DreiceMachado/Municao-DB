@@ -1,14 +1,20 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { ChevronDown } from "lucide-react"
 import { cn } from "../../utils/cn"
 
 type Props = {
   title: string
   children: React.ReactNode
+  // Quando este número muda (e é > 0), o card abre. Usado para expandir os
+  // cards preenchidos ao aplicar a ficha do catálogo (no celular vêm recolhidos).
+  expandSignal?: number
 }
 
-export function CollapsibleCard({ title, children }: Props) {
+export function CollapsibleCard({ title, children, expandSignal }: Props) {
   const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (expandSignal && expandSignal > 0) setOpen(true)
+  }, [expandSignal])
   return (
     <div className="overflow-hidden rounded-2xl border border-[#d5c7aa] bg-[#fbf8f3]">
       <button
