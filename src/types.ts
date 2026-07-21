@@ -112,6 +112,7 @@ export type WeaponEntry = {
   tipoRaiamento: string
   materialQuadro: string
   materialCoroha: string
+  materialTambor: string        // Revólver: material e acabamento do tambor (cilindro)
   // ── Classificação técnica: os 6 eixos do diagrama de arma de fogo ──
   // Eixos ORTOGONAIS: toda arma de fogo tem um valor em cada um, simultaneamente.
   // Não substituem `sistemaAcionamento` nem o WeaponType — convivem com eles.
@@ -225,12 +226,18 @@ export type WeaponEntry = {
   coletaNumero: string
   coletaRepAno: string
   coletaMunicaoTipo: string
+  coletaMunicaoCalibre: string   // calibre da munição utilizada na coleta (ex.: .38 SPL)
   coletaQtdProjeteis: string
   coletaQtdEstojos: string
   coletaTipoProjetil: string
   coletaMaterialProjetil: string
   coletaTipoEstojo: string
   coletaMaterialEstojo: string
+  // Coleta de padrão: listas (permitem mais de um projétil / estojo).
+  coletaProjeteis: { tipo: string; calibre: string; quantidade: string; identificacao: string; descricao: string; dataEntrada: string; lacreSaida: string }[]
+  coletaEstojos: { quantidade: string; material: string; calibre: string; fabricante: string; identificacao: string; descricao: string; dataEntrada: string; lacreSaida: string }[]
+  // Munições da coleta: lista única — cada item é projétil ou estojo (kind).
+  coletaMunicoes: { kind: string; tipo: string; material: string; calibre: string; fabricante: string; quantidade: string; identificacao: string; descricao: string; dataEntrada: string; dataLiberacao: string; lacreEntrada: string; lacreSaida: string }[]
   coletaLacreSaida: string
   coletaSalva: boolean
   // Destinação

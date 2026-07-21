@@ -8,7 +8,7 @@ import { EIXOS_CLASSIFICACAO } from "../data/eixosClassificacaoPicker"
 
 const FIREARMS: WeaponType[] = ["REVÓLVER", "PISTOLA", "PISTOLETE", "GARRUCHA", "ESPINGARDA", "CARABINA", "FUZIL", "METRALHADORA", "SUBMETRALHADORA", "ARMA DE ANTECARGA"]
 
-const sheetClass = "fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+const sheetClass = "fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] sm:max-h-[640px] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-[796px]"
 const backdropClass = "fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
 const sheetAnim = { initial: { y: "100%" }, animate: { y: 0 }, exit: { y: "100%" }, transition: { type: "spring" as const, damping: 28, stiffness: 280 } }
 const backdropAnim = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
@@ -92,6 +92,7 @@ type PickersProps = {
   calibreAntecargaPickerOpen: boolean
   calibreArmaPressaoPickerOpen: boolean
   materialCoronhaPickerOpen: boolean
+  materialTamborPickerOpen: boolean
   materialQuadroPickerOpen: boolean
   acabamentoPickerOpen: boolean
   tipoPolvoraPickerOpen: boolean
@@ -1153,11 +1154,29 @@ export function AllPickers(props: PickersProps) {
           <>
             <motion.div className={backdropClass} {...backdropAnim} onClick={() => close("materialCoronha")} />
             <motion.div className={sheetClass} {...sheetAnim}>
-              <SheetHeader title="Material e acabamento da coronha" onClose={() => close("materialCoronha")} />
+              <SheetHeader title="Material e acabamento da coronha/empunhadura" onClose={() => close("materialCoronha")} />
               <div className="flex-1 overflow-y-auto px-4 pb-8">
                 {ordenarOpcoes(["Madeira","Polímero","Borracha","Metal","Material sintético","Sem coronha","Polímero sintético","Madeira (mogno)","Madeira (faia)","Madeira (carvalho)","Madeira laminada","Fibra de vidro","Fibra de carbono","Metal (dobrável/retrátil)","Plástico reforçado","Borracha / soft-touch","Indeterminado"]).map((opt, idx, arr) => (
                   <PickerItem key={opt} label={opt} selected={weapon.materialCoroha === opt || (!!weapon.materialCoroha && normTxt(weapon.materialCoroha) === normTxt(opt))} last={idx === arr.length - 1}
                     onSelect={() => { setDirect("materialCoroha", weapon.materialCoroha === opt ? "" : opt); close("materialCoronha") }} />
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Material do tambor (revólver) */}
+      <AnimatePresence>
+        {props.materialTamborPickerOpen && (
+          <>
+            <motion.div className={backdropClass} {...backdropAnim} onClick={() => close("materialTambor")} />
+            <motion.div className={sheetClass} {...sheetAnim}>
+              <SheetHeader title="Material e acabamento do tambor" onClose={() => close("materialTambor")} />
+              <div className="flex-1 overflow-y-auto px-4 pb-8">
+                {ordenarOpcoes(["Aço","Aço oxidado","Aço inoxidável","Aço fosfatado","Aço niquelado","Liga de alumínio","Liga metálica","Liga de zinco (Zamak)","Titânio","Polímero","Indeterminado"]).map((opt, idx, arr) => (
+                  <PickerItem key={opt} label={opt} selected={weapon.materialTambor === opt || (!!weapon.materialTambor && normTxt(weapon.materialTambor) === normTxt(opt))} last={idx === arr.length - 1}
+                    onSelect={() => { setDirect("materialTambor", weapon.materialTambor === opt ? "" : opt); close("materialTambor") }} />
                 ))}
               </div>
             </motion.div>

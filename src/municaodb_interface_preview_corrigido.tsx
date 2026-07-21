@@ -59,11 +59,14 @@ import { WeaponFormProvider } from "./context/WeaponFormContext"
 import { AllPickers } from "./components/AllPickers"
 import { mapearRepGdl, type RepGdlData } from "./lib/repMapper"
 import { traduzirPecaParaGdl } from "./lib/gdlNormaliza"
+import { CALIBRES_APP_POR_TIPO } from "./data/gdlAliases"
 import { useWeaponCatalog, useCatalogoBrands, useCatalogoModels, buscarMarcaPorModelo } from "./hooks/useWeaponCatalog"
 import { populateCatalogDb } from "./lib/catalogDb"
 import { useLiveQuery } from "dexie-react-hooks"
 
 const _ARMAS_FOGO_GDL: WeaponType[] = ["REVÓLVER","PISTOLA","PISTOLETE","GARRUCHA","ESPINGARDA","CARABINA","FUZIL","METRALHADORA","SUBMETRALHADORA","ARMA DE ANTECARGA"]
+// Munição em branco (rascunho do formulário de "Adicionar munição" na coleta de padrão).
+const BLANK_MUNICAO = { kind: "projetil", tipo: "", material: "", calibre: "", fabricante: "", quantidade: "", identificacao: "", descricao: "", dataEntrada: "", dataLiberacao: "", lacreEntrada: "", lacreSaida: "" }
 
 // Estado geral da arma é DERIVADO do estado de conservação (não mais escolhido à
 // mão): nada marcado = Bom; ferrugem/desgaste = Regular; danos/peças faltantes =
@@ -109,12 +112,13 @@ function isoParaBr(iso: string): string {
 // Campo de data que SEMPRE exibe DD/MM/AAAA (ex.: 15/04/2026) e abre o calendário
 // nativo por baixo (invisível). Assim o visual é igual no desktop e no celular —
 // o iOS não consegue impor o formato "15 de abr. de 2026" porque o texto é nosso.
-function DateField({ value, onChange, className }: { value: string; onChange: (v: string) => void; className?: string }) {
+function DateField({ value, onChange, className, compact }: { value: string; onChange: (v: string) => void; className?: string; compact?: boolean }) {
+  const h = compact ? "h-10" : "h-14"
   return (
-    <div className={`relative h-14 w-full ${className ?? ""}`}>
-      <div className="pointer-events-none flex h-14 w-full items-center rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-[16px] shadow-sm">
+    <div className={`relative ${h} w-full ${className ?? ""}`}>
+      <div className={`pointer-events-none flex ${h} w-full items-center border border-[#cdbf9e] bg-[#fbf8f2] ${compact ? "rounded-lg px-2 text-[12px]" : "rounded-2xl px-4 text-[16px] shadow-sm"}`}>
         <span className={value ? "font-medium text-[#26221b]" : "text-[#a09070]"}>{value || "DD/MM/AAAA"}</span>
-        <Calendar className="ml-auto h-5 w-5 shrink-0 text-[#b89a58]" />
+        <Calendar className={`ml-auto ${compact ? "h-4 w-4" : "h-5 w-5"} shrink-0 text-[#b89a58]`} />
       </div>
       <CampoTexto
         type="date"
@@ -303,6 +307,12 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [confirmExcluirCard, setConfirmExcluirCard] = useState(false)
   const [repGdlCarregando, setRepGdlCarregando] = useState(false)
   const [repGdlErro, setRepGdlErro] = useState<string | null>(null)
+  // Pesquisa de coleta de padrão no GDL (somente leitura). No GDL a coleta é uma
+  // REP com natureza "COLETA DE PADRÃO", então reaproveitamos /api/rep. Usa o
+  // número do caso digitado ao lado do botão (form.caseNumber + form.examYear).
+  const [coletaBuscaLoading, setColetaBuscaLoading] = useState(false)
+  const [coletaBuscaErro, setColetaBuscaErro] = useState<string | null>(null)
+  const [coletaBuscaResultado, setColetaBuscaResultado] = useState<{ caso: string; total: number; semMatch: number; matches: { pecaLabel: string; criterio: string; coletaNumero: string }[] } | null>(null)
   const [repCarregadaLocal, setRepCarregadaLocal] = useState(false)
   const [sourceImportedRepDbId, setSourceImportedRepDbId] = useState<number | undefined>()
   const [gdlFotos, setGdlFotos] = useState<string[]>([])
@@ -338,6 +348,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [paisPickerOpen, setPaisPickerOpen] = useState(false)
   const [tipoRaiamentoPickerOpen, setTipoRaiamentoPickerOpen] = useState(false)
   const [materialCoronhaPickerOpen, setMaterialCoronhaPickerOpen] = useState(false)
+  const [materialTamborPickerOpen, setMaterialTamborPickerOpen] = useState(false)
   const [materialQuadroPickerOpen, setMaterialQuadroPickerOpen] = useState(false)
   const [tipoPolvoraPickerOpen, setTipoPolvoraPickerOpen] = useState(false)
   const [tipoEspoletaPickerOpen, setTipoEspoletaPickerOpen] = useState(false)
@@ -382,6 +393,18 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
   const [coletaActivePieceIdx, setColetaActivePieceIdx] = useState<number | null>(null)
   const [coletaPhotoUrls, setColetaPhotoUrls] = useState<Map<string, string>>(new Map())
   const [coletaQtdProjeteisPicker, setColetaQtdProjeteisPicker] = useState(false)
+  const [coletaCalibreIdx, setColetaCalibreIdx] = useState<number | null>(null)
+  const [municaoDraft, setMunicaoDraft] = useState<{ kind: string; tipo: string; material: string; calibre: string; fabricante: string; quantidade: string; identificacao: string; descricao: string; dataEntrada: string; dataLiberacao: string; lacreEntrada: string; lacreSaida: string }>(BLANK_MUNICAO)
+  const [municaoEditIdx, setMunicaoEditIdx] = useState<number | null>(null)
+  const [identManual, setIdentManual] = useState(false)  // true = usuário editou a identificação (para de auto-sugerir)
+  const [municaoFormPieceIdx, setMunicaoFormPieceIdx] = useState<number | null>(null)  // peça cujo sheet de adicionar/editar munição está aberto
+  const [confirmDelMunicao, setConfirmDelMunicao] = useState<{ pieceIdx: number; itemIdx: number } | null>(null)
+  const [municaoFabricantePicker, setMunicaoFabricantePicker] = useState(false)
+  const [fabOutroAberto, setFabOutroAberto] = useState(false)
+  const [fabOutroTexto, setFabOutroTexto] = useState("")
+  const [tipoOutroAberto, setTipoOutroAberto] = useState(false)
+  const [municaoQtdPicker, setMunicaoQtdPicker] = useState(false)
+  const [municaoQtdCustom, setMunicaoQtdCustom] = useState("")
   const [coletaQtdEstojosPicker, setColetaQtdEstojosPicker] = useState(false)
   const [coletaTipoProjetilPicker, setColetaTipoProjetilPicker] = useState(false)
   const [coletaMaterialProjetilPicker, setColetaMaterialProjetilPicker] = useState(false)
@@ -401,6 +424,27 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
   const updateColeta = (idx: number, field: keyof WeaponEntry, value: string | boolean) =>
     setSavedPieces(prev => prev.map((p, i) => i === idx ? { ...p, [field]: value } : p))
+
+  // Coleta de padrão — listas de projéteis / estojos (permitem mais de um).
+  type ColetaLista = "coletaProjeteis" | "coletaEstojos" | "coletaMunicoes"
+  const addColetaItem = (idx: number, key: ColetaLista, novo: Record<string, string>) =>
+    setSavedPieces(prev => prev.map((p, i) => i === idx ? { ...p, [key]: [ ...((p[key] as any[]) ?? []), novo ] } : p))
+  const removeColetaItem = (idx: number, key: ColetaLista, itemIdx: number) =>
+    setSavedPieces(prev => prev.map((p, i) => i === idx ? { ...p, [key]: ((p[key] as any[]) ?? []).filter((_, k) => k !== itemIdx) } : p))
+  const updateColetaItem = (idx: number, key: ColetaLista, itemIdx: number, field: string, value: string) =>
+    setSavedPieces(prev => prev.map((p, i) => {
+      if (i !== idx) return p
+      const arr = [ ...((p[key] as any[]) ?? []) ]
+      arr[itemIdx] = { ...arr[itemIdx], [field]: value }
+      return { ...p, [key]: arr }
+    }))
+  const setColetaItemInteiro = (idx: number, key: ColetaLista, itemIdx: number, novo: Record<string, string>) =>
+    setSavedPieces(prev => prev.map((p, i) => {
+      if (i !== idx) return p
+      const arr = [ ...((p[key] as any[]) ?? []) ]
+      arr[itemIdx] = novo
+      return { ...p, [key]: arr }
+    }))
 
   useEffect(() => { setAcessoriosEditando(false) }, [activeWeaponIdx])
   // Ao reabrir (sair do minimizado), o card volta ao formato completo.
@@ -787,7 +831,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
         </button>
       </div>
       <div className="mb-4">
-        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material e acabamento da coronha</label>
+        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material e acabamento da coronha/empunhadura</label>
         <button type="button" onClick={() => setMaterialCoronhaPickerOpen(true)} className={_selMat}>
           <span className={`truncate text-[15px] ${activeWeapon?.materialCoroha ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialCoroha || "Selecionar…"}</span>
           <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
@@ -871,6 +915,188 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
 
   // ── Envia todas as REPs "sincronizadas" para o GDL em lote ─────────────────
 
+  // Busca uma coleta de padrão no GDL pelo número (somente leitura). A coleta é
+  // uma REP de natureza "COLETA DE PADRÃO" — usa o mesmo /api/rep das REPs.
+  const handlePesquisarColeta = async () => {
+    const caso = form.caseNumber.trim()
+    if (!caso) { setColetaBuscaErro("Preencha o número do caso ao lado"); return }
+    setColetaBuscaLoading(true)
+    setColetaBuscaErro(null)
+    setColetaBuscaResultado(null)
+    try {
+      const res = await fetch("/api/gdl/buscar-coleta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caso }),
+      })
+      type ColetaRaw = { numero?: string; cells?: Record<string, string>; rep?: Record<string, string>; pecas?: Record<string, string>[]; gridPecas?: Record<string, string>[] }
+      const dados: { ok?: boolean; caso?: string; coletas?: ColetaRaw[]; erro?: string; detalhe?: string } = await res.json()
+      if (!res.ok || !dados.ok) {
+        setColetaBuscaErro(dados.detalhe ? `${dados.erro}: ${dados.detalhe}` : (dados.erro ?? "Erro desconhecido"))
+        return
+      }
+
+      const norm = (s?: string) => (s ?? "").trim().toLowerCase()
+      // Lê um campo do dict cru da peça (GDL) pelo sufixo do name (ex.: "$txtQtdeColorParts").
+      const campoPeca = (pc: Record<string, string>, suf: string) => {
+        const k = Object.keys(pc).find(kk => kk.endsWith(suf))
+        return k ? (pc[k] ?? "").trim() : ""
+      }
+      const qtdNum = (s: string) => { const n = parseInt((s || "").replace(/\D/g, ""), 10); return isNaN(n) ? 0 : n }
+      // Normaliza cada coleta do GDL. Quantidade = SOMA de txtQtdeColorParts das peças
+      // do tipo (ddlTypeParts) correspondente — não a contagem de peças.
+      const coletas = (dados.coletas ?? []).map((c) => {
+        const rawPecas = c.pecas ?? []
+        const mapped = mapearRepGdl({ rep: c.rep ?? {}, grids: {}, arquivos: [], pecas: rawPecas })
+        const tipoP = (pc: Record<string, string>) => campoPeca(pc, "$ddlTypeParts").toUpperCase()
+        const ehProj = (pc: Record<string, string>) => tipoP(pc).includes("PROJ")
+        const ehEstojo = (pc: Record<string, string>) => tipoP(pc).includes("ESTOJO")
+        const somaQtd = (pred: (pc: Record<string, string>) => boolean) =>
+          rawPecas.filter(pred).reduce((a, pc) => a + qtdNum(campoPeca(pc, "$txtQtdeColorParts")), 0)
+        const pecaMaterial = rawPecas.find(pc => ehProj(pc) || ehEstojo(pc))
+        // Calibre da munição utilizada: peça CARTUCHO(S) → o ddlField com cara de calibre.
+        const pecaCartucho = rawPecas.find(pc => tipoP(pc).includes("CARTUCHO") || tipoP(pc).includes("MUNI"))
+        let calibre = ""
+        if (pecaCartucho) {
+          for (const [k, v] of Object.entries(pecaCartucho)) {
+            if (!/\$ddlField$/.test(k)) continue
+            const val = (v ?? "").trim()
+            if (!val || /^selecione$/i.test(val)) continue
+            if (/^\.?\d/.test(val) || /\bmm\b|\bga\b/i.test(val)) { calibre = val; break }
+          }
+        }
+
+        // Extração por peça (igual ao importar REP): 1 munição por peça de munição da coleta.
+        const MAT_ESTOJO = ["Latão", "Aço", "Aço inoxidável", "Alumínio", "Cobre", "Bimetálico (aço/latão)", "Niquelado", "Polímero / plástico"]
+        const calibreDaPeca = (pc: Record<string, string>) => {
+          for (const [k, v] of Object.entries(pc)) {
+            if (!/\$ddlField$/.test(k)) continue
+            const val = (v ?? "").trim()
+            if (val && !/^selecione$/i.test(val) && (/^\.?\d/.test(val) || /\bmm\b|\bga\b/i.test(val))) return val
+          }
+          return ""
+        }
+        const acharEmLista = (pc: Record<string, string>, lista: string[]) => {
+          for (const [k, v] of Object.entries(pc)) {
+            if (!/\$ddlField$/.test(k)) continue
+            const val = (v ?? "").trim()
+            if (!val) continue
+            const hit = lista.find(o => o === val || o.split(" — ")[0] === val || o.startsWith(val + " "))
+            if (hit) return hit
+          }
+          return ""
+        }
+        const soData = (s: string) => { const m = (s ?? "").match(/\d{2}\/\d{2}\/\d{4}/); return m ? m[0] : "" }
+        const municoes = rawPecas.map((pc, idx) => {
+          const tp = tipoP(pc)
+          const ehArma = /REV|PISTOL|GARRUCHA|ESPINGARDA|CARABINA|FUZIL|METRALHAD|SUBMETRAL|ANTECARGA|CHOQUE|PRESS[ÃA]O/.test(tp)
+          if (ehArma) return null
+          const est = tp.includes("ESTOJO")
+          const mp = mapped.pecas[idx]
+          return {
+            kind: est ? "estojo" : "projetil",
+            tipo: est ? "" : acharEmLista(pc, TIPOS_PROJETIL_CARTUCHO),
+            material: est ? acharEmLista(pc, MAT_ESTOJO) : "",
+            calibre: (mp?.caliber || calibreDaPeca(pc)),
+            fabricante: est ? (mp?.brand || "") : "",
+            quantidade: campoPeca(pc, "$txtQtdeColorParts"),
+            identificacao: campoPeca(pc, "$txtIdentifyParts"),
+            descricao: campoPeca(pc, "$txtQtdeDescColorParts"),
+            dataEntrada: soData(campoPeca(pc, "$txtDtaEntryParts")),
+            dataLiberacao: soData(campoPeca(pc, "$txtDtaLiberationParts")),
+            lacreEntrada: campoPeca(pc, "$txtSealEntryParts"),
+            lacreSaida: campoPeca(pc, "$txtSealExitParts"),
+          }
+        }).filter(Boolean) as { kind: string; tipo: string; material: string; calibre: string; fabricante: string; quantidade: string; identificacao: string; descricao: string; dataEntrada: string; dataLiberacao: string; lacreEntrada: string; lacreSaida: string }[]
+
+        // Extração pela GRADE (robusta — igual ao importar REP): 1 munição por linha.
+        const getCol = (row: Record<string, string>, frag: string) => {
+          const k = Object.keys(row).find(kk => kk.toLowerCase().includes(frag))
+          return k ? (row[k] ?? "").trim() : ""
+        }
+        const calibreDoTexto = (s: string) => (s.match(/\.\d{2,3}\s?[a-zç&]*|\b\d{1,2}\s?mm[^\s,]*|\b\d{2}\s?ga\b/i) || [""])[0].trim()
+        const municoesGrid = (c.gridPecas ?? []).map((row) => {
+          const tipoItem = getCol(row, "tipo").toUpperCase()
+          const ehArma = /REV|PISTOL|GARRUCHA|ESPINGARDA|CARABINA|FUZIL|METRALHAD|SUBMETRAL|ANTECARGA|CHOQUE|PRESS/.test(tipoItem)
+          if (!tipoItem || ehArma) return null
+          const est = tipoItem.includes("ESTOJO")
+          const ident = getCol(row, "identifica")
+          return {
+            kind: est ? "estojo" : "projetil",
+            tipo: "", material: "", fabricante: "",
+            calibre: calibreDoTexto(ident),
+            quantidade: (getCol(row, "quantidade").match(/[\d.,]+/) || [""])[0],
+            identificacao: ident,
+            descricao: getCol(row, "descri"),
+            dataEntrada: soData(getCol(row, "data de entrada")),
+            dataLiberacao: soData(getCol(row, "data de libera")),
+            lacreEntrada: getCol(row, "lacre de entrada"),
+            lacreSaida: getCol(row, "lacre de sa"),
+          }
+        }).filter(Boolean) as typeof municoes
+        // Lacres de todas as peças (edit-form + grade) para o casamento.
+        const lacres = [
+          ...mapped.pecas.map(p => norm(p.lacreEntradaPeca)),
+          ...mapped.pecas.map(p => norm(p.lacreSaidaPeca)),
+          ...(c.gridPecas ?? []).flatMap((row) => [norm(getCol(row, "lacre de sa")), norm(getCol(row, "lacre de entrada"))]),
+        ].filter(Boolean)
+
+        return {
+          numero: (c.numero ?? "").trim(),
+          calibre,
+          municoes: municoesGrid.length ? municoesGrid : municoes,
+          seriais:       mapped.pecas.map(p => norm(p.serial)).filter(Boolean),
+          lacres,
+          qtdProjeteis:  somaQtd(ehProj),
+          qtdEstojos:    somaQtd(ehEstojo),
+        }
+      })
+
+      // Casa cada peça do app com uma coleta: série → lacre de entrada → lacre de
+      // saída (app) × lacre de entrada (coleta). Cada coleta casa com no máx. 1 peça.
+      const usadas = new Set<number>()
+      const matches: { pecaLabel: string; criterio: string; coletaNumero: string }[] = []
+      let primeiroIdx = -1
+      const novasPecas = savedPieces.map((p, i) => {
+        const ps = norm(p.serial), ple = norm(p.lacreEntradaPeca), pls = norm(p.lacreSaidaPeca)
+        let ci = -1, criterio = ""
+        if (ps)            { ci = coletas.findIndex((c, ix) => !usadas.has(ix) && c.seriais.includes(ps)); if (ci >= 0) criterio = "número de série" }
+        if (ci < 0 && ple) { ci = coletas.findIndex((c, ix) => !usadas.has(ix) && c.lacres.includes(ple)); if (ci >= 0) criterio = "lacre de entrada" }
+        if (ci < 0 && pls) { ci = coletas.findIndex((c, ix) => !usadas.has(ix) && c.lacres.includes(pls)); if (ci >= 0) criterio = "lacre de saída" }
+        if (ci < 0) return p
+        usadas.add(ci)
+        const c = coletas[ci]
+        const numDigits = c.numero.replace(/[^0-9]/g, "")
+        const anoMatch = c.numero.match(/\/(\d{4})/)
+        if (primeiroIdx < 0) primeiroIdx = i
+        matches.push({ pecaLabel: p.identificacao || p.serial || `Peça ${i + 1}`, criterio, coletaNumero: c.numero })
+        return {
+          ...p,
+          coletaNumero:         numDigits || p.coletaNumero,
+          coletaRepAno:         anoMatch ? anoMatch[1] : p.coletaRepAno,
+          coletaMunicaoCalibre: c.calibre || p.coletaMunicaoCalibre,
+          coletaLacreSaida:     (c.municoes.find(m => m.lacreSaida)?.lacreSaida) || p.coletaLacreSaida,
+          coletaQtdProjeteis: c.qtdProjeteis ? String(c.qtdProjeteis) : p.coletaQtdProjeteis,
+          coletaQtdEstojos:   c.qtdEstojos ? String(c.qtdEstojos) : p.coletaQtdEstojos,
+          coletaMunicoes: (c.municoes && c.municoes.length)
+            ? c.municoes.map(m => ({ ...m, identificacao: m.identificacao || [m.calibre, m.kind === "estojo" ? m.material : m.tipo, m.quantidade].filter(Boolean).join(" · ") }))
+            : p.coletaMunicoes,
+          coletaSalva:        false,
+        }
+      })
+      if (matches.length > 0) {
+        setSavedPieces(novasPecas)
+        salvarPecas(novasPecas)
+        if (primeiroIdx >= 0) setColetaActivePieceIdx(primeiroIdx)
+      }
+      setColetaBuscaResultado({ caso: dados.caso ?? caso, total: coletas.length, semMatch: coletas.length - usadas.size, matches })
+    } catch (err: any) {
+      setColetaBuscaErro(err?.message ?? "Erro de rede")
+    } finally {
+      setColetaBuscaLoading(false)
+    }
+  }
+
   const handleEnviarTodasAoGdl = async () => {
     const sincronizadas = laudosDB.filter(l => l.repStatus === "sincronizada")
     if (sincronizadas.length === 0) return
@@ -888,13 +1114,26 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
         const numLimpo = (completo.laudo.examNumber || '').replace(/[^0-9]/g, '')
         if (!numLimpo) { erros++; continue }
         const repNumero = `${numLimpo}/${completo.laudo.examYear}`
+
+        // Fotos ainda não enviadas ao GDL deste REP (mesmo payload do envio individual)
+        const fotosNovas = await fotosPendentesGdl(item.id)
+        const fotosPayload = fotosNovas.map((f) => ({
+          nome:   `${f.slotLabel}_${f.localId.slice(0, 8)}`,
+          base64: f.imagemBase64,
+        }))
+
         try {
           const resp = await fetch('/api/gdl/atualizar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rep_numero: repNumero, pecas }),
+            body: JSON.stringify({ rep_numero: repNumero, pecas, fotos: fotosPayload }),
           })
           if (resp.ok) {
+            const data = await resp.json().catch(() => ({} as any))
+            // Marca as fotos como enviadas somente se o GDL as aceitou
+            if (data?.ok && (data?.fotosEnviadas ?? 0) > 0) {
+              await marcarFotosEnviadasGdl(fotosNovas.map((f) => f.localId))
+            }
             await atualizarRepStatus(item.id, "no_gdl")
             ok++
           } else {
@@ -2381,6 +2620,261 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           )}
         </AnimatePresence>
 
+        {/* ── Sheet: Adicionar/editar munição (coleta) ── */}
+        <AnimatePresence>
+          {municaoFormPieceIdx !== null && savedPieces[municaoFormPieceIdx] && (() => {
+            const i = municaoFormPieceIdx
+            const p = savedPieces[i]
+            const draftEstojo = municaoDraft.kind === "estojo"
+            const identSugerida = [municaoDraft.calibre, draftEstojo ? municaoDraft.material : municaoDraft.tipo, municaoDraft.quantidade].filter(Boolean).join(" · ")
+            const identValue = identManual ? municaoDraft.identificacao : identSugerida
+            const inputCls = "h-11 w-full rounded-lg border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-[13px] text-[#26221b] outline-none focus:border-[#9e7f45]"
+            const OUTRO_TIPO = TIPOS_PROJETIL_CARTUCHO.find(o => /^outro/i.test(o)) || "Outro (especificar)"
+            const tipoEhOutro = tipoOutroAberto || (!!municaoDraft.tipo && !TIPOS_PROJETIL_CARTUCHO.includes(municaoDraft.tipo))
+            const fechar = () => { setMunicaoFormPieceIdx(null); setMunicaoEditIdx(null); setMunicaoDraft(BLANK_MUNICAO); setIdentManual(false); setTipoOutroAberto(false) }
+            return (
+              <>
+                <motion.div className="fixed inset-0 z-[150] bg-black/50 backdrop-blur-[2px]"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={fechar} />
+                <motion.div
+                  className="fixed inset-x-0 bottom-0 z-[151] flex max-h-[88vh] sm:max-h-[680px] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-[796px]"
+                  initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                  transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                  <div className="shrink-0 px-5 pb-3 pt-4">
+                    <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                    <div className="flex items-center justify-between">
+                      <div className="text-base font-black uppercase tracking-[0.14em] text-[#50442f]">{municaoEditIdx === null ? "Adicionar munição" : "Editar munição"}</div>
+                      <button type="button" onClick={fechar} className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e8dfc8] text-[#6b5838]"><X className="h-4 w-4" /></button>
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-2.5 overflow-y-auto px-5 pb-8">
+                    <div className="flex rounded-lg border border-[#cdbf9e] bg-white p-0.5">
+                      {(["projetil", "estojo"] as const).map(kd => (
+                        <button key={kd} type="button" onClick={() => setMunicaoDraft(d => ({ ...d, kind: kd }))}
+                          className={cn("flex-1 rounded-md px-2.5 py-2 text-[12px] font-black uppercase tracking-[0.08em] transition", municaoDraft.kind === kd ? "bg-[#1b2947] text-[#f0d08a]" : "text-[#6b5838]")}>
+                          {kd === "projetil" ? "Projétil" : "Estojo"}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {draftEstojo ? (
+                        <select value={municaoDraft.material} onChange={e => setMunicaoDraft(d => ({ ...d, material: e.target.value }))} className={inputCls}>
+                          <option value="">Material…</option>
+                          {["Latão", "Aço", "Aço inoxidável", "Alumínio", "Cobre", "Bimetálico (aço/latão)", "Niquelado", "Polímero / plástico"].map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      ) : (
+                        <select value={tipoEhOutro ? OUTRO_TIPO : municaoDraft.tipo}
+                          onChange={e => { const v = e.target.value; if (/^outro/i.test(v)) { setTipoOutroAberto(true); setMunicaoDraft(d => ({ ...d, tipo: "" })) } else { setTipoOutroAberto(false); setMunicaoDraft(d => ({ ...d, tipo: v })) } }}
+                          className={inputCls}>
+                          <option value="">Tipo…</option>
+                          {TIPOS_PROJETIL_CARTUCHO.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      )}
+                      <select value={municaoDraft.calibre} onChange={e => setMunicaoDraft(d => ({ ...d, calibre: e.target.value }))} className={inputCls}>
+                        <option value="">Calibre…</option>
+                        {(CALIBRES_APP_POR_TIPO[p.type] ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                      <button type="button" onClick={() => { setMunicaoQtdCustom(municaoDraft.quantidade); setMunicaoQtdPicker(true) }}
+                        className="flex h-11 w-full items-center justify-between rounded-lg border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left active:bg-[#f0e8d0]">
+                        <span className={cn("truncate text-[13px]", municaoDraft.quantidade ? "font-medium text-[#26221b]" : "text-[#a09070]")}>{municaoDraft.quantidade || "Qtd…"}</span>
+                        <ChevronRight className="ml-1 h-4 w-4 shrink-0 text-[#b89a58]" />
+                      </button>
+                    </div>
+                    {!draftEstojo && tipoEhOutro && (
+                      <CampoTexto value={municaoDraft.tipo} onChange={e => setMunicaoDraft(d => ({ ...d, tipo: e.target.value }))} placeholder="Digite o tipo do projétil" className={inputCls} />
+                    )}
+                    {draftEstojo && (
+                      <button type="button" onClick={() => { setFabOutroAberto(false); setFabOutroTexto(""); setMunicaoFabricantePicker(true) }}
+                        className="flex h-11 w-full items-center justify-between rounded-lg border border-[#cdbf9e] bg-[#fbf8f2] px-3 text-left active:bg-[#f0e8d0]">
+                        <span className={cn("truncate text-[13px]", municaoDraft.fabricante ? "font-medium text-[#26221b]" : "text-[#a09070]")}>{municaoDraft.fabricante || "Fabricante…"}</span>
+                        <ChevronRight className="ml-1 h-4 w-4 shrink-0 text-[#b89a58]" />
+                      </button>
+                    )}
+                    <CampoTexto value={identValue} onChange={e => { const v = e.target.value; setMunicaoDraft(d => ({ ...d, identificacao: v })); setIdentManual(true) }} placeholder="Identificação" className={inputCls} />
+                    <CampoTexto value={municaoDraft.descricao} onChange={e => setMunicaoDraft(d => ({ ...d, descricao: e.target.value }))} placeholder="Descrição" className={inputCls} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.1em] text-[#9e8255]">Data de entrada</label>
+                        <DateField compact value={municaoDraft.dataEntrada} onChange={v => setMunicaoDraft(d => ({ ...d, dataEntrada: v }))} />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.1em] text-[#9e8255]">Data de liberação</label>
+                        <DateField compact value={municaoDraft.dataLiberacao} onChange={v => setMunicaoDraft(d => ({ ...d, dataLiberacao: v }))} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <CampoTexto value={municaoDraft.lacreEntrada} onChange={e => setMunicaoDraft(d => ({ ...d, lacreEntrada: e.target.value }))} placeholder="Lacre de entrada" className={inputCls} />
+                      <CampoTexto value={municaoDraft.lacreSaida} onChange={e => setMunicaoDraft(d => ({ ...d, lacreSaida: e.target.value }))} placeholder="Lacre de saída" className={inputCls} />
+                    </div>
+                    {municaoEditIdx === null ? (
+                      <button type="button"
+                        onClick={() => { addColetaItem(i, "coletaMunicoes", { ...municaoDraft, identificacao: identValue }); fechar() }}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#1b2947] py-3 text-[13px] font-black uppercase tracking-[0.1em] text-[#f0d08a] active:brightness-110">
+                        <Plus className="h-4 w-4" /> Adicionar munição
+                      </button>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button type="button" onClick={fechar}
+                          className="rounded-xl border border-[#d3c4a8] bg-[#ece6da] py-3 text-[13px] font-black uppercase tracking-[0.1em] text-[#6b5838]">
+                          Cancelar
+                        </button>
+                        <button type="button"
+                          onClick={() => { setColetaItemInteiro(i, "coletaMunicoes", municaoEditIdx, { ...municaoDraft, identificacao: identValue }); fechar() }}
+                          className="rounded-xl bg-[#1b2947] py-3 text-[13px] font-black uppercase tracking-[0.1em] text-[#f0d08a] active:brightness-110">
+                          Salvar alterações
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              </>
+            )
+          })()}
+        </AnimatePresence>
+
+        {/* ── Picker: Quantidade da munição (coleta) — presets + digitar ── */}
+        <AnimatePresence>
+          {municaoQtdPicker && (
+            <>
+              <motion.div className="fixed inset-0 z-[155] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setMunicaoQtdPicker(false)} />
+              <motion.div className="fixed inset-x-0 bottom-0 z-[156] px-4 pb-6 sm:mx-auto sm:max-w-[828px]"
+                initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
+                transition={{ type: "spring", damping: 28, stiffness: 320 }}>
+                <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
+                  <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4">
+                    <div className="text-base font-black text-[#f0d08a]">Quantidade</div>
+                    <div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione ou digite abaixo</div>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto">
+                    {["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "15", "20", "30", "50", "100"].map(n => {
+                      const sel = municaoDraft.quantidade === n
+                      return (
+                        <button key={n} type="button"
+                          onClick={() => { setMunicaoDraft(d => ({ ...d, quantidade: n })); setMunicaoQtdPicker(false) }}
+                          className={`flex w-full items-center gap-3 border-b border-[#ede3ce] px-5 py-3.5 text-left transition active:bg-[#f0e8d0] ${sel ? "bg-[#f0e8d0]" : "bg-white"}`}>
+                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${sel ? "border-[#7d6334] bg-[#7d6334]" : "border-[#cdbf9e]"}`}>{sel && <svg viewBox="0 0 10 10" className="h-2.5 w-2.5"><circle cx="5" cy="5" r="3" fill="white" /></svg>}</span>
+                          <span className={`text-[14px] font-bold ${sel ? "text-[#4b3b21]" : "text-[#26221b]"}`}>{n}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="p-4 space-y-3">
+                    <CampoTexto value={municaoQtdCustom} onChange={e => setMunicaoQtdCustom(e.target.value)}
+                      inputMode="numeric" placeholder="Outra quantidade"
+                      className="h-12 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[14px] text-[#26221b] caret-[#26221b] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setMunicaoQtdPicker(false)}
+                        className="rounded-xl border border-[#d3c4a8] bg-[#ece6da] py-3 text-sm font-bold text-[#6b5838]">Cancelar</button>
+                      <button type="button" onClick={() => { if (municaoQtdCustom.trim()) setMunicaoDraft(d => ({ ...d, quantidade: municaoQtdCustom.trim() })); setMunicaoQtdCustom(""); setMunicaoQtdPicker(false) }}
+                        className="rounded-xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-3 text-sm font-black text-[#f0d08a]">Confirmar</button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Picker: Fabricante da munição (coleta) ── */}
+        <AnimatePresence>
+          {municaoFabricantePicker && (
+            <>
+              <motion.div className="fixed inset-0 z-[155] bg-black/50 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setMunicaoFabricantePicker(false)} />
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[156] flex max-h-[80vh] sm:max-h-[640px] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-[796px]"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                <div className="shrink-0 px-5 pb-3 pt-4">
+                  <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                  <div className="flex items-center justify-between">
+                    <div className="text-base font-black uppercase tracking-[0.14em] text-[#50442f]">Fabricante</div>
+                    <button type="button" onClick={() => setMunicaoFabricantePicker(false)} className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e8dfc8] text-[#6b5838]"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                  {FABRICANTES_MUNICAO.map(fab => {
+                    const isOutro = /^outro$/i.test(fab)
+                    const sel = isOutro ? fabOutroAberto : municaoDraft.fabricante === fab
+                    return (
+                      <div key={fab}>
+                        <button type="button"
+                          onClick={() => {
+                            if (isOutro) {
+                              setFabOutroTexto(municaoDraft.fabricante && !FABRICANTES_MUNICAO.includes(municaoDraft.fabricante) ? municaoDraft.fabricante : "")
+                              setFabOutroAberto(true)
+                            } else {
+                              setMunicaoDraft(d => ({ ...d, fabricante: municaoDraft.fabricante === fab ? "" : fab }))
+                              setFabOutroAberto(false)
+                              setMunicaoFabricantePicker(false)
+                            }
+                          }}
+                          className={cn("flex w-full items-center justify-between border-b border-[#ede3ce] px-3 py-3.5 text-left transition active:bg-[#f0e8d0]", sel ? "bg-[#f0e8d0]" : "")}>
+                          <span className={`text-[15px] ${sel ? "font-bold text-[#4b3b21]" : "text-[#26221b]"}`}>{fab}</span>
+                          {sel && <svg viewBox="0 0 10 10" className="h-3 w-3"><circle cx="5" cy="5" r="4" fill="#7d6334" /></svg>}
+                        </button>
+                        {isOutro && fabOutroAberto && (
+                          <div className="space-y-2 border-b border-[#ede3ce] bg-[#faf6ee] px-3 py-3">
+                            <input autoFocus value={fabOutroTexto} onChange={e => setFabOutroTexto(e.target.value)}
+                              placeholder="Digite o fabricante"
+                              className="h-11 w-full rounded-xl border border-[#cdbf9e] bg-white px-3 text-[15px] text-[#26221b] outline-none focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35" />
+                            <button type="button" disabled={!fabOutroTexto.trim()}
+                              onClick={() => { setMunicaoDraft(d => ({ ...d, fabricante: fabOutroTexto.trim() })); setFabOutroAberto(false); setMunicaoFabricantePicker(false) }}
+                              className="w-full rounded-xl border-2 border-[#f1d58d] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] py-2.5 text-sm font-black uppercase tracking-[0.1em] text-[#f0d08a] disabled:opacity-40">
+                              Confirmar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Confirmar exclusão de munição da coleta ── */}
+        <AnimatePresence>
+          {confirmDelMunicao && (
+            <>
+              <motion.div className="fixed inset-0 z-[155] bg-black/60 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setConfirmDelMunicao(null)} />
+              <motion.div className="fixed inset-0 z-[156] flex items-end justify-center p-4 sm:items-center sm:p-6"
+                initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}>
+                <div className="w-full max-w-xs overflow-hidden rounded-3xl border border-[#e8c0c0] bg-[#f5efe3] shadow-[0_32px_80px_rgba(0,0,0,.55)]">
+                  <div className="bg-[linear-gradient(180deg,#2e1414_0%,#1a0a0a_100%)] px-6 py-5">
+                    <div className="text-xl font-black text-[#ffb3b3]">Excluir munição?</div>
+                    <div className="mt-1 text-xs leading-relaxed text-[#e08080]">Esta munição será removida da coleta de padrão.</div>
+                  </div>
+                  <div className="flex gap-3 p-4">
+                    <button type="button" onClick={() => setConfirmDelMunicao(null)}
+                      className="flex-1 rounded-2xl border border-[#d3c4a8] bg-[#ece6da] py-4 text-sm font-bold uppercase tracking-[0.12em] text-[#6b5838] active:brightness-95">
+                      Cancelar
+                    </button>
+                    <button type="button" onClick={() => {
+                        const alvo = confirmDelMunicao
+                        if (alvo) {
+                          removeColetaItem(alvo.pieceIdx, "coletaMunicoes", alvo.itemIdx)
+                          if (municaoEditIdx === alvo.itemIdx) { setMunicaoEditIdx(null); setMunicaoDraft(BLANK_MUNICAO) }
+                        }
+                        setConfirmDelMunicao(null)
+                      }}
+                      className="flex-1 rounded-2xl border-2 border-[#b03030] bg-[linear-gradient(180deg,#8b2020_0%,#5c1515_100%)] py-4 text-sm font-black uppercase tracking-[0.12em] text-[#ffd4d4] active:brightness-90">
+                      Sim, excluir
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
         {/* ── Bottom Tab Bar (mobile) — oculta quando tela cheia está aberta ── */}
         {!typePickerOpen && !(examType !== null && !repMinimized) && !photosOpen && !profileView && (
           <BottomTabBar active={activeSection} onChange={setActiveSection} />
@@ -2585,18 +3079,50 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       )}
                     </div>
 
-                      {/* Número do caso: aparece só depois de escolher/importar a REP. */}
-                      {form.examNumber.trim() && (
+                      {/* Número do caso + busca de coleta de padrão (sempre visível). */}
                       <div>
                         <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Número do caso</label>
-                        <div className="relative">
-                          <Database className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
-                          <CampoTexto value={form.caseNumber} onChange={handleField("caseNumber")}
-                            placeholder="Ex.: 12345"
-                            className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm" />
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <Database className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8d7854]" />
+                            <CampoTexto value={form.caseNumber} onChange={handleField("caseNumber")}
+                              placeholder="Ex.: 12345"
+                              className="h-14 w-full rounded-2xl border border-[#cdbf9e] bg-[#fbf8f2] pl-10 pr-4 text-[16px] outline-none transition focus:border-[#9e7f45] focus:ring-2 focus:ring-[#dcc17c]/35 shadow-sm" />
+                          </div>
+                          <button type="button"
+                            title="Pesquisar coleta de padrão (usa o número do caso)"
+                            onClick={handlePesquisarColeta}
+                            disabled={coletaBuscaLoading || !form.caseNumber.trim()}
+                            className="flex h-14 shrink-0 items-center justify-center gap-1.5 rounded-2xl border border-[#cdbf9e] bg-[#12213d] px-3 text-[12px] font-black text-[#f0d08a] shadow-sm disabled:opacity-40 active:bg-[#1a2c4f]">
+                            {coletaBuscaLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                            <span className="hidden sm:inline">Coleta de padrão</span>
+                          </button>
                         </div>
+                        {coletaBuscaErro && (
+                          <div className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] font-semibold text-red-600">{coletaBuscaErro}</div>
+                        )}
+                        {coletaBuscaResultado && (
+                          <div className="mt-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">
+                                Coletas · caso {coletaBuscaResultado.caso} · {coletaBuscaResultado.total} encontrada(s) · {coletaBuscaResultado.matches.length} casada(s)
+                              </div>
+                              <button type="button" onClick={() => { setColetaBuscaResultado(null); setColetaBuscaErro(null) }} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8dfc8] text-[#6b5838]"><X className="h-3.5 w-3.5" /></button>
+                            </div>
+                            {coletaBuscaResultado.matches.length === 0 ? (
+                              <div className="rounded-xl border border-[#e8dfc8] bg-white px-3 py-2 text-[13px] text-[#6b5838]">Nenhuma coleta casou com as peças do app (número de série / lacre de entrada / lacre de saída).</div>
+                            ) : coletaBuscaResultado.matches.map((m, idx) => (
+                              <div key={idx} className="rounded-2xl border border-[#1a4a2e]/25 bg-[#f0f7f0] px-4 py-3">
+                                <div className="text-[13px] font-black text-[#1a4a2e]">✓ {m.pecaLabel}</div>
+                                <div className="mt-0.5 text-[12px] text-[#3f5f45]">Coleta {m.coletaNumero} · casou por <b>{m.criterio}</b> · preenchida na peça</div>
+                              </div>
+                            ))}
+                            {coletaBuscaResultado.semMatch > 0 && (
+                              <div className="rounded-xl border border-[#e8dfc8] bg-white px-3 py-2 text-[12px] text-[#6b5838]">{coletaBuscaResultado.semMatch} coleta(s) encontrada(s) sem correspondência com as peças do app.</div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      )}
                     </div>
                   </div>
 
@@ -2674,8 +3200,8 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                             </div>
 
 
-                            {/* ── Coleta de Padrão por peça ── */}
-                            {p.coletaSalva ? (
+                            {/* ── Coleta de Padrão por peça (apenas armas de fogo) ── */}
+                            {_ARMAS_FOGO_GDL.includes(p.type) && (p.coletaSalva ? (
                               /* Estado salvo — card inteiro clicável para editar */
                               <button type="button"
                                 onClick={() => { updateColeta(i, "coletaSalva", false); setColetaActivePieceIdx(i) }}
@@ -2748,6 +3274,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                           ["AMOSTRAGEM", "Amostragem das munições do material"],
                                           ["MISTA",      "Munições do material + munições próprias da unidade"],
                                           ["PROPRIA",    "Apenas munições próprias da unidade"],
+                                          ["INERTE",     "Munição inerte"],
                                         ] as const).map(([val, label]) => {
                                           const sel = p.coletaMunicaoTipo === val
                                           return (
@@ -2766,45 +3293,29 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                       </div>
                                     </div>
 
-                                    {/* Quantidades */}
-                                    <div className="grid grid-cols-2 gap-2">
-                                      <div>
-                                        <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.14em] text-[#8d7854]">Qtd. projéteis</label>
-                                        <button type="button"
-                                          onClick={() => { setColetaActivePieceIdx(i); setTipoMunicaoCustom(p.coletaQtdProjeteis); setColetaQtdProjeteisPicker(true) }}
-                                          className="flex h-11 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-white px-3 text-left active:bg-[#f0e8d0]">
-                                          <span className={`text-[13px] ${p.coletaQtdProjeteis ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>{p.coletaQtdProjeteis || "Selecionar…"}</span>
-                                          <ChevronRight className="h-4 w-4 text-[#b89a58]" />
-                                        </button>
-                                      </div>
-                                      <div>
-                                        <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.14em] text-[#8d7854]">Qtd. estojos</label>
-                                        <button type="button"
-                                          onClick={() => { setColetaActivePieceIdx(i); setTipoMunicaoCustom(p.coletaQtdEstojos); setColetaQtdEstojosPicker(true) }}
-                                          className="flex h-11 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-white px-3 text-left active:bg-[#f0e8d0]">
-                                          <span className={`text-[13px] ${p.coletaQtdEstojos ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>{p.coletaQtdEstojos || "Selecionar…"}</span>
-                                          <ChevronRight className="h-4 w-4 text-[#b89a58]" />
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    {/* Projétil e Estojo — botões sheet */}
-                                    <div className="grid grid-cols-2 gap-2 items-end">
-                                      {([
-                                        ["Tipo do projétil",     p.coletaTipoProjetil,     () => { setColetaActivePieceIdx(i); setColetaTipoProjetilPicker(true) }],
-                                        ["Material do projétil", p.coletaMaterialProjetil, () => { setColetaActivePieceIdx(i); setColetaMaterialProjetilPicker(true) }],
-                                        ["Tipo do estojo",       p.coletaTipoEstojo,       () => { setColetaActivePieceIdx(i); setColetaTipoEstojoPicker(true) }],
-                                        ["Material do estojo",   p.coletaMaterialEstojo,   () => { setColetaActivePieceIdx(i); setColetaMaterialEstojoPicker(true) }],
-                                      ] as [string, string, () => void][]).map(([label, value, open]) => (
-                                        <div key={label} className="flex flex-col">
-                                          <label className="mb-1.5 flex-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#8d7854] leading-tight">{label}</label>
-                                          <button type="button" onClick={open}
-                                            className="flex h-11 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-white px-3 text-left transition active:bg-[#f0e8d0]">
-                                            <span className={`truncate text-[13px] ${value ? "font-medium text-[#26221b]" : "text-[#a09070]"}`}>{value || "Selecionar…"}</span>
-                                            <ChevronRight className="ml-1 h-4 w-4 shrink-0 text-[#b89a58]" />
-                                          </button>
-                                        </div>
-                                      ))}
+                                    {/* Munições padrão — lista + botão que abre a tela de adicionar */}
+                                    <div className="space-y-2">
+                                      <label className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8d7854]">Munições</label>
+                                      {(p.coletaMunicoes ?? []).map((it, k) => {
+                                        const est = it.kind === "estojo"
+                                        const resumo = [est ? "Estojo" : "Projétil", it.calibre, est ? it.material : it.tipo, it.quantidade && `×${it.quantidade}`].filter(Boolean).join(" · ")
+                                        return (
+                                          <div key={k} role="button" tabIndex={0}
+                                            onClick={() => { setMunicaoDraft({ ...BLANK_MUNICAO, ...it }); setMunicaoEditIdx(k); setIdentManual(true); setMunicaoFormPieceIdx(i) }}
+                                            className="flex cursor-pointer items-center justify-between rounded-lg border border-[#e3d6ba] bg-white px-3 py-2 transition active:bg-[#f0e8d0]">
+                                            <span className="min-w-0 truncate text-[12px] font-medium text-[#50442f]">{resumo || (est ? "Estojo" : "Projétil")}</span>
+                                            <div className="ml-2 flex shrink-0 items-center gap-1.5">
+                                              <Pencil className="h-3.5 w-3.5 text-[#c8a96e]" />
+                                              <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmDelMunicao({ pieceIdx: i, itemIdx: k }) }} className="flex h-7 w-7 items-center justify-center rounded-full text-[#c87070] active:bg-[#fdf0f0]"><X className="h-4 w-4" /></button>
+                                            </div>
+                                          </div>
+                                        )
+                                      })}
+                                      <button type="button"
+                                        onClick={() => { setMunicaoDraft(BLANK_MUNICAO); setMunicaoEditIdx(null); setIdentManual(false); setMunicaoFormPieceIdx(i) }}
+                                        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#1b2947] py-2.5 text-[12px] font-black uppercase tracking-[0.1em] text-[#f0d08a] active:brightness-110">
+                                        <Plus className="h-4 w-4" /> Adicionar munição
+                                      </button>
                                     </div>
 
                                     {/* Lacre de saída */}
@@ -2840,7 +3351,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                                   </div>
                                 )}
                               </>
-                            )}
+                            ))}
                           </div>
                         ))}
                       </div>
@@ -3961,6 +4472,13 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   {activeWeapon?.type === "REVÓLVER" && (<>
                     <CollapsibleCard title="Características físicas" expandSignal={fichaExpandSignal}>
                       {renderMateriaisArmaFogo()}
+                      <div className="mb-4">
+                        <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material e acabamento do tambor</label>
+                        <button type="button" onClick={() => setMaterialTamborPickerOpen(true)} className={_selMat}>
+                          <span className={`truncate text-[15px] ${activeWeapon?.materialTambor ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialTambor || "Selecionar…"}</span>
+                          <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-[#b89a58]" />
+                        </button>
+                      </div>
                       {renderRaiamentoCano()}
                       <div className="grid gap-4 md:grid-cols-2">
                         {([
@@ -4079,19 +4597,23 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </CollapsibleCard>
 
                       <CollapsibleCard title="Exame de disparo">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {([
-                            ["aptoDisparo",      "Apto a disparo"],
-                            ["funcMunicaoReal",  "Funcionamento com munição real"],
-                            ["testePercussao",   "Teste de percussão"],
-                            ["marcacaoPercussor","Marcação de percussor"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Apta para disparo</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {([{ v: true, l: "Sim" }, { v: false, l: "Não" }] as { v: boolean; l: string }[]).map(({ v, l }) => {
+                              const sel = activeWeapon?.aptoDisparo === v
+                              return (
+                                <button key={l} type="button"
+                                  onClick={() => setWeaponDirect("aptoDisparo" as any, sel ? null : v)}
+                                  className={`rounded-xl border-2 py-3 text-sm font-black tracking-[0.1em] transition active:scale-[.97] ${
+                                    sel ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                                        : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                                  }`}>
+                                  {l}
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                         <div className="mt-4 border-t border-[#ede3ce] pt-4">
                           <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
@@ -4101,6 +4623,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
                               ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
                               ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                              ["INERTE",     "Munição inerte"],
                             ] as const).map(([val, label]) => {
                               const sel = (activeWeapon as any)?.tipoMunicaoExame === val
                               return (
@@ -4248,20 +4771,23 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </CollapsibleCard>
 
                       <CollapsibleCard title="Exame de disparo">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {([
-                            ["aptoDisparo",       "Apta para disparo"],
-                            ["testePercussao",    "Percussão funcional"],
-                            ["extracaoFuncional", "Extração funcional"],
-                            ["ejacaoFuncional",   "Ejeção funcional"],
-                            ["ciclagemFuncional", "Ciclagem funcional"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Apta para disparo</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {([{ v: true, l: "Sim" }, { v: false, l: "Não" }] as { v: boolean; l: string }[]).map(({ v, l }) => {
+                              const sel = activeWeapon?.aptoDisparo === v
+                              return (
+                                <button key={l} type="button"
+                                  onClick={() => setWeaponDirect("aptoDisparo" as any, sel ? null : v)}
+                                  className={`rounded-xl border-2 py-3 text-sm font-black tracking-[0.1em] transition active:scale-[.97] ${
+                                    sel ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                                        : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                                  }`}>
+                                  {l}
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                         <div className="mt-4 border-t border-[#ede3ce] pt-4">
                           <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
@@ -4271,6 +4797,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
                               ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
                               ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                              ["INERTE",     "Munição inerte"],
                             ] as const).map(([val, label]) => {
                               const sel = (activeWeapon as any)?.tipoMunicaoExame === val
                               return (
@@ -4417,20 +4944,23 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </CollapsibleCard>
 
                       <CollapsibleCard title="Exame de disparo">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {([
-                            ["aptoDisparo",       "Apta para disparo"],
-                            ["testePercussao",    "Percussão funcional"],
-                            ["extracaoFuncional", "Extração funcional"],
-                            ["ejacaoFuncional",   "Ejeção funcional"],
-                            ["ciclagemFuncional", "Ciclagem funcional"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Apta para disparo</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {([{ v: true, l: "Sim" }, { v: false, l: "Não" }] as { v: boolean; l: string }[]).map(({ v, l }) => {
+                              const sel = activeWeapon?.aptoDisparo === v
+                              return (
+                                <button key={l} type="button"
+                                  onClick={() => setWeaponDirect("aptoDisparo" as any, sel ? null : v)}
+                                  className={`rounded-xl border-2 py-3 text-sm font-black tracking-[0.1em] transition active:scale-[.97] ${
+                                    sel ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                                        : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                                  }`}>
+                                  {l}
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                         <div className="mt-4 border-t border-[#ede3ce] pt-4">
                           <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
@@ -4440,6 +4970,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
                               ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
                               ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                              ["INERTE",     "Munição inerte"],
                             ] as const).map(([val, label]) => {
                               const sel = (activeWeapon as any)?.tipoMunicaoExame === val
                               return (
@@ -4583,19 +5114,23 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       </CollapsibleCard>
                       <CollapsibleCard title="Exame de disparo">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {([
-                            ["aptoDisparo",      "Apta para disparo"],
-                            ["testePercussao",   "Percussão funcional"],
-                            ["extracaoFuncional","Extração funcional"],
-                            ["ejacaoFuncional",  "Ejeção funcional"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Apta para disparo</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {([{ v: true, l: "Sim" }, { v: false, l: "Não" }] as { v: boolean; l: string }[]).map(({ v, l }) => {
+                              const sel = activeWeapon?.aptoDisparo === v
+                              return (
+                                <button key={l} type="button"
+                                  onClick={() => setWeaponDirect("aptoDisparo" as any, sel ? null : v)}
+                                  className={`rounded-xl border-2 py-3 text-sm font-black tracking-[0.1em] transition active:scale-[.97] ${
+                                    sel ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                                        : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                                  }`}>
+                                  {l}
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                         <div className="mt-4 border-t border-[#ede3ce] pt-4">
                           <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
@@ -4605,6 +5140,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
                               ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
                               ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                              ["INERTE",     "Munição inerte"],
                             ] as const).map(([val, label]) => {
                               const sel = (activeWeapon as any)?.tipoMunicaoExame === val
                               return (
@@ -4751,20 +5287,23 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       </CollapsibleCard>
                       <CollapsibleCard title="Exame de disparo">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {([
-                            ["aptoDisparo",      "Apto a disparo"],
-                            ["testePercussao",   "Percussão funcional"],
-                            ["extracaoFuncional","Extração funcional"],
-                            ["ejacaoFuncional",  "Ejeção funcional"],
-                            ["ciclagemFuncional","Ciclagem funcional"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Apta para disparo</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {([{ v: true, l: "Sim" }, { v: false, l: "Não" }] as { v: boolean; l: string }[]).map(({ v, l }) => {
+                              const sel = activeWeapon?.aptoDisparo === v
+                              return (
+                                <button key={l} type="button"
+                                  onClick={() => setWeaponDirect("aptoDisparo" as any, sel ? null : v)}
+                                  className={`rounded-xl border-2 py-3 text-sm font-black tracking-[0.1em] transition active:scale-[.97] ${
+                                    sel ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                                        : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                                  }`}>
+                                  {l}
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                         <div className="mt-4 border-t border-[#ede3ce] pt-4">
                           <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
@@ -4774,6 +5313,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
                               ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
                               ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                              ["INERTE",     "Munição inerte"],
                             ] as const).map(([val, label]) => {
                               const sel = (activeWeapon as any)?.tipoMunicaoExame === val
                               return (
@@ -4920,20 +5460,23 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                         </div>
                       </CollapsibleCard>
                       <CollapsibleCard title="Exame de disparo">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {([
-                            ["aptoDisparo",      "Apto a disparo"],
-                            ["testePercussao",   "Percussão funcional"],
-                            ["extracaoFuncional","Extração funcional"],
-                            ["ejacaoFuncional",  "Ejeção funcional"],
-                            ["ciclagemFuncional","Ciclagem funcional"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Apta para disparo</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {([{ v: true, l: "Sim" }, { v: false, l: "Não" }] as { v: boolean; l: string }[]).map(({ v, l }) => {
+                              const sel = activeWeapon?.aptoDisparo === v
+                              return (
+                                <button key={l} type="button"
+                                  onClick={() => setWeaponDirect("aptoDisparo" as any, sel ? null : v)}
+                                  className={`rounded-xl border-2 py-3 text-sm font-black tracking-[0.1em] transition active:scale-[.97] ${
+                                    sel ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                                        : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                                  }`}>
+                                  {l}
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                         <div className="mt-4 border-t border-[#ede3ce] pt-4">
                           <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
@@ -4943,6 +5486,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
                               ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
                               ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                              ["INERTE",     "Munição inerte"],
                             ] as const).map(([val, label]) => {
                               const sel = (activeWeapon as any)?.tipoMunicaoExame === val
                               return (
@@ -5731,20 +6275,23 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </CollapsibleCard>
 
                       <CollapsibleCard title="Exame de disparo">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {([
-                            ["aptoDisparo",      "Apta a disparo"],
-                            ["funcMunicaoReal",  "Funcionamento com munição real"],
-                            ["testePercussao",   "Teste de percussão"],
-                            ["marcacaoPercussor","Marcação de percussor"],
-                            ["extracaoFuncional","Extração funcional"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Apta para disparo</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {([{ v: true, l: "Sim" }, { v: false, l: "Não" }] as { v: boolean; l: string }[]).map(({ v, l }) => {
+                              const sel = activeWeapon?.aptoDisparo === v
+                              return (
+                                <button key={l} type="button"
+                                  onClick={() => setWeaponDirect("aptoDisparo" as any, sel ? null : v)}
+                                  className={`rounded-xl border-2 py-3 text-sm font-black tracking-[0.1em] transition active:scale-[.97] ${
+                                    sel ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                                        : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                                  }`}>
+                                  {l}
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                         <div className="mt-4 border-t border-[#ede3ce] pt-4">
                           <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
@@ -5754,6 +6301,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
                               ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
                               ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                              ["INERTE",     "Munição inerte"],
                             ] as const).map(([val, label]) => {
                               const sel = (activeWeapon as any)?.tipoMunicaoExame === val
                               return (
@@ -5875,20 +6423,23 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </CollapsibleCard>
 
                       <CollapsibleCard title="Exame de disparo">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {([
-                            ["aptoDisparo",          "Produz descarga elétrica no teste"],
-                            ["testePercussao",       "Descarga contínua / eficaz"],
-                            ["arcoEletricoVisivel",  "Arco elétrico visível entre os eletrodos"],
-                            ["emiteSomEstalo",       "Emite estalo / som característico"],
-                            ["intensidadeCompativel","Intensidade compatível com o modelo"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <CampoTexto type="checkbox" checked={(activeWeapon?.[key] === true)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Apta para disparo</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {([{ v: true, l: "Sim" }, { v: false, l: "Não" }] as { v: boolean; l: string }[]).map(({ v, l }) => {
+                              const sel = activeWeapon?.aptoDisparo === v
+                              return (
+                                <button key={l} type="button"
+                                  onClick={() => setWeaponDirect("aptoDisparo" as any, sel ? null : v)}
+                                  className={`rounded-xl border-2 py-3 text-sm font-black tracking-[0.1em] transition active:scale-[.97] ${
+                                    sel ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                                        : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                                  }`}>
+                                  {l}
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                       </CollapsibleCard>
                     </div>
@@ -6515,7 +7066,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                           </button>
                         </div>
                         <div className="mb-4">
-                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material da coronha</label>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Material da coronha/empunhadura</label>
                           <button type="button" onClick={() => setMaterialCoronhaPickerOpen(true)}
                             className="flex h-12 w-full items-center justify-between rounded-xl border border-[#cdbf9e] bg-[#fbf8f2] px-4 text-left transition focus:border-[#9e7f45]">
                             <span className={`truncate text-[15px] ${activeWeapon?.materialCoroha ? "text-[#26221b] font-medium" : "text-[#a09070]"}`}>{activeWeapon?.materialCoroha || "Selecionar material…"}</span>
@@ -6614,18 +7165,23 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                       </CollapsibleCard>
 
                       <CollapsibleCard title="Exame de disparo">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {([
-                            ["aptoDisparo",     "Apta para disparo"],
-                            ["testePercussao",  "Teste de ignição / percussão"],
-                            ["marcacaoPercussor","Marcação de percussor (espoletados)"],
-                          ] as [keyof Omit<WeaponEntry,"type">, string][]).map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-3 text-[15px] font-medium text-[#393025]">
-                              <CampoTexto type="checkbox" checked={((activeWeapon as any)?.[key] === true)} onChange={handleWeaponField(key)}
-                                className="h-4 w-4 rounded border-[#a78a4d] accent-[#7d6334]" />
-                              {label}
-                            </label>
-                          ))}
+                        <div>
+                          <label className="mb-2 block text-sm font-bold uppercase tracking-[0.14em] text-[#6b5838]">Apta para disparo</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {([{ v: true, l: "Sim" }, { v: false, l: "Não" }] as { v: boolean; l: string }[]).map(({ v, l }) => {
+                              const sel = (activeWeapon as any)?.aptoDisparo === v
+                              return (
+                                <button key={l} type="button"
+                                  onClick={() => setWeaponDirect("aptoDisparo" as any, sel ? null : v)}
+                                  className={`rounded-xl border-2 py-3 text-sm font-black tracking-[0.1em] transition active:scale-[.97] ${
+                                    sel ? "border-[#9e7f45] bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] text-[#f0d08a] shadow-md"
+                                        : "border-[#cdbf9e] bg-[#fbf8f2] text-[#6b5838]"
+                                  }`}>
+                                  {l}
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                         <div className="mt-4 border-t border-[#ede3ce] pt-4">
                           <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.18em] text-[#8d7854]">Munições utilizadas no exame</label>
@@ -6635,6 +7191,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                               ["AMOSTRAGEM", "Com uma amostragem das munições que acompanham o material"],
                               ["MISTA",      "Com as munições que acompanham o material e utilização de munições próprias cedidas pela unidade"],
                               ["PROPRIA",    "Apenas com munições próprias cedidas pela unidade"],
+                              ["INERTE",     "Munição inerte"],
                             ] as const).map(([val, label]) => {
                               const sel = (activeWeapon as any)?.tipoMunicaoExame === val
                               return (
@@ -7053,7 +7610,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
               <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setTipoMunicaoPickerOpen(false)} />
-              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6"
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6 sm:mx-auto sm:max-w-[828px]"
                 initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
                 transition={{ type: "spring", damping: 28, stiffness: 320 }}>
                 <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
@@ -7103,7 +7660,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
               <motion.div className="fixed inset-x-0 bottom-0 z-[120] flex items-end justify-center p-4"
                 initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
                 transition={{ type: "spring", damping: 28, stiffness: 300 }}>
-                <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
+                <div className="w-full max-w-sm sm:max-w-[796px] overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
                   <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4">
                     <div className="text-base font-black text-[#f0d08a]">Tipo de peça</div>
                     <div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione o novo tipo</div>
@@ -7169,7 +7726,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
               <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setQtdMunicaoPickerOpen(false)} />
-              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6"
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6 sm:mx-auto sm:max-w-[828px]"
                 initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
                 transition={{ type: "spring", damping: 28, stiffness: 320 }}>
                 <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
@@ -7218,7 +7775,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setAcessorioPickerOpen(false)} />
               <motion.div
-                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] sm:max-h-[640px] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-[796px]"
                 initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 28, stiffness: 280 }}
               >
@@ -7278,7 +7835,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setOrigemAcessorioPickerOpen(false)} />
               <motion.div
-                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] sm:max-h-[640px] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-[796px]"
                 initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 28, stiffness: 280 }}
               >
@@ -7335,7 +7892,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   onClick={() => setMaterialAcessorioPickerOpen(false)} />
                 <motion.div
-                  className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                  className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] sm:max-h-[640px] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-[796px]"
                   initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                   transition={{ type: "spring", damping: 28, stiffness: 280 }}
                 >
@@ -7574,6 +8131,50 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
         </AnimatePresence>
 
 
+        {/* ── Picker: Calibre da munição (coleta) — lista os calibres do tipo da peça ── */}
+        <AnimatePresence>
+          {coletaCalibreIdx !== null && savedPieces[coletaCalibreIdx] && (() => {
+            const idx = coletaCalibreIdx
+            const pc = savedPieces[idx]
+            const lista = CALIBRES_APP_POR_TIPO[pc.type] ?? []
+            return (
+              <>
+                <motion.div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-[2px]"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  onClick={() => setColetaCalibreIdx(null)} />
+                <motion.div
+                  className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] sm:max-h-[640px] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-[796px]"
+                  initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                  transition={{ type: "spring", damping: 28, stiffness: 280 }}>
+                  <div className="shrink-0 px-5 pb-3 pt-4">
+                    <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#c5b08a]" />
+                    <div className="flex items-center justify-between">
+                      <div className="text-base font-black uppercase tracking-[0.14em] text-[#50442f]">Calibre da munição</div>
+                      <button type="button" onClick={() => setColetaCalibreIdx(null)} className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e8dfc8] text-[#6b5838]"><X className="h-4 w-4" /></button>
+                    </div>
+                    <div className="mt-0.5 text-[11px] uppercase tracking-[0.18em] text-[#9e8255]">{pc.type}</div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto px-4 pb-8">
+                    {lista.length === 0 ? (
+                      <div className="px-2 py-3 text-[13px] text-[#6b5838]">Nenhum calibre cadastrado para este tipo de peça.</div>
+                    ) : lista.map((cal) => {
+                      const sel = pc.coletaMunicaoCalibre === cal
+                      return (
+                        <button key={cal} type="button"
+                          onClick={() => { updateColeta(idx, "coletaMunicaoCalibre", sel ? "" : cal); setColetaCalibreIdx(null) }}
+                          className={cn("flex w-full items-center justify-between border-b border-[#ede3ce] px-3 py-3.5 text-left transition active:bg-[#f0e8d0]", sel ? "bg-[#f0e8d0]" : "")}>
+                          <span className={`text-[15px] ${sel ? "font-bold text-[#4b3b21]" : "text-[#26221b]"}`}>{cal}</span>
+                          {sel && <svg viewBox="0 0 10 10" className="h-3 w-3"><circle cx="5" cy="5" r="4" fill="#7d6334" /></svg>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </motion.div>
+              </>
+            )
+          })()}
+        </AnimatePresence>
+
         {/* ── Picker: Qtd. Projéteis (coleta) ── */}
         <AnimatePresence>
           {coletaQtdProjeteisPicker && (
@@ -7581,7 +8182,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
               <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setColetaQtdProjeteisPicker(false)} />
-              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6"
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6 sm:mx-auto sm:max-w-[828px]"
                 initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
                 transition={{ type: "spring", damping: 28, stiffness: 320 }}>
                 <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
@@ -7628,7 +8229,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
               <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setColetaQtdEstojosPicker(false)} />
-              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6"
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6 sm:mx-auto sm:max-w-[828px]"
                 initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
                 transition={{ type: "spring", damping: 28, stiffness: 320 }}>
                 <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
@@ -7673,7 +8274,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           {coletaTipoProjetilPicker && (
             <>
               <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setColetaTipoProjetilPicker(false)} />
-              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6" initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 320 }}>
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6 sm:mx-auto sm:max-w-[828px]" initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 320 }}>
                 <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
                   <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4"><div className="text-base font-black text-[#f0d08a]">Tipo do projétil</div><div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione uma opção</div></div>
                   <div className="overflow-y-auto">
@@ -7697,7 +8298,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           {coletaMaterialProjetilPicker && (
             <>
               <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setColetaMaterialProjetilPicker(false)} />
-              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6" initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 320 }}>
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6 sm:mx-auto sm:max-w-[828px]" initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 320 }}>
                 <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
                   <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4"><div className="text-base font-black text-[#f0d08a]">Material do projétil</div><div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione uma opção</div></div>
                   <div className="overflow-y-auto">
@@ -7721,7 +8322,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           {coletaTipoEstojoPicker && (
             <>
               <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setColetaTipoEstojoPicker(false)} />
-              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6" initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 320 }}>
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6 sm:mx-auto sm:max-w-[828px]" initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 320 }}>
                 <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
                   <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4"><div className="text-base font-black text-[#f0d08a]">Tipo do estojo</div><div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione uma opção</div></div>
                   <div className="overflow-y-auto">
@@ -7745,7 +8346,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           {coletaMaterialEstojoPicker && (
             <>
               <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setColetaMaterialEstojoPicker(false)} />
-              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6" initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 320 }}>
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6 sm:mx-auto sm:max-w-[828px]" initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 320 }}>
                 <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
                   <div className="bg-[linear-gradient(180deg,#1b2947_0%,#12213d_100%)] px-6 py-4"><div className="text-base font-black text-[#f0d08a]">Material do estojo</div><div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#ccb780]">Selecione uma opção</div></div>
                   <div className="overflow-y-auto">
@@ -7798,6 +8399,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           openSistemaAcionamentoPicker: () => setSistemaAcionamentoPickerOpen(true),
           openTipoRaiamentoPicker: () => setTipoRaiamentoPickerOpen(true),
           openMaterialCoronhaPicker: () => setMaterialCoronhaPickerOpen(true),
+          openMaterialTamborPicker: () => setMaterialTamborPickerOpen(true),
           openMaterialQuadroPicker: () => setMaterialQuadroPickerOpen(true),
           openSentidoPicker: () => setSentidoPickerOpen(true),
           openDeformacoesPicker: () => setDeformacoesPickerOpen(true),
@@ -7825,6 +8427,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
           calibreAntecargaPickerOpen={calibreAntecargaPickerOpen}
           calibreArmaPressaoPickerOpen={calibreArmaPressaoPickerOpen}
           materialCoronhaPickerOpen={materialCoronhaPickerOpen}
+          materialTamborPickerOpen={materialTamborPickerOpen}
           materialQuadroPickerOpen={materialQuadroPickerOpen}
           acabamentoPickerOpen={acabamentoPickerOpen}
           tipoPolvoraPickerOpen={tipoPolvoraPickerOpen}
@@ -7840,7 +8443,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
               sistemaAcionamento: setSistemaAcionamentoPickerOpen, pais: setPaisPickerOpen,
               calibre: setCalibrePickerOpen, calibreAntecarga: setCalibreAntecargaPickerOpen,
               calibreArmaPressao: setCalibreArmaPressaoPickerOpen,
-              materialCoronha: setMaterialCoronhaPickerOpen, materialQuadro: setMaterialQuadroPickerOpen,
+              materialCoronha: setMaterialCoronhaPickerOpen, materialTambor: setMaterialTamborPickerOpen, materialQuadro: setMaterialQuadroPickerOpen,
               acabamento: setAcabamentoPickerOpen, tipoPolvora: setTipoPolvoraPickerOpen,
               tipoEspoleta: setTipoEspoletaPickerOpen,
               // Picker genérico dos eixos: fecha zerando o campo aberto.
@@ -7858,7 +8461,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setNumRaiasPickerOpen(false)} />
               <motion.div
-                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-md"
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] sm:max-h-[640px] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-[796px]"
                 initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 28, stiffness: 280 }}
               >
@@ -7923,7 +8526,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
               <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setNumCanosPickerOpen(false)} />
-              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6"
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6 sm:mx-auto sm:max-w-[828px]"
                 initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
                 transition={{ type: "spring", damping: 28, stiffness: 320 }}>
                 <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
@@ -7970,7 +8573,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
               <motion.div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[2px]"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setDisposicaoCanosPickerOpen(false)} />
-              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6"
+              <motion.div className="fixed inset-x-0 bottom-0 z-[120] px-4 pb-6 sm:mx-auto sm:max-w-[828px]"
                 initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
                 transition={{ type: "spring", damping: 28, stiffness: 320 }}>
                 <div className="overflow-hidden rounded-3xl border border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.4)]">
@@ -8018,7 +8621,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setTamborPickerOpen(false)} />
               <motion.div
-                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[80vh] sm:max-h-[640px] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-[796px]"
                 initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 28, stiffness: 280 }}
               >
@@ -8093,7 +8696,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setCanoSobresPickerOpen(false)} />
               <motion.div
-                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[85vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[85vh] sm:max-h-[640px] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-[796px]"
                 initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 28, stiffness: 280 }}
               >
@@ -8270,7 +8873,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                 onClick={() => setCatalogoMarcaPickerOpen(false)}
               />
               <motion.div
-                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[85vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[85vh] sm:max-h-[640px] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-[796px]"
                 initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 28, stiffness: 280 }}
               >
@@ -8344,7 +8947,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                 onClick={() => setFabricanteMunicaoPickerOpen(false)}
               />
               <motion.div
-                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[85vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[85vh] sm:max-h-[640px] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-[796px]"
                 initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 28, stiffness: 280 }}
               >
@@ -8419,7 +9022,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                 onClick={() => setTipoCartuchoPickerOpen(false)}
               />
               <motion.div
-                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[85vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[85vh] sm:max-h-[640px] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-[796px]"
                 initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 28, stiffness: 280 }}
               >
@@ -8467,7 +9070,7 @@ export default function BalísticaDBInterfacePreview({ onLogout }: { onLogout: (
                 onClick={() => setCatalogoModeloPickerOpen(false)}
               />
               <motion.div
-                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[85vh] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)]"
+                className="fixed inset-x-0 bottom-0 z-[150] flex max-h-[85vh] sm:max-h-[640px] flex-col rounded-t-3xl border-t border-[#cab88f] bg-[#f5efe3] shadow-[0_-8px_40px_rgba(0,0,0,.35)] sm:mx-auto sm:max-w-[796px]"
                 initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 28, stiffness: 280 }}
               >

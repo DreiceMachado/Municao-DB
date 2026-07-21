@@ -113,6 +113,11 @@ export function detalhePayload(
         tipo_raiamento:      s(d.tipoRaiamento),
         material_quadro:     s(d.materialQuadro),
         material_coronha:    s(d.materialCoroha),
+        // material_tambor (revólver): NÃO enviar até rodar
+        // supabase/migration_material_tambor.sql — coluna inexistente derruba o
+        // upsert INTEIRO da peça. Já é gravado no Dexie local e exibido no laudo.
+        // Após rodar a migration, descomentar a linha abaixo:
+        // material_tambor:     s(d.materialTambor),
         sistema_acionamento: s(d.sistemaAcionamento),
         tipo_mira:           arr(d.tipoMira),
         tipo_carregador:     arr(d.tipoCarregador),

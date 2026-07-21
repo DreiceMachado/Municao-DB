@@ -200,7 +200,8 @@ function PecaDetalhe({ d, fotos }: { d: WeaponEntry; fotos: FotoLocal[] }) {
           {str(d.tamanhoCamara)        && <InfoRow label="Câmara"          value={d.tamanhoCamara} />}
           {str(d.disposicaoCanos)      && <InfoRow label="Disposição canos" value={d.disposicaoCanos} />}
           {str(d.materialQuadro)       && <InfoRow label="Mat. quadro"     value={d.materialQuadro} />}
-          {str(d.materialCoroha)       && <InfoRow label="Mat. coronha"    value={d.materialCoroha} />}
+          {str(d.materialCoroha)       && <InfoRow label="Mat. coronha/empunhadura" value={d.materialCoroha} />}
+          {str(d.materialTambor)       && <InfoRow label="Mat. tambor"      value={d.materialTambor} />}
           {d.tipoMira?.length > 0      && <InfoRow label="Tipo mira"       value={d.tipoMira.join(", ")} />}
           {d.tipoCarregador?.length > 0 && <InfoRow label="Carregador"     value={d.tipoCarregador.join(", ")} />}
           {isPressao && boolUsed(d.adaptadaArmaFogo) && (

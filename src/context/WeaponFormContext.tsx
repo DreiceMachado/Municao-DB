@@ -19,6 +19,7 @@ export type WeaponFormContextValue = {
   openSistemaAcionamentoPicker: () => void
   openTipoRaiamentoPicker: () => void
   openMaterialCoronhaPicker: () => void
+  openMaterialTamborPicker: () => void
   openMaterialQuadroPicker: () => void
   openSentidoPicker: () => void
   openDeformacoesPicker: () => void

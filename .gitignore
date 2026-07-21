@@ -2,3 +2,8 @@ node_modules
 dist
 .env
 .vscode
+
+# Automação GDL: código versionado, mas dumps e cache não
+__pycache__/
+AutomaçãoREP/dados/
+AutomaçãoREP/__pycache__/

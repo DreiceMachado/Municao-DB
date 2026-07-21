@@ -317,6 +317,28 @@ app.post('/api/gdl/importar-designadas', async (_req, res) => {
   return res.json(resultado)
 })
 
+// ── Pesquisar coleta de padrão (natureza B603) por número do caso no GDL ──────
+app.post('/api/gdl/buscar-coleta', async (req, res) => {
+  const { caso } = req.body ?? {}
+  const casoSeguro = (caso ?? '').toString().trim().replace(/[^0-9]/g, '')
+  if (!casoSeguro) {
+    return res.status(400).json({ ok: false, erro: 'Informe o número do caso' })
+  }
+  try {
+    await execFileAsync(PYTHON, ['-X', 'utf8', 'main.py', '--buscar-coleta', casoSeguro], {
+      ...baseOpts(),
+      timeout: 300_000, // 5 min
+    })
+  } catch (err) {
+    const detalhe = err.stdout || err.stderr || err.message
+    return res.status(500).json({ ok: false, erro: 'Falha ao pesquisar coleta no GDL', detalhe })
+  }
+
+  const resultado = lerUltimoJson('buscar_coleta')
+  if (!resultado) return res.status(500).json({ ok: false, erro: 'Resultado não gerado' })
+  return res.json(resultado)
+})
+
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`[API] Servidor rodando em http://127.0.0.1:${PORT}`)
 })
